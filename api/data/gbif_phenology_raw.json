@@ -1,0 +1,206 @@
+{
+  "Boletus edulis": {
+    "cz_name": "Hřib smrkový",
+    "gbif_key": 5954958,
+    "cz_occurrence_count": 516,
+    "month_counts": {
+      "9": 177,
+      "10": 134,
+      "8": 110,
+      "7": 49,
+      "6": 19,
+      "11": 17,
+      "12": 2,
+      "5": 1
+    }
+  },
+  "Boletus reticulatus": {
+    "cz_name": "Hřib dubový",
+    "gbif_key": 5954691,
+    "cz_occurrence_count": 114,
+    "month_counts": {
+      "6": 43,
+      "7": 24,
+      "8": 19,
+      "9": 14,
+      "10": 7,
+      "5": 4,
+      "11": 1,
+      "12": 1
+    }
+  },
+  "Leccinum scabrum": {
+    "cz_name": "Kozák březový",
+    "gbif_key": 9141390,
+    "cz_occurrence_count": 115,
+    "month_counts": {
+      "9": 50,
+      "10": 24,
+      "8": 16,
+      "7": 8,
+      "6": 6,
+      "11": 3,
+      "5": 1
+    }
+  },
+  "Leccinum versipelle": {
+    "cz_name": "Křemenáč březový",
+    "gbif_key": 2524490,
+    "cz_occurrence_count": 30,
+    "month_counts": {
+      "9": 12,
+      "8": 6,
+      "6": 5,
+      "10": 4,
+      "7": 2,
+      "5": 1
+    }
+  },
+  "Cantharellus cibarius": {
+    "cz_name": "Liška obecná",
+    "gbif_key": 5249504,
+    "cz_occurrence_count": 153,
+    "month_counts": {
+      "8": 43,
+      "7": 41,
+      "9": 24,
+      "6": 13,
+      "10": 11,
+      "12": 4,
+      "11": 3,
+      "1": 2
+    }
+  },
+  "Macrolepiota procera": {
+    "cz_name": "Bedla vysoká",
+    "gbif_key": 8914748,
+    "cz_occurrence_count": 540,
+    "month_counts": {
+      "9": 168,
+      "10": 147,
+      "8": 128,
+      "7": 36,
+      "11": 25,
+      "6": 21,
+      "1": 3,
+      "5": 3
+    }
+  },
+  "Suillus luteus": {
+    "cz_name": "Klouzek slizký",
+    "gbif_key": 7777157,
+    "cz_occurrence_count": 51,
+    "month_counts": {
+      "10": 24,
+      "9": 19,
+      "8": 4,
+      "11": 3,
+      "7": 1
+    }
+  },
+  "Suillus granulatus": {
+    "cz_name": "Klouzek zrnitý",
+    "gbif_key": 8146046,
+    "cz_occurrence_count": 39,
+    "month_counts": {
+      "9": 17,
+      "10": 7,
+      "8": 6,
+      "7": 4,
+      "6": 2,
+      "11": 2
+    }
+  },
+  "Sparassis crispa": {
+    "cz_name": "Kotrč kadeřavý",
+    "gbif_key": 2550247,
+    "cz_occurrence_count": 171,
+    "month_counts": {
+      "9": 62,
+      "8": 53,
+      "10": 38,
+      "7": 9,
+      "11": 3,
+      "5": 1,
+      "12": 1
+    }
+  },
+  "Lactarius deterrimus": {
+    "cz_name": "Ryzec smrkový",
+    "gbif_key": 7925734,
+    "cz_occurrence_count": 71,
+    "month_counts": {
+      "10": 29,
+      "9": 22,
+      "8": 11,
+      "11": 5,
+      "2": 2,
+      "7": 1,
+      "12": 1
+    }
+  },
+  "Russula aeruginea": {
+    "cz_name": "Holubinka nazelenalá",
+    "gbif_key": 2551173,
+    "cz_occurrence_count": 14,
+    "month_counts": {
+      "9": 6,
+      "10": 3,
+      "8": 2,
+      "6": 1,
+      "7": 1
+    }
+  },
+  "Amanita rubescens": {
+    "cz_name": "Muchomůrka růžovka",
+    "gbif_key": 7496350,
+    "cz_occurrence_count": 574,
+    "month_counts": {
+      "7": 141,
+      "9": 120,
+      "6": 115,
+      "8": 105,
+      "10": 67,
+      "11": 12,
+      "5": 8,
+      "1": 1
+    }
+  },
+  "Leccinum aurantiacum": {
+    "cz_name": "Křemenáč osikový",
+    "gbif_key": 2524513,
+    "cz_occurrence_count": 28,
+    "month_counts": {
+      "9": 11,
+      "8": 7,
+      "10": 4,
+      "11": 3,
+      "7": 2
+    }
+  },
+  "Armillaria mellea": {
+    "cz_name": "Václavka obecná",
+    "gbif_key": 2536891,
+    "cz_occurrence_count": 60,
+    "month_counts": {
+      "10": 32,
+      "9": 8,
+      "6": 6,
+      "11": 2,
+      "1": 1,
+      "8": 1
+    }
+  },
+  "Lepista nuda": {
+    "cz_name": "Čirůvka fialová",
+    "gbif_key": 5242048,
+    "cz_occurrence_count": 51,
+    "month_counts": {
+      "9": 14,
+      "10": 14,
+      "6": 10,
+      "8": 8,
+      "11": 1
+    }
+  }
+}
