@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { fetchWeather } from "./lib/weather";
 import { scoreSpeciesDay, type Species } from "./lib/scoring";
+import { fetchTerrain } from "./lib/terrain";
 import speciesData from "./data/species.json";
 
 /**
@@ -12,6 +13,7 @@ import speciesData from "./data/species.json";
  *   - recent temperature vs species.json temp_range_c
  *   - days since a qualifying rain vs species.json days_after_rain
  *   - actual soil moisture % (Open-Meteo soil_moisture_3_to_9cm)
+ *   - forest composition nearby vs species.json host_trees (OSM/ÚHÚL import)
  *
  * This is what both the map ("what's growing right now") and the atlas
  * ("today's % per species, click in for conditions") should call. The
@@ -28,7 +30,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const days = await fetchWeather(lat, lon);
+    const [days, terrain] = await Promise.all([
+      fetchWeather(lat, lon),
+      fetchTerrain(lat, lon),
+    ]);
     const species = speciesData.species as Species[];
 
     // Only score/output the recent-past + forecast window relevant to the
@@ -46,13 +51,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       model_confidence: sp.model_confidence,
       days: days
         .slice(outputStart)
-        .map((_, offset) => scoreSpeciesDay(days, outputStart + offset, sp)),
+        .map((_, offset) =>
+          scoreSpeciesDay(days, outputStart + offset, sp, terrain)
+        ),
     }));
 
     res.status(200).json({
       location: { lat, lon },
       generated_at: new Date().toISOString(),
       today: todayStr,
+      terrain,
       species: result,
     });
   } catch (err) {

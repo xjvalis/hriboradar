@@ -1,5 +1,6 @@
 import type { DayWeather } from "./weather";
 import { daysSinceRain } from "./weather";
+import { terrainMatchFactor, type TerrainInfo } from "./terrain";
 
 export interface Species {
   id: string;
@@ -29,6 +30,7 @@ export interface DayScore {
     temp: number;
     rain_timing: number;
     moisture: number;
+    terrain: number;
     days_since_rain: number | null;
   };
 }
@@ -64,11 +66,16 @@ function moistureFactor(soilMoisturePct: number, need: string): number {
   return clamp(soilMoisturePct / idealPct, 0, 1);
 }
 
-/** Scores one species for one day in the fetched weather window. */
+/**
+ * Scores one species for one day in the fetched weather window.
+ * `terrain` is looked up once per location (it doesn't change day to day)
+ * and passed in — see api/forecast.ts.
+ */
 export function scoreSpeciesDay(
   days: DayWeather[],
   dayIndex: number,
-  species: Species
+  species: Species,
+  terrain: TerrainInfo
 ): DayScore {
   const day = days[dayIndex];
   const month = Number(day.date.slice(5, 7));
@@ -78,12 +85,18 @@ export function scoreSpeciesDay(
   const temp = tempFactor(day.tempAvgC, species.temp_range_c);
   const rain = rainTimingFactor(since, species.days_after_rain);
   const moisture = moistureFactor(day.soilMoisturePct, species.moisture_need);
+  const terrainMatch = terrainMatchFactor(species.host_trees, terrain);
 
-  // Season is a hard gate (multiplied); temp/rain-timing/moisture are
-  // weighted-averaged so decent-but-imperfect conditions don't collapse to
-  // near-zero the way multiplying four sub-1 factors would.
+  // Season and terrain are hard gates (multiplied) — wrong forest or wrong
+  // month should crush the score, not just nudge it. Temp/rain-timing/
+  // moisture are weighted-averaged so decent-but-imperfect weather doesn't
+  // collapse to near-zero the way multiplying three sub-1 factors would.
   const weighted = temp * 0.3 + rain * 0.4 + moisture * 0.3;
-  const probability = clamp(Math.round(season * weighted * 100), 0, 100);
+  const probability = clamp(
+    Math.round(season * terrainMatch * weighted * 100),
+    0,
+    100
+  );
 
   return {
     date: day.date,
@@ -93,6 +106,7 @@ export function scoreSpeciesDay(
       temp: Math.round(temp * 100) / 100,
       rain_timing: Math.round(rain * 100) / 100,
       moisture: Math.round(moisture * 100) / 100,
+      terrain: Math.round(terrainMatch * 100) / 100,
       days_since_rain: since,
     },
   };
