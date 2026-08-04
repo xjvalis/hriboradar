@@ -56,11 +56,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ),
     }));
 
+    // Real day-level weather (not derived from the normalized 0-1 scoring
+    // factors) — the UI needs actual °C / soil-moisture-% / rain-mm, not a
+    // back-computed approximation of them.
+    const weather = days.slice(outputStart).map((d) => ({
+      date: d.date,
+      tempC: Math.round(d.tempAvgC * 10) / 10,
+      soilMoisturePct: d.soilMoisturePct,
+      precipMm: d.precipMm,
+    }));
+
     res.status(200).json({
       location: { lat, lon },
       generated_at: new Date().toISOString(),
       today: todayStr,
       terrain,
+      weather,
       species: result,
     });
   } catch (err) {

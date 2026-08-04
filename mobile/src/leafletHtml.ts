@@ -36,9 +36,26 @@ export function buildMapHtml(opts: {
       maxZoom: 19
     }).addTo(map);
     var marker = L.circleMarker([${lat}, ${lon}], {
-      radius: 10, color: '#3F5E2C', fillColor: '#8FAB4E', fillOpacity: 0.85, weight: 2
+      radius: 10, color: '#33482C', fillColor: '#4F7A3D', fillOpacity: 0.85, weight: 2
     }).addTo(map);
-    marker.bindPopup(${JSON.stringify(popup)}).openPopup();
+
+    function notifyParent(payload) {
+      var msg = JSON.stringify(payload);
+      if (window.ReactNativeWebView) {
+        window.ReactNativeWebView.postMessage(msg);
+      } else if (window.parent) {
+        window.parent.postMessage(msg, '*');
+      }
+    }
+
+    marker.on('click', function() {
+      notifyParent({
+        type: 'locationSelected',
+        lat: ${lat}, lon: ${lon},
+        probabilityPct: ${probabilityPct ?? "null"},
+        topSpeciesName: ${JSON.stringify(topSpeciesName ?? null)}
+      });
+    });
   </script>
 </body>
 </html>`;

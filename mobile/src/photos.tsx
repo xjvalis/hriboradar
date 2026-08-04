@@ -1,5 +1,5 @@
 import { Image, View, Text, StyleSheet } from "react-native";
-import { colors, fonts } from "./theme";
+import { palette, fontFamily, radius } from "./theme";
 
 // Metro needs literal require() calls, so this map is spelled out by hand
 // rather than built from a string. 10 of 15 species have a real (licensed,
@@ -32,7 +32,7 @@ export function MushroomThumb({
     return (
       <Image
         source={source}
-        style={{ width: size, height: size, borderRadius: 10 }}
+        style={{ width: size, height: size, borderRadius: radius.sm }}
         resizeMode="cover"
       />
     );
@@ -46,14 +46,14 @@ export function MushroomThumb({
 
 const styles = StyleSheet.create({
   fallback: {
-    borderRadius: 10,
-    backgroundColor: colors.green,
+    borderRadius: radius.sm,
+    backgroundColor: palette.primary,
     alignItems: "center",
     justifyContent: "center",
   },
   fallbackLetter: {
-    fontFamily: fonts.serifBold,
-    color: colors.surface,
+    fontFamily: fontFamily.displayBold,
+    color: palette.surface,
     fontSize: 20,
   },
 });

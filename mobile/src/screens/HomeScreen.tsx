@@ -1,112 +1,167 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, FlatList, StyleSheet, Text, View } from "react-native";
-import { colors, fonts, scoreColor } from "../theme";
-import { getForecast, type ForecastResponse, type SpeciesForecast } from "../api";
-import { MushroomThumb } from "../photos";
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { palette, space, type } from "../theme";
+import { getForecast, type ForecastResponse } from "../api";
+import { REGIONS } from "../regions";
+import { BrandMark } from "../components/BrandMark";
+import { IndexCard } from "../components/IndexCard";
+import { SectionHeader } from "../components/SectionHeader";
+import { LocationCard } from "../components/LocationCard";
+import { MushroomCard } from "../components/MushroomCard";
+import { WeatherSummary } from "../components/WeatherSummary";
+import { CardSkeleton } from "../components/LoadingSkeleton";
 
-// Prague, until location permission + a real picker are wired up.
-const DEFAULT_LOCATION = { lat: 50.075, lon: 14.44 };
+const DEFAULT_LOCATION = { lat: 50.075, lon: 14.44, name: "Praha (výchozí)" };
+
+interface RegionResult {
+  region: (typeof REGIONS)[number];
+  topSpecies: string;
+  probabilityPct: number;
+}
+
+function topSpeciesOf(data: ForecastResponse) {
+  return data.species
+    .map((sp) => ({ sp, today: sp.days.find((d) => d.date === data.today) }))
+    .filter((x): x is { sp: (typeof data.species)[number]; today: NonNullable<typeof x.today> } => !!x.today)
+    .sort((a, b) => b.today.probability_pct - a.today.probability_pct);
+}
+
+function buildExplanation(data: ForecastResponse, top: ReturnType<typeof topSpeciesOf>) {
+  const names = top.slice(0, 2).map((x) => x.sp.name_cz).join(" a ");
+  const since = top[0]?.today.factors.days_since_rain;
+  const rainPart =
+    since == null
+      ? "Delší dobu bez vydatnějšího deště"
+      : since <= 2
+        ? "Nedávno pršelo, půda ještě sytí"
+        : `${since}. den po posledním vydatnějším dešti`;
+  return `${rainPart}. Nejlepší podmínky mají teď ${names || "mykorhizní druhy"}.`;
+}
 
 export default function HomeScreen() {
   const [data, setData] = useState<ForecastResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [regionResults, setRegionResults] = useState<RegionResult[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
+  function load() {
+    setError(null);
     getForecast(DEFAULT_LOCATION.lat, DEFAULT_LOCATION.lon)
       .then(setData)
       .catch((e) => setError(String(e.message ?? e)));
-  }, []);
 
-  const todaySpecies = (data?.species ?? [])
-    .map((sp: SpeciesForecast) => ({
-      sp,
-      today: sp.days.find((d) => d.date === data?.today),
-    }))
-    .filter((x): x is { sp: SpeciesForecast; today: NonNullable<typeof x.today> } => !!x.today)
-    .sort((a, b) => b.today.probability_pct - a.today.probability_pct);
+    Promise.all(
+      REGIONS.map((region) =>
+        getForecast(region.lat, region.lon)
+          .then((res) => {
+            const top = topSpeciesOf(res)[0];
+            if (!top) return null;
+            return { region, topSpecies: top.sp.name_cz, probabilityPct: top.today.probability_pct };
+          })
+          .catch(() => null)
+      )
+    ).then((results) => {
+      const ok = results.filter((r): r is RegionResult => !!r);
+      ok.sort((a, b) => b.probabilityPct - a.probabilityPct);
+      setRegionResults(ok);
+    });
+  }
+
+  useEffect(load, []);
+
+  const top = data ? topSpeciesOf(data) : [];
+  const indexValue = top.length
+    ? Math.round(top.slice(0, 5).reduce((s, x) => s + x.today.probability_pct, 0) / Math.min(5, top.length))
+    : 0;
+  const todayWeather = data?.weather?.find((w) => w.date === data.today);
+  const daysSinceRainToday = top[0]?.today.factors.days_since_rain ?? null;
 
   return (
-    <View style={styles.screen}>
-      <FlatList
-        data={todaySpecies}
-        keyExtractor={(item) => item.sp.id}
-        contentContainerStyle={styles.list}
-        ListHeaderComponent={
-          <View>
-            <Text style={styles.eyebrow}>dnes v okolí</Text>
-            <Text style={styles.title}>Houby venku</Text>
-            <Text style={styles.subtitle}>
-              {data
-                ? `Praha (výchozí) · ${data.location.lat}, ${data.location.lon}`
-                : "Načítám polohu…"}
-            </Text>
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={styles.content}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={() => {
+            setRefreshing(true);
+            load();
+            setTimeout(() => setRefreshing(false), 800);
+          }}
+          tintColor={palette.primary}
+        />
+      }
+    >
+      <BrandMark />
 
-            {error && (
-              <Text style={styles.error}>
-                Nepodařilo se načíst předpověď: {error}
-                {"\n"}Běží `npm run dev:api` v kořeni repa?
-              </Text>
-            )}
-            {!data && !error && (
-              <ActivityIndicator style={{ marginTop: 24 }} color={colors.green} />
-            )}
-            {data && <Text style={styles.sectionTitle}>Podle pravděpodobnosti dnes</Text>}
-          </View>
-        }
-        renderItem={({ item }) => (
-          <View style={styles.card}>
-            <MushroomThumb id={item.sp.id} name={item.sp.name_cz} size={56} />
-            <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={styles.cardName}>{item.sp.name_cz}</Text>
-              <Text style={styles.cardLatin}>{item.sp.name_latin}</Text>
-            </View>
-            <View style={[styles.pill, { backgroundColor: scoreColor(item.today.probability_pct) }]}>
-              <Text style={styles.pillText}>{item.today.probability_pct} %</Text>
-            </View>
-          </View>
-        )}
-      />
-    </View>
+      <Text style={styles.eyebrow}>dnes v okolí</Text>
+      <Text style={styles.headline}>Houby venku</Text>
+
+      {error && (
+        <Text style={styles.error}>
+          Nepodařilo se načíst předpověď: {error}
+          {"\n"}Běží `npm run dev:api` v kořeni repa?
+        </Text>
+      )}
+
+      {!data && !error ? (
+        <View style={{ marginTop: space.base }}>
+          <CardSkeleton />
+        </View>
+      ) : data ? (
+        <View style={{ marginTop: space.base }}>
+          <IndexCard value={indexValue} explanation={buildExplanation(data, top)} />
+        </View>
+      ) : null}
+
+      <SectionHeader title="Kam dnes?" />
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.sm }}>
+        {regionResults.length === 0
+          ? [0, 1, 2].map((i) => <View key={i} style={{ width: 220 }}><CardSkeleton /></View>)
+          : regionResults.map((r) => (
+              <LocationCard
+                key={r.region.id}
+                name={r.region.name}
+                region={r.region.area}
+                topSpecies={r.topSpecies}
+                probabilityPct={r.probabilityPct}
+              />
+            ))}
+      </ScrollView>
+
+      <SectionHeader title="Co roste dnes" />
+      <View style={{ gap: space.sm }}>
+        {top.length === 0
+          ? [0, 1, 2].map((i) => <CardSkeleton key={i} />)
+          : top.slice(0, 6).map(({ sp, today }) => (
+              <MushroomCard
+                key={sp.id}
+                id={sp.id}
+                nameCz={sp.name_cz}
+                nameLatin={sp.name_latin}
+                probabilityPct={today.probability_pct}
+              />
+            ))}
+      </View>
+
+      {todayWeather && (
+        <>
+          <SectionHeader title="Podmínky" />
+          <WeatherSummary
+            tempC={todayWeather.tempC}
+            soilMoisturePct={todayWeather.soilMoisturePct}
+            daysSinceRain={daysSinceRainToday}
+          />
+        </>
+      )}
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
-  eyebrow: {
-    fontFamily: fonts.serif,
-    fontStyle: "italic",
-    fontSize: 13,
-    color: colors.inkSoft,
-    marginTop: 8,
-  },
-  title: { fontFamily: fonts.serifBold, fontSize: 23, color: colors.ink, marginTop: 2 },
-  subtitle: { fontFamily: fonts.sans, fontSize: 12, color: colors.inkFaint, marginTop: 2 },
-  sectionTitle: {
-    fontFamily: fonts.serif,
-    fontStyle: "italic",
-    fontSize: 12.5,
-    color: colors.inkSoft,
-    marginTop: 20,
-    marginBottom: 10,
-  },
-  error: { fontFamily: fonts.sans, fontSize: 12, color: colors.scorePoor, marginTop: 16 },
-  list: { paddingHorizontal: 18, paddingBottom: 16, gap: 10 },
-  card: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.line,
-    padding: 10,
-    shadowColor: "#5A3E1C",
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 1,
-  },
-  cardName: { fontFamily: fonts.serif, fontSize: 15, color: colors.ink },
-  cardLatin: { fontFamily: fonts.sans, fontStyle: "italic", fontSize: 11, color: colors.inkFaint },
-  pill: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
-  pillText: { fontFamily: fonts.sansExtraBold, fontSize: 12, color: "#fff" },
+  screen: { flex: 1, backgroundColor: palette.bg },
+  content: { paddingHorizontal: space.lg, paddingTop: space.base, paddingBottom: space.xxl },
+  eyebrow: { ...type.eyebrow, color: palette.secondary, marginTop: space.xl },
+  headline: { ...type.displayXl, color: palette.ink, marginTop: 2 },
+  error: { ...type.bodySmall, color: palette.danger, marginTop: space.base },
 });

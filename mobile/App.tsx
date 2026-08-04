@@ -1,28 +1,31 @@
 import { StatusBar } from "expo-status-bar";
 import { useFonts } from "expo-font";
 import { useState } from "react";
-import { ActivityIndicator, SafeAreaView, StyleSheet } from "react-native";
-import { colors } from "./src/theme";
-import { Header, type ScreenName } from "./src/Header";
+import { ActivityIndicator, StyleSheet } from "react-native";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { palette } from "./src/theme";
+import { BottomNav, type ScreenName } from "./src/components/BottomNav";
 import HomeScreen from "./src/screens/HomeScreen";
 import MapScreen from "./src/screens/MapScreen";
-import AtlasScreen from "./src/screens/AtlasScreen";
-import PlacesScreen from "./src/screens/PlacesScreen";
+import HoubyScreen from "./src/screens/HoubyScreen";
+import MojeScreen from "./src/screens/MojeScreen";
 
 const SCREENS: Record<ScreenName, React.ComponentType> = {
-  Mapa: MapScreen,
   Domů: HomeScreen,
-  Atlas: AtlasScreen,
-  Místa: PlacesScreen,
+  Mapa: MapScreen,
+  Houby: HoubyScreen,
+  Moje: MojeScreen,
 };
 
-export default function App() {
+function AppShell() {
   const [fontsLoaded] = useFonts({
     "Fraunces-SemiBold": require("./assets/fonts/Fraunces-SemiBold.ttf"),
     "Fraunces-Bold": require("./assets/fonts/Fraunces-Bold.ttf"),
-    "Nunito-Regular": require("./assets/fonts/Nunito-Regular.ttf"),
-    "Nunito-Bold": require("./assets/fonts/Nunito-Bold.ttf"),
-    "Nunito-ExtraBold": require("./assets/fonts/Nunito-ExtraBold.ttf"),
+    "Manrope-Regular": require("./assets/fonts/Manrope-Regular.ttf"),
+    "Manrope-Medium": require("./assets/fonts/Manrope-Medium.ttf"),
+    "Manrope-SemiBold": require("./assets/fonts/Manrope-SemiBold.ttf"),
+    "Manrope-Bold": require("./assets/fonts/Manrope-Bold.ttf"),
+    "Manrope-ExtraBold": require("./assets/fonts/Manrope-ExtraBold.ttf"),
   });
 
   const [active, setActive] = useState<ScreenName>("Domů");
@@ -30,7 +33,7 @@ export default function App() {
   if (!fontsLoaded) {
     return (
       <SafeAreaView style={styles.center}>
-        <ActivityIndicator color={colors.green} />
+        <ActivityIndicator color={palette.primary} />
       </SafeAreaView>
     );
   }
@@ -38,15 +41,23 @@ export default function App() {
   const ActiveScreen = SCREENS[active];
 
   return (
-    <SafeAreaView style={styles.screen}>
+    <SafeAreaView style={styles.screen} edges={["top", "left", "right"]}>
       <StatusBar style="dark" />
-      <Header active={active} onNavigate={setActive} />
       <ActiveScreen />
+      <BottomNav active={active} onNavigate={setActive} />
     </SafeAreaView>
   );
 }
 
+export default function App() {
+  return (
+    <SafeAreaProvider>
+      <AppShell />
+    </SafeAreaProvider>
+  );
+}
+
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
-  center: { flex: 1, backgroundColor: colors.bg, alignItems: "center", justifyContent: "center" },
+  screen: { flex: 1, backgroundColor: palette.bg },
+  center: { flex: 1, backgroundColor: palette.bg, alignItems: "center", justifyContent: "center" },
 });

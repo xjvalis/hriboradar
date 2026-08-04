@@ -1,14 +1,17 @@
 import { useEffect, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { WebView } from "react-native-webview";
-import { colors, fonts } from "../theme";
+import { palette, radius, space } from "../theme";
 import { getForecast, type ForecastResponse } from "../api";
 import { buildMapHtml } from "../leafletHtml";
+import { PageHeader } from "../components/PageHeader";
+import { LocationSheet, type SelectedLocation } from "../components/LocationSheet";
 
 const DEFAULT_LOCATION = { lat: 50.075, lon: 14.44 };
 
 export default function MapScreen() {
   const [data, setData] = useState<ForecastResponse | null>(null);
+  const [selected, setSelected] = useState<SelectedLocation | null>(null);
 
   useEffect(() => {
     getForecast(DEFAULT_LOCATION.lat, DEFAULT_LOCATION.lon).then(setData).catch(() => {});
@@ -28,33 +31,42 @@ export default function MapScreen() {
 
   return (
     <View style={styles.screen}>
-      <View style={styles.header}>
-        <Text style={styles.eyebrow}>celá ČR</Text>
-        <Text style={styles.title}>Mapa</Text>
-        <Text style={styles.subtitle}>
-          Zatím jen jeden bod (výchozí poloha) — grid pro celou republiku je další krok.
-        </Text>
-      </View>
+      <PageHeader
+        eyebrow="celá ČR"
+        title="Mapa"
+        subtitle="Zatím jeden bod — grid pro celou republiku je další krok. Klepni na bod pro detail."
+      />
       <View style={styles.mapCard}>
-        <WebView originWhitelist={["*"]} source={{ html }} style={{ flex: 1 }} />
+        <WebView
+          originWhitelist={["*"]}
+          source={{ html }}
+          style={{ flex: 1 }}
+          onMessage={(e) => {
+            try {
+              const msg = JSON.parse(e.nativeEvent.data);
+              if (msg.type === "locationSelected") setSelected(msg);
+            } catch {
+              // not our message
+            }
+          }}
+        />
       </View>
+      {selected && (
+        <LocationSheet selected={selected} data={data} onClose={() => setSelected(null)} />
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
-  header: { paddingHorizontal: 18, paddingTop: 8, paddingBottom: 12 },
-  eyebrow: { fontFamily: fonts.serif, fontStyle: "italic", fontSize: 13, color: colors.inkSoft },
-  title: { fontFamily: fonts.serifBold, fontSize: 23, color: colors.ink, marginTop: 2 },
-  subtitle: { fontFamily: fonts.sans, fontSize: 12, color: colors.inkFaint, marginTop: 4 },
+  screen: { flex: 1, backgroundColor: palette.bg },
   mapCard: {
     flex: 1,
-    marginHorizontal: 18,
-    marginBottom: 18,
-    borderRadius: 14,
+    marginHorizontal: space.lg,
+    marginBottom: space.lg,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: colors.line,
+    borderColor: palette.line,
     overflow: "hidden",
   },
 });

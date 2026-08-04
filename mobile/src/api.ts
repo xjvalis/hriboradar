@@ -25,6 +25,13 @@ export interface SpeciesForecast {
   days: DayScore[];
 }
 
+export interface DayWeather {
+  date: string;
+  tempC: number;
+  soilMoisturePct: number;
+  precipMm: number;
+}
+
 export interface ForecastResponse {
   location: { lat: number; lon: number };
   generated_at: string;
@@ -34,6 +41,7 @@ export interface ForecastResponse {
     dominantType: string | null;
     polygonsFound: number;
   };
+  weather: DayWeather[];
   species: SpeciesForecast[];
 }
 
