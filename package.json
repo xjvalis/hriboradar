@@ -2,8 +2,12 @@
   "name": "rostou-api",
   "private": true,
   "description": "Vercel serverless functions for the Rostou? app (weather/soil/prediction endpoints). The Expo mobile app lives separately in /mobile.",
+  "scripts": {
+    "dev:api": "tsx dev-server.mjs"
+  },
   "devDependencies": {
     "@vercel/node": "^3.2.0",
-    "typescript": "^5.6.0"
+    "typescript": "^5.6.0",
+    "tsx": "^4.19.0"
   }
 }
