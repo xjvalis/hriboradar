@@ -11,6 +11,9 @@ import {
 } from "react-native";
 import { colors, fonts, scoreColor } from "./src/theme";
 import { getForecast, type ForecastResponse, type SpeciesForecast } from "./src/api";
+import { MapIcon, HomeIcon, BookIcon, PinIcon } from "./src/icons";
+import { MushroomThumb } from "./src/photos";
+import { MapCard } from "./src/MapCard";
 
 // Prague, until location permission + a real picker are wired up.
 const DEFAULT_LOCATION = { lat: 50.075, lon: 14.44 };
@@ -52,35 +55,61 @@ export default function App() {
   return (
     <SafeAreaView style={styles.screen}>
       <StatusBar style="dark" />
+
       <View style={styles.header}>
-        <Text style={styles.brand}>Rostou?</Text>
-        <Text style={styles.tagline}>pravděpodobnost růstu</Text>
+        <View>
+          <Text style={styles.brand}>Rostou?</Text>
+          <Text style={styles.tagline}>pravděpodobnost růstu</Text>
+        </View>
+        <View style={styles.navIcons}>
+          <View style={styles.navIcon}>
+            <MapIcon />
+          </View>
+          <View style={[styles.navIcon, styles.navIconActive]}>
+            <HomeIcon color={colors.surface} />
+          </View>
+          <View style={styles.navIcon}>
+            <BookIcon />
+          </View>
+          <View style={styles.navIcon}>
+            <PinIcon />
+          </View>
+        </View>
       </View>
-
-      <Text style={styles.eyebrow}>dnes v okolí</Text>
-      <Text style={styles.title}>Houby venku</Text>
-      <Text style={styles.subtitle}>
-        {data ? `Praha (výchozí) · ${data.location.lat}, ${data.location.lon}` : "Načítám polohu…"}
-      </Text>
-
-      {error && (
-        <Text style={styles.error}>
-          Nepodařilo se načíst předpověď: {error}
-          {"\n"}Běží `npm run dev:api` v kořeni repa?
-        </Text>
-      )}
-
-      {!data && !error && (
-        <ActivityIndicator style={{ marginTop: 24 }} color={colors.green} />
-      )}
+      <View style={styles.headerRule} />
 
       <FlatList
         data={todaySpecies}
         keyExtractor={(item) => item.sp.id}
         contentContainerStyle={styles.list}
+        ListHeaderComponent={
+          <View>
+            <Text style={styles.eyebrow}>dnes v okolí</Text>
+            <Text style={styles.title}>Houby venku</Text>
+            <Text style={styles.subtitle}>
+              {data
+                ? `Praha (výchozí) · ${data.location.lat}, ${data.location.lon}`
+                : "Načítám polohu…"}
+            </Text>
+
+            {error && (
+              <Text style={styles.error}>
+                Nepodařilo se načíst předpověď: {error}
+                {"\n"}Běží `npm run dev:api` v kořeni repa?
+              </Text>
+            )}
+            {!data && !error && (
+              <ActivityIndicator style={{ marginTop: 24 }} color={colors.green} />
+            )}
+
+            {data && <MapCard />}
+            {data && <Text style={styles.sectionTitle}>Podle pravděpodobnosti dnes</Text>}
+          </View>
+        }
         renderItem={({ item }) => (
           <View style={styles.card}>
-            <View style={{ flex: 1 }}>
+            <MushroomThumb id={item.sp.id} name={item.sp.name_cz} size={56} />
+            <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={styles.cardName}>{item.sp.name_cz}</Text>
               <Text style={styles.cardLatin}>{item.sp.name_latin}</Text>
             </View>
@@ -100,16 +129,35 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg, paddingHorizontal: 18 },
+  screen: { flex: 1, backgroundColor: colors.bg },
   centerScreen: {
     flex: 1,
     backgroundColor: colors.bg,
     alignItems: "center",
     justifyContent: "center",
   },
-  header: { paddingTop: 12, paddingBottom: 4 },
-  brand: { fontFamily: fonts.serifBold, fontSize: 24, color: colors.ink },
-  tagline: { fontFamily: fonts.serif, fontStyle: "italic", fontSize: 12, color: colors.inkSoft },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    paddingHorizontal: 18,
+    paddingTop: 12,
+    paddingBottom: 10,
+  },
+  brand: { fontFamily: fonts.serifBold, fontSize: 22, color: colors.ink },
+  tagline: { fontFamily: fonts.serif, fontStyle: "italic", fontSize: 11, color: colors.inkSoft },
+  navIcons: { flexDirection: "row", gap: 6 },
+  navIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.line,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  navIconActive: { backgroundColor: colors.green, borderColor: colors.green },
+  headerRule: { borderTopWidth: 1, borderTopColor: colors.line, marginHorizontal: 18 },
   eyebrow: {
     fontFamily: fonts.serif,
     fontStyle: "italic",
@@ -119,13 +167,21 @@ const styles = StyleSheet.create({
   },
   title: { fontFamily: fonts.serifBold, fontSize: 23, color: colors.ink, marginTop: 2 },
   subtitle: { fontFamily: fonts.sans, fontSize: 12, color: colors.inkFaint, marginTop: 2 },
+  sectionTitle: {
+    fontFamily: fonts.serif,
+    fontStyle: "italic",
+    fontSize: 12.5,
+    color: colors.inkSoft,
+    marginTop: 20,
+    marginBottom: 10,
+  },
   error: {
     fontFamily: fonts.sans,
     fontSize: 12,
     color: colors.scorePoor,
     marginTop: 16,
   },
-  list: { paddingVertical: 16, gap: 10 },
+  list: { paddingHorizontal: 18, paddingBottom: 16, gap: 10 },
   card: {
     flexDirection: "row",
     alignItems: "center",
@@ -133,7 +189,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.line,
-    padding: 14,
+    padding: 10,
   },
   cardName: { fontFamily: fonts.serif, fontSize: 15, color: colors.ink },
   cardLatin: { fontFamily: fonts.sans, fontStyle: "italic", fontSize: 11, color: colors.inkFaint },
