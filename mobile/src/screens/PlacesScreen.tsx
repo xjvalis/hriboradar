@@ -1,10 +1,10 @@
-import { Pressable, SafeAreaView, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import { colors, fonts } from "../theme";
 
 export default function PlacesScreen() {
   return (
-    <SafeAreaView style={styles.screen}>
+    <View style={styles.screen}>
       <View style={styles.header}>
         <View>
           <Text style={styles.eyebrow}>chalupa, revír, les</Text>
@@ -28,7 +28,7 @@ export default function PlacesScreen() {
         </Pressable>
         <Text style={styles.note}>(zatím bez ukládání — přijde s notifikacemi)</Text>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, FlatList, SafeAreaView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, FlatList, StyleSheet, Text, View } from "react-native";
 import { colors, fonts, scoreColor } from "../theme";
 import { getForecast, type ForecastResponse, type SpeciesForecast } from "../api";
 import { MushroomThumb } from "../photos";
@@ -26,7 +26,7 @@ export default function HomeScreen() {
     .sort((a, b) => b.today.probability_pct - a.today.probability_pct);
 
   return (
-    <SafeAreaView style={styles.screen}>
+    <View style={styles.screen}>
       <FlatList
         data={todaySpecies}
         keyExtractor={(item) => item.sp.id}
@@ -66,7 +66,7 @@ export default function HomeScreen() {
           </View>
         )}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 

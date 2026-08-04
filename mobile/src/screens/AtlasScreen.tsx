@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, FlatList, SafeAreaView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, FlatList, StyleSheet, Text, View } from "react-native";
 import { colors, fonts } from "../theme";
 import { getForecast, type ForecastResponse } from "../api";
 import { MushroomThumb } from "../photos";
@@ -21,7 +21,7 @@ export default function AtlasScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.screen}>
+    <View style={styles.screen}>
       <FlatList
         data={sorted}
         keyExtractor={(sp) => sp.id}
@@ -45,7 +45,7 @@ export default function AtlasScreen() {
           </View>
         )}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 

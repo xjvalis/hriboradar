@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { WebView } from "react-native-webview";
 import { colors, fonts } from "../theme";
 import { getForecast, type ForecastResponse } from "../api";
 import { buildMapHtml } from "../leafletHtml";
@@ -36,7 +35,14 @@ export default function MapScreen() {
         </Text>
       </View>
       <View style={styles.mapCard}>
-        <WebView originWhitelist={["*"]} source={{ html }} style={{ flex: 1 }} />
+        {/* Real Leaflet map, same tiles as the reference — react-native-maps
+            has no web target, so this is the approach that works in both
+            the web preview and (via WebView) the native app. */}
+        <iframe
+          title="Mapa"
+          srcDoc={html}
+          style={{ width: "100%", height: "100%", border: 0 }}
+        />
       </View>
     </View>
   );
