@@ -19,9 +19,13 @@ import speciesData from "./data/species.json";
  */
 
 const BOUNDS = { latMin: 48.55, latMax: 51.06, lonMin: 12.09, lonMax: 18.87 };
-const LAT_STEP = 0.28;
-const LON_STEP = 0.4;
-export const GRID_SPACING_M = 30000; // for the client to size each point's heat radius
+// Denser than the original 0.28/0.4 grid — the client now interpolates a
+// smooth field between points rather than drawing one shape per point, and
+// that interpolation only looks genuinely precise (forest-scale islands,
+// not province-scale blobs) when the source grid is fine enough to feed it.
+const LAT_STEP = 0.14;
+const LON_STEP = 0.2;
+export const GRID_SPACING_M = 15000; // for the client to size interpolation falloff
 
 function buildGridPoints(): { lat: number; lon: number }[] {
   const points: { lat: number; lon: number }[] = [];

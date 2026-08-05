@@ -3,15 +3,21 @@
 // react-native-maps doesn't run in the web preview, so this is the one
 // approach that looks identical in both places.
 //
-// Density mode: each grid point renders as its OWN soft island, sized and
-// tinted purely from its own score — deliberately NOT Leaflet.heat, whose
-// "heat" model sums intensity from every nearby point. That's right for
-// "density of events" (crashes, sightings) but wrong here: a 12% score
-// repeated at 78 points across the whole country summed into a solid
-// green blob, which is a rendering artifact, not what the data says.
-// Independent islands mean low, wide-spread probability stays invisible,
-// and only genuinely high scores show up — as islands over the region/
-// forest that actually has them, not a nationwide wash.
+// Density mode: rendered as a smooth, continuously interpolated field per
+// species (inverse-distance-weighted from the real grid points), painted to
+// an offscreen <canvas> and dropped onto the map as a georeferenced image
+// overlay. Two earlier approaches were tried and rejected:
+//  - Leaflet.heat sums intensity from every nearby point, so a modest score
+//    repeated at ~80 points summed into a solid nationwide blob — a
+//    rendering artifact, not what the data said.
+//  - Independent per-point circles ("islands") fixed the false-coverage
+//    problem but looked like a grid of discs, and each disc has a visible
+//    bullseye center that reads as "the mushrooms peak exactly here" even
+//    though that point is just one grid sample among many.
+// IDW interpolation with a short cutoff radius gives the storm-cell look
+// that's actually true to the data: smooth, organic islands that hug real
+// clusters of high-scoring points and fade to nothing (not a wash) wherever
+// there's no nearby support — precise where the data is precise.
 
 export interface GridPoint {
   lat: number;
@@ -31,10 +37,9 @@ const CZ_BOUNDS: [[number, number], [number, number]] = [
   [51.1, 18.9],
 ];
 
-// Distinct categorical hues for up to 3 overlaid species layers — this is
-// data-series color, not brand chrome, so it doesn't need to come from the
-// app's own palette (same reason a chart legend uses its own key colors).
-const LAYER_COLORS = ["#4F7A3D", "#B5652E", "#6B4C93"];
+// Muted, low-saturation hues — this is data-series color for up to 3
+// overlaid species layers, kept subdued so the map reads as a map first.
+const LAYER_COLORS = ["#4F7A3D", "#9C6B3F", "#6E6690"];
 
 function pickTop3(points: GridPoint[], speciesList: SpeciesRef[]): SpeciesRef[] {
   const maxBySpecies = new Map<string, number>();
@@ -46,25 +51,6 @@ function pickTop3(points: GridPoint[], speciesList: SpeciesRef[]): SpeciesRef[] 
   return [...speciesList]
     .sort((a, b) => (maxBySpecies.get(b.id) ?? 0) - (maxBySpecies.get(a.id) ?? 0))
     .slice(0, 3);
-}
-
-// Below this score, a point renders nothing at all — "empty" is the
-// correct answer for a genuinely dry day, not a faint tint. 20 matches
-// what real grid data clears right now (137 of 1305 species×point
-// combos); the previous 30 with a steep exponent left almost nothing
-// visible even though the data had real variation.
-const VISIBILITY_FLOOR_PCT = 20;
-// How many meters an island's outer ring spans at 100% — scales down for
-// lower (but still-visible) scores so weaker spots read as smaller, not
-// just fainter.
-const MAX_ISLAND_RADIUS_M = 26000;
-
-function islandOpacity(scorePct: number): number {
-  if (scorePct < VISIBILITY_FLOOR_PCT) return 0;
-  const t = (scorePct - VISIBILITY_FLOOR_PCT) / (100 - VISIBILITY_FLOOR_PCT);
-  // Linear, generous floor at the threshold — anything that clears the
-  // bar should read as clearly present, not a barely-there whisper.
-  return 0.32 + t * 0.5;
 }
 
 export function buildGridMapHtml(opts: {
@@ -86,32 +72,6 @@ export function buildGridMapHtml(opts: {
           },
         ];
 
-  const islandsJs = layers
-    .map(({ species, color }) => {
-      const islands = points
-        .map((p) => {
-          const pct = p.scores[species.id] ?? 0;
-          const opacity = islandOpacity(pct);
-          if (opacity <= 0) return null;
-          const t = (pct - VISIBILITY_FLOOR_PCT) / (100 - VISIBILITY_FLOOR_PCT);
-          const radius = Math.round(MAX_ISLAND_RADIUS_M * (0.45 + 0.55 * t));
-          return { lat: p.lat, lon: p.lon, opacity, radius };
-        })
-        .filter((x): x is { lat: number; lon: number; opacity: number; radius: number } => !!x);
-
-      // Each island is 3 nested circles (soft falloff) instead of one hard
-      // disc — independent per point, so nothing here sums with neighbors.
-      return islands
-        .map(
-          (isl) => `
-        L.circle([${isl.lat},${isl.lon}], {radius:${isl.radius}, color:'${color}', weight:1, opacity:0.5, fillColor:'${color}', fillOpacity:${(isl.opacity * 0.55).toFixed(3)}}).addTo(map);
-        L.circle([${isl.lat},${isl.lon}], {radius:${Math.round(isl.radius * 0.62)}, stroke:false, fillColor:'${color}', fillOpacity:${(isl.opacity * 0.8).toFixed(3)}}).addTo(map);
-        L.circle([${isl.lat},${isl.lon}], {radius:${Math.round(isl.radius * 0.3)}, stroke:false, fillColor:'${color}', fillOpacity:${Math.min(1, isl.opacity * 1.15).toFixed(3)}}).addTo(map);`
-        )
-        .join("");
-    })
-    .join("\n");
-
   const legendHtml = layers
     .map(
       ({ species, color }) =>
@@ -127,9 +87,8 @@ export function buildGridMapHtml(opts: {
       ? `L.circleMarker([${userLat},${userLon}], {radius:6, color:'#24261D', weight:2, fillColor:'#EDE6D6', fillOpacity:1}).addTo(map).bindTooltip('Vaše poloha');`
       : "";
 
-  // Nearest-grid-point lookup on tap, since heat layers aren't individually
-  // clickable features — reports the best species among the active layers
-  // at that point, so the sheet always has something meaningful to show.
+  // Nearest-grid-point lookup on tap — reports the best species among the
+  // active layers at that point, so the sheet always has something to show.
   const pointsForClickJs = JSON.stringify(
     points.map((p) => ({
       lat: p.lat,
@@ -140,6 +99,7 @@ export function buildGridMapHtml(opts: {
   const speciesNamesJs = JSON.stringify(
     Object.fromEntries(layers.map(({ species }) => [species.id, species.name_cz]))
   );
+  const layersJs = JSON.stringify(layers.map(({ species, color }) => ({ id: species.id, color })));
 
   return `<!DOCTYPE html>
 <html>
@@ -149,6 +109,7 @@ export function buildGridMapHtml(opts: {
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
     html, body, #map { height: 100%; margin: 0; padding: 0; background: #F1ECDC; }
+    .cloud-layer { filter: blur(3px); }
     .legend { position: absolute; bottom: 10px; left: 10px; z-index: 1000; background: #F7F2E7ee;
       border: 1px solid #DBCFA9; border-radius: 10px; padding: 8px 10px; font: 11px -apple-system, sans-serif; color: #24261D; }
   </style>
@@ -165,7 +126,71 @@ export function buildGridMapHtml(opts: {
       maxZoom: 19
     }).addTo(map);
 
-    ${islandsJs}
+    var gridPoints = ${pointsForClickJs};
+    var speciesNames = ${speciesNamesJs};
+    var layerDefs = ${layersJs};
+
+    // Below this interpolated score, a pixel renders fully transparent —
+    // "empty" is correct for a genuinely low-chance area, not a faint tint.
+    var FLOOR = 20;
+    // How far (in degrees, roughly lat-scaled) one grid point's influence
+    // reaches. Kept short and close to the real grid spacing so a single
+    // hot point makes a forest-scale island, not a province-scale wash.
+    var CUTOFF_DEG = 0.30;
+    var RENDER_W = 340, RENDER_H = 130;
+
+    function hexToRgb(hex) {
+      var v = parseInt(hex.slice(1), 16);
+      return [(v >> 16) & 255, (v >> 8) & 255, v & 255];
+    }
+
+    function buildFieldDataUrl(speciesId, color) {
+      var canvas = document.createElement('canvas');
+      canvas.width = RENDER_W; canvas.height = RENDER_H;
+      var ctx = canvas.getContext('2d');
+      var img = ctx.createImageData(RENDER_W, RENDER_H);
+      var latMin = ${CZ_BOUNDS[0][0]}, latMax = ${CZ_BOUNDS[1][0]};
+      var lonMin = ${CZ_BOUNDS[0][1]}, lonMax = ${CZ_BOUNDS[1][1]};
+      var rgb = hexToRgb(color);
+      for (var y = 0; y < RENDER_H; y++) {
+        var lat = latMax - (y / (RENDER_H - 1)) * (latMax - latMin);
+        for (var x = 0; x < RENDER_W; x++) {
+          var lon = lonMin + (x / (RENDER_W - 1)) * (lonMax - lonMin);
+          var wsum = 0, ssum = 0;
+          for (var i = 0; i < gridPoints.length; i++) {
+            var p = gridPoints[i];
+            var dlat = p.lat - lat;
+            var dlon = (p.lon - lon) * 0.66; // rough longitude compression at this latitude
+            var d = Math.sqrt(dlat * dlat + dlon * dlon);
+            if (d >= CUTOFF_DEG) continue;
+            var w = 1 - d / CUTOFF_DEG;
+            w = w * w;
+            wsum += w;
+            ssum += w * (p.scores[speciesId] || 0);
+          }
+          var score = wsum > 0 ? ssum / wsum : 0;
+          var idx = (y * RENDER_W + x) * 4;
+          if (score < FLOOR) {
+            img.data[idx + 3] = 0;
+          } else {
+            var t = (score - FLOOR) / (100 - FLOOR);
+            var alpha = Math.min(1, 0.22 + t * 0.5);
+            img.data[idx] = rgb[0]; img.data[idx + 1] = rgb[1]; img.data[idx + 2] = rgb[2];
+            img.data[idx + 3] = Math.round(alpha * 255);
+          }
+        }
+      }
+      ctx.putImageData(img, 0, 0);
+      return canvas.toDataURL();
+    }
+
+    layerDefs.forEach(function (layer) {
+      L.imageOverlay(buildFieldDataUrl(layer.id, layer.color), ${JSON.stringify(CZ_BOUNDS)}, {
+        className: 'cloud-layer',
+        interactive: false,
+      }).addTo(map);
+    });
+
     ${userMarkerJs}
 
     function notifyParent(payload) {
@@ -174,8 +199,6 @@ export function buildGridMapHtml(opts: {
       else if (window.parent) window.parent.postMessage(msg, '*');
     }
 
-    var gridPoints = ${pointsForClickJs};
-    var speciesNames = ${speciesNamesJs};
     map.on('click', function(e) {
       var best = null, bestDist = Infinity;
       gridPoints.forEach(function(p) {
