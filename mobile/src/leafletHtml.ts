@@ -3,11 +3,15 @@
 // react-native-maps doesn't run in the web preview, so this is the one
 // approach that looks identical in both places.
 //
-// Density mode: each species' probability field across the grid is
-// rendered as a smooth Leaflet.heat cloud (not discrete pins, not a
-// mechanical grid of same-size circles) — density/opacity follows the
-// actual probability at each point, and points are already clipped to
-// the real Czech Republic border server-side (see api/grid.ts).
+// Density mode: each grid point renders as its OWN soft island, sized and
+// tinted purely from its own score — deliberately NOT Leaflet.heat, whose
+// "heat" model sums intensity from every nearby point. That's right for
+// "density of events" (crashes, sightings) but wrong here: a 12% score
+// repeated at 78 points across the whole country summed into a solid
+// green blob, which is a rendering artifact, not what the data says.
+// Independent islands mean low, wide-spread probability stays invisible,
+// and only genuinely high scores show up — as islands over the region/
+// forest that actually has them, not a nationwide wash.
 
 export interface GridPoint {
   lat: number;
@@ -44,6 +48,20 @@ function pickTop3(points: GridPoint[], speciesList: SpeciesRef[]): SpeciesRef[] 
     .slice(0, 3);
 }
 
+// Below this score, a point renders nothing at all — "empty" is the
+// correct answer for a 12% day, not a faint tint.
+const VISIBILITY_FLOOR_PCT = 30;
+// How many meters an island's outer ring spans at 100% — scales down for
+// lower (but still-visible) scores so weaker spots read as smaller, not
+// just fainter.
+const MAX_ISLAND_RADIUS_M = 26000;
+
+function islandOpacity(scorePct: number): number {
+  if (scorePct < VISIBILITY_FLOOR_PCT) return 0;
+  const t = (scorePct - VISIBILITY_FLOOR_PCT) / (100 - VISIBILITY_FLOOR_PCT);
+  return Math.pow(t, 1.3) * 0.75; // steep ramp — only strong scores get strongly visible
+}
+
 export function buildGridMapHtml(opts: {
   points: GridPoint[];
   speciesList: SpeciesRef[];
@@ -63,15 +81,29 @@ export function buildGridMapHtml(opts: {
           },
         ];
 
-  const heatLayersJs = layers
+  const islandsJs = layers
     .map(({ species, color }) => {
-      const heatPoints = points
-        .map((p) => [p.lat, p.lon, Math.max(0, (p.scores[species.id] ?? 0) / 100)])
-        .filter((p) => p[2] > 0.02);
-      return `L.heatLayer(${JSON.stringify(heatPoints)}, {
-        radius: 42, blur: 32, maxZoom: 10, max: 1.0, minOpacity: 0.15,
-        gradient: {0.3: '${color}22', 0.6: '${color}99', 1.0: '${color}'}
-      }).addTo(map);`;
+      const islands = points
+        .map((p) => {
+          const pct = p.scores[species.id] ?? 0;
+          const opacity = islandOpacity(pct);
+          if (opacity <= 0) return null;
+          const t = (pct - VISIBILITY_FLOOR_PCT) / (100 - VISIBILITY_FLOOR_PCT);
+          const radius = Math.round(MAX_ISLAND_RADIUS_M * (0.45 + 0.55 * t));
+          return { lat: p.lat, lon: p.lon, opacity, radius };
+        })
+        .filter((x): x is { lat: number; lon: number; opacity: number; radius: number } => !!x);
+
+      // Each island is 3 nested circles (soft falloff) instead of one hard
+      // disc — independent per point, so nothing here sums with neighbors.
+      return islands
+        .map(
+          (isl) => `
+        L.circle([${isl.lat},${isl.lon}], {radius:${isl.radius}, stroke:false, fillColor:'${color}', fillOpacity:${(isl.opacity * 0.45).toFixed(3)}}).addTo(map);
+        L.circle([${isl.lat},${isl.lon}], {radius:${Math.round(isl.radius * 0.62)}, stroke:false, fillColor:'${color}', fillOpacity:${(isl.opacity * 0.7).toFixed(3)}}).addTo(map);
+        L.circle([${isl.lat},${isl.lon}], {radius:${Math.round(isl.radius * 0.3)}, stroke:false, fillColor:'${color}', fillOpacity:${isl.opacity.toFixed(3)}}).addTo(map);`
+        )
+        .join("");
     })
     .join("\n");
 
@@ -120,7 +152,6 @@ export function buildGridMapHtml(opts: {
   <div id="map"></div>
   <div class="legend">${legendHtml}</div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
   <script>
     var map = L.map('map', { zoomControl: true });
     map.fitBounds(${JSON.stringify(CZ_BOUNDS)});
@@ -129,7 +160,7 @@ export function buildGridMapHtml(opts: {
       maxZoom: 19
     }).addTo(map);
 
-    ${heatLayersJs}
+    ${islandsJs}
     ${userMarkerJs}
 
     function notifyParent(payload) {
