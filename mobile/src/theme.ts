@@ -44,6 +44,16 @@ export function scoreLabel(pct: number): string {
   return tier === "good" ? "Dobré podmínky" : tier === "medium" ? "Slabší šance" : "Nepravděpodobné";
 }
 
+// A one-line editorial opener, distinct from scoreLabel (a status word) —
+// this is the "field guide voice" line that precedes the factual weather
+// explanation, e.g. "Houbám dnes chybí vlhkost a čas. 4. den po dešti..."
+export function scoreFlavor(pct: number): string {
+  const tier = scoreTier(pct);
+  if (tier === "good") return "Dnes to v lese žije";
+  if (tier === "medium") return "Les se pomalu probouzí";
+  return "Houbám dnes chybí vlhkost a čas";
+}
+
 // ---------------------------------------------------------------------------
 // Typography — one editorial display serif (Fraunces), one UI sans (Manrope).
 // ---------------------------------------------------------------------------

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
-import { palette, space, type } from "../theme";
+import { palette, scoreFlavor, space, type } from "../theme";
 import { getForecast, type ForecastResponse } from "../api";
 import { REGIONS } from "../regions";
 import { useLocation } from "../LocationContext";
@@ -25,16 +25,16 @@ function topSpeciesOf(data: ForecastResponse) {
     .sort((a, b) => b.today.probability_pct - a.today.probability_pct);
 }
 
-function buildExplanation(data: ForecastResponse, top: ReturnType<typeof topSpeciesOf>) {
+function buildExplanation(data: ForecastResponse, top: ReturnType<typeof topSpeciesOf>, indexValue: number) {
   const names = top.slice(0, 2).map((x) => x.sp.name_cz).join(" a ");
   const since = top[0]?.today.factors.days_since_rain;
   const rainPart =
     since == null
-      ? "Delší dobu bez vydatnějšího deště"
+      ? "delší dobu bez vydatnějšího deště"
       : since <= 2
-        ? "Nedávno pršelo, půda ještě sytí"
+        ? "nedávno pršelo, půda ještě sytí"
         : `${since}. den po posledním vydatnějším dešti`;
-  return `${rainPart}. Nejlepší podmínky mají teď ${names || "mykorhizní druhy"}.`;
+  return `${scoreFlavor(indexValue)} — ${rainPart}. Nejlepší podmínky mají teď ${names || "mykorhizní druhy"}.`;
 }
 
 export default function HomeScreen() {
@@ -119,7 +119,7 @@ export default function HomeScreen() {
 
       {data && (
         <View style={{ marginTop: space.base }}>
-          <IndexCard value={indexValue} explanation={buildExplanation(data, top)} />
+          <IndexCard value={indexValue} explanation={buildExplanation(data, top, indexValue)} />
         </View>
       )}
 
