@@ -138,13 +138,13 @@ export function buildGridMapHtml(opts: {
   <script>
     var map = L.map('map', { zoomControl: true });
     map.fitBounds(${JSON.stringify(CZ_BOUNDS)});
-    // CARTO's hosted basemap always labels in English regardless of the
-    // viewer's locale (Prague/Vienna/Munich), with no language override on
-    // the free raster tiles. Standard OSM tiles render each place's own
-    // "name" tag instead — Praha, Wien, München — which reads as a real
-    // Czech map instead of a US-market one, with no API key required.
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap přispěvatelé',
+    // Standard OSM tiles fixed the English-label problem but their colorful
+    // green/tan land-use style fights with the (also green) probability
+    // overlay -- back to CARTO's muted basemap, which is legible under the
+    // data even though it labels in English. Real fix for that is Mapy.cz
+    // (needs a registered API key, see conversation).
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; OpenStreetMap &copy; CARTO',
       maxZoom: 19
     }).addTo(map);
 
