@@ -138,8 +138,13 @@ export function buildGridMapHtml(opts: {
   <script>
     var map = L.map('map', { zoomControl: true });
     map.fitBounds(${JSON.stringify(CZ_BOUNDS)});
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; OpenStreetMap &copy; CARTO',
+    // CARTO's hosted basemap always labels in English regardless of the
+    // viewer's locale (Prague/Vienna/Munich), with no language override on
+    // the free raster tiles. Standard OSM tiles render each place's own
+    // "name" tag instead — Praha, Wien, München — which reads as a real
+    // Czech map instead of a US-market one, with no API key required.
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap přispěvatelé',
       maxZoom: 19
     }).addTo(map);
 
@@ -161,37 +166,53 @@ export function buildGridMapHtml(opts: {
       return [(v >> 16) & 255, (v >> 8) & 255, v & 255];
     }
 
-    function buildFieldDataUrl(speciesId, color) {
+    function interpolate(speciesId, lat, lon) {
+      var wsum = 0, ssum = 0;
+      for (var i = 0; i < gridPoints.length; i++) {
+        var p = gridPoints[i];
+        var dlat = p.lat - lat;
+        var dlon = (p.lon - lon) * 0.66; // rough longitude compression at this latitude
+        var d = Math.sqrt(dlat * dlat + dlon * dlon);
+        if (d >= CUTOFF_DEG) continue;
+        var w = 1 - d / CUTOFF_DEG;
+        w = w * w;
+        wsum += w;
+        ssum += w * (p.scores[speciesId] || 0);
+      }
+      return wsum > 0 ? ssum / wsum : 0;
+    }
+
+    // One shared canvas, not one overlay per species — layered semi-
+    // transparent overlays alpha-blend where species ranges overlap, and
+    // the resulting darker/muddier mix reads as "more mushrooms here" when
+    // it's really just two unrelated species both being present. Instead,
+    // every pixel picks whichever species scores highest AT THAT PIXEL and
+    // is painted with that one species' own color at its own opacity —
+    // colors never mix, and shade only ever reflects that one score.
+    function buildCombinedFieldDataUrl(defs) {
       var canvas = document.createElement('canvas');
       canvas.width = RENDER_W; canvas.height = RENDER_H;
       var ctx = canvas.getContext('2d');
       var img = ctx.createImageData(RENDER_W, RENDER_H);
       var latMin = ${CZ_BOUNDS[0][0]}, latMax = ${CZ_BOUNDS[1][0]};
       var lonMin = ${CZ_BOUNDS[0][1]}, lonMax = ${CZ_BOUNDS[1][1]};
-      var rgb = hexToRgb(color);
+      var rgbs = defs.map(function (d) { return hexToRgb(d.color); });
       for (var y = 0; y < RENDER_H; y++) {
         var lat = latMax - (y / (RENDER_H - 1)) * (latMax - latMin);
         for (var x = 0; x < RENDER_W; x++) {
           var lon = lonMin + (x / (RENDER_W - 1)) * (lonMax - lonMin);
-          var wsum = 0, ssum = 0;
-          for (var i = 0; i < gridPoints.length; i++) {
-            var p = gridPoints[i];
-            var dlat = p.lat - lat;
-            var dlon = (p.lon - lon) * 0.66; // rough longitude compression at this latitude
-            var d = Math.sqrt(dlat * dlat + dlon * dlon);
-            if (d >= CUTOFF_DEG) continue;
-            var w = 1 - d / CUTOFF_DEG;
-            w = w * w;
-            wsum += w;
-            ssum += w * (p.scores[speciesId] || 0);
+          var bestScore = -1, bestLayer = -1;
+          for (var li = 0; li < defs.length; li++) {
+            var score = interpolate(defs[li].id, lat, lon);
+            if (score > bestScore) { bestScore = score; bestLayer = li; }
           }
-          var score = wsum > 0 ? ssum / wsum : 0;
           var idx = (y * RENDER_W + x) * 4;
-          if (score < FLOOR) {
+          if (bestScore < FLOOR) {
             img.data[idx + 3] = 0;
           } else {
-            var t = (score - FLOOR) / (100 - FLOOR);
+            var t = (bestScore - FLOOR) / (100 - FLOOR);
             var alpha = Math.min(1, 0.22 + t * 0.5);
+            var rgb = rgbs[bestLayer];
             img.data[idx] = rgb[0]; img.data[idx + 1] = rgb[1]; img.data[idx + 2] = rgb[2];
             img.data[idx + 3] = Math.round(alpha * 255);
           }
@@ -201,12 +222,12 @@ export function buildGridMapHtml(opts: {
       return canvas.toDataURL();
     }
 
-    layerDefs.forEach(function (layer) {
-      L.imageOverlay(buildFieldDataUrl(layer.id, layer.color), ${JSON.stringify(CZ_BOUNDS)}, {
+    if (layerDefs.length > 0) {
+      L.imageOverlay(buildCombinedFieldDataUrl(layerDefs), ${JSON.stringify(CZ_BOUNDS)}, {
         className: 'cloud-layer',
         interactive: false,
       }).addTo(map);
-    });
+    }
 
     ${userMarkerJs}
 
