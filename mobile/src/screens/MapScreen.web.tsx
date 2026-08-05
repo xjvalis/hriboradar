@@ -1,19 +1,19 @@
-import { useEffect, useRef, useState } from "react";
-import { StyleSheet, View } from "react-native";
-import { palette, radius, space } from "../theme";
-import { getForecast, type ForecastResponse } from "../api";
-import { buildMapHtml } from "../leafletHtml";
+import { useEffect, useState } from "react";
+import { StyleSheet, Text, View } from "react-native";
+import { palette, radius, space, type } from "../theme";
+import { getGrid, GRID_THRESHOLD_PCT, type GridResponse } from "../api";
+import { useLocation } from "../LocationContext";
+import { buildGridMapHtml } from "../leafletHtml";
 import { PageHeader } from "../components/PageHeader";
 import { LocationSheet, type SelectedLocation } from "../components/LocationSheet";
 
-const DEFAULT_LOCATION = { lat: 50.075, lon: 14.44 };
-
 export default function MapScreen() {
-  const [data, setData] = useState<ForecastResponse | null>(null);
+  const { location } = useLocation();
+  const [grid, setGrid] = useState<GridResponse | null>(null);
   const [selected, setSelected] = useState<SelectedLocation | null>(null);
 
   useEffect(() => {
-    getForecast(DEFAULT_LOCATION.lat, DEFAULT_LOCATION.lon).then(setData).catch(() => {});
+    getGrid().then(setGrid).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -29,31 +29,30 @@ export default function MapScreen() {
     return () => window.removeEventListener("message", onMessage);
   }, []);
 
-  const top = data?.species
-    .map((sp) => ({ sp, today: sp.days.find((d) => d.date === data.today) }))
-    .filter((x) => x.today)
-    .sort((a, b) => b.today!.probability_pct - a.today!.probability_pct)[0];
-
-  const html = buildMapHtml({
-    lat: DEFAULT_LOCATION.lat,
-    lon: DEFAULT_LOCATION.lon,
-    probabilityPct: top?.today?.probability_pct,
-    topSpeciesName: top?.sp.name_cz,
-  });
+  const html = grid
+    ? buildGridMapHtml({
+        points: grid.points,
+        gridSpacingM: grid.gridSpacingM,
+        userLat: location.lat,
+        userLon: location.lon,
+      })
+    : null;
 
   return (
     <View style={styles.screen}>
       <PageHeader
-        eyebrow="celá ČR"
+        eyebrow={`celá ČR · nad ${GRID_THRESHOLD_PCT} %`}
         title="Mapa"
-        subtitle="Zatím jeden bod — grid pro celou republiku je další krok. Klepni na bod pro detail."
+        subtitle="Oblasti, ne přesné body — model počítá pravděpodobnost pro okolí, ne pro jeden metr čtvereční."
       />
       <View style={styles.mapCard}>
-        <iframe title="Mapa" srcDoc={html} style={{ width: "100%", height: "100%", border: 0 }} />
+        {html ? (
+          <iframe title="Mapa" srcDoc={html} style={{ width: "100%", height: "100%", border: 0 }} />
+        ) : (
+          <Text style={styles.loading}>Počítám mřížku pro celou republiku…</Text>
+        )}
       </View>
-      {selected && (
-        <LocationSheet selected={selected} data={data} onClose={() => setSelected(null)} />
-      )}
+      {selected && <LocationSheet selected={selected} onClose={() => setSelected(null)} />}
     </View>
   );
 }
@@ -68,5 +67,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: palette.line,
     overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
   },
+  loading: { ...type.bodySmall, color: palette.inkFaint },
 });

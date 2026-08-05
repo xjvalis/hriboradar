@@ -1,9 +1,9 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Animated, StyleSheet, Text, View } from "react-native";
 import { palette, radius, scoreColor, scoreLabel, shadow, space, type } from "../theme";
 import { PrimaryButton } from "./PrimaryButton";
 import { Chip } from "./Chip";
-import type { ForecastResponse } from "../api";
+import { getForecast, type ForecastResponse } from "../api";
 
 export interface SelectedLocation {
   lat: number;
@@ -14,35 +14,45 @@ export interface SelectedLocation {
 
 export function LocationSheet({
   selected,
-  data,
   onClose,
 }: {
   selected: SelectedLocation;
-  data: ForecastResponse | null;
   onClose: () => void;
 }) {
   const translateY = useRef(new Animated.Value(200)).current;
+  const [detail, setDetail] = useState<ForecastResponse | null>(null);
 
   useEffect(() => {
     Animated.spring(translateY, { toValue: 0, useNativeDriver: true, damping: 16 }).start();
   }, [selected]);
 
+  useEffect(() => {
+    setDetail(null);
+    // The point tapped comes straight from /api/grid, which already
+    // computed & cached weather+terrain for this exact coordinate — this
+    // fetch almost always resolves from cache, not a fresh lookup.
+    getForecast(selected.lat, selected.lon)
+      .then(setDetail)
+      .catch(() => {});
+  }, [selected.lat, selected.lon]);
+
   const pct = selected.probabilityPct ?? 0;
   const color = scoreColor(pct);
-  const topSpecies = data
-    ? [...data.species]
-        .map((sp) => ({ sp, today: sp.days.find((d) => d.date === data.today) }))
-        .filter((x): x is { sp: (typeof data.species)[number]; today: NonNullable<typeof x.today> } => !!x.today)
+  const topSpecies = detail
+    ? [...detail.species]
+        .map((sp) => ({ sp, today: sp.days.find((d) => d.date === detail.today) }))
+        .filter((x): x is { sp: (typeof detail.species)[number]; today: NonNullable<typeof x.today> } => !!x.today)
         .sort((a, b) => b.today.probability_pct - a.today.probability_pct)
         .slice(0, 3)
     : [];
   const first = topSpecies[0]?.today;
+  const todayWeather = detail?.weather?.find((w) => w.date === detail.today);
 
   return (
     <Animated.View style={[styles.sheet, shadow.sheet, { transform: [{ translateY }] }]}>
       <View style={styles.handle} />
       <View style={styles.headerRow}>
-        <Text style={styles.title}>Vaše poloha</Text>
+        <Text style={styles.title}>Vybraná oblast</Text>
         <Text onPress={onClose} style={styles.close}>
           Zavřít
         </Text>
@@ -57,21 +67,27 @@ export function LocationSheet({
         <Text style={[styles.status, { color }]}>{scoreLabel(pct)}</Text>
       </View>
 
-      {topSpecies.length > 0 && (
+      {topSpecies.length > 0 ? (
         <View style={styles.chipRow}>
           {topSpecies.map(({ sp }) => (
             <Chip key={sp.id} label={sp.name_cz} />
           ))}
         </View>
+      ) : (
+        selected.topSpeciesName && (
+          <View style={styles.chipRow}>
+            <Chip label={selected.topSpeciesName} />
+          </View>
+        )
       )}
 
-      {first && (
+      {first && todayWeather && (
         <Text style={styles.why}>
           {first.factors.days_since_rain == null
             ? "Delší dobu bez vydatnějšího deště"
             : `${first.factors.days_since_rain}. den po dešti`}
           {" · "}
-          {data?.weather?.find((w) => w.date === data.today)?.tempC ?? "—"} °C
+          {todayWeather.tempC} °C
         </Text>
       )}
 

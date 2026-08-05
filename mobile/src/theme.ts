@@ -22,6 +22,9 @@ export const palette = {
   danger: "#A23B2E", // muted red — poisonous warnings, errors
   success: "#4F7A3D", // natural green — good conditions, confirmations
 
+  wood: "#6B4A2E", // brown wood — top-bar icon color
+  springGreen: "#6FA23A", // fresh conifer-needle green — active nav icon ring
+
   white: "#FFFFFF",
 } as const;
 

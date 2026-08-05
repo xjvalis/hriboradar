@@ -52,3 +52,28 @@ export async function getForecast(lat: number, lon: number): Promise<ForecastRes
   }
   return res.json();
 }
+
+export interface GridResponse {
+  generated_at: string;
+  threshold: number;
+  gridSpacingM: number;
+  points: {
+    lat: number;
+    lon: number;
+    probabilityPct: number;
+    topSpeciesName: string;
+    topSpeciesId: string;
+  }[];
+}
+
+// 20 for dev/testing (visible points even in a dry spell) — a live
+// deployment should raise this to ~40 per the "only show real chances" ask.
+export const GRID_THRESHOLD_PCT = 20;
+
+export async function getGrid(threshold: number = GRID_THRESHOLD_PCT): Promise<GridResponse> {
+  const res = await fetch(`${API_BASE}/api/grid?threshold=${threshold}`);
+  if (!res.ok) {
+    throw new Error(`Server vrátil chybu ${res.status}`);
+  }
+  return res.json();
+}

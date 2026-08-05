@@ -3,7 +3,7 @@ import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native
 import { palette, space, type } from "../theme";
 import { getForecast, type ForecastResponse } from "../api";
 import { REGIONS } from "../regions";
-import { BrandMark } from "../components/BrandMark";
+import { useLocation } from "../LocationContext";
 import { IndexCard } from "../components/IndexCard";
 import { SectionHeader } from "../components/SectionHeader";
 import { LocationCard } from "../components/LocationCard";
@@ -11,8 +11,6 @@ import { MushroomCard } from "../components/MushroomCard";
 import { WeatherSummary } from "../components/WeatherSummary";
 import { CardSkeleton } from "../components/LoadingSkeleton";
 import { LoadingScreen } from "../components/LoadingScreen";
-
-const DEFAULT_LOCATION = { lat: 50.075, lon: 14.44, name: "Praha (výchozí)" };
 
 interface RegionResult {
   region: (typeof REGIONS)[number];
@@ -40,17 +38,23 @@ function buildExplanation(data: ForecastResponse, top: ReturnType<typeof topSpec
 }
 
 export default function HomeScreen() {
+  const { location } = useLocation();
   const [data, setData] = useState<ForecastResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [regionResults, setRegionResults] = useState<RegionResult[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
-  function load() {
+  function loadMain() {
+    setData(null);
     setError(null);
-    getForecast(DEFAULT_LOCATION.lat, DEFAULT_LOCATION.lon)
+    getForecast(location.lat, location.lon)
       .then(setData)
       .catch((e) => setError(String(e.message ?? e)));
+  }
 
+  function loadRegions() {
+    // The 8 "Kam dnes?" regions are fixed, real places — independent of
+    // whatever location the user is currently looking at.
     Promise.all(
       REGIONS.map((region) =>
         getForecast(region.lat, region.lon)
@@ -68,7 +72,9 @@ export default function HomeScreen() {
     });
   }
 
-  useEffect(load, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(loadMain, [location.lat, location.lon]);
+  useEffect(loadRegions, []);
 
   const top = data ? topSpeciesOf(data) : [];
   const indexValue = top.length
@@ -93,16 +99,15 @@ export default function HomeScreen() {
           refreshing={refreshing}
           onRefresh={() => {
             setRefreshing(true);
-            load();
+            loadMain();
+            loadRegions();
             setTimeout(() => setRefreshing(false), 800);
           }}
           tintColor={palette.primary}
         />
       }
     >
-      <BrandMark />
-
-      <Text style={styles.eyebrow}>dnes v okolí</Text>
+      <Text style={styles.eyebrow}>dnes v okolí · {location.label}</Text>
       <Text style={styles.headline}>Houby venku</Text>
 
       {error && (
@@ -165,7 +170,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: palette.bg },
   content: { paddingHorizontal: space.lg, paddingTop: space.base, paddingBottom: space.xxl },
-  eyebrow: { ...type.eyebrow, color: palette.secondary, marginTop: space.xl },
+  eyebrow: { ...type.eyebrow, color: palette.secondary },
   headline: { ...type.displayXl, color: palette.ink, marginTop: 2 },
   error: { ...type.bodySmall, color: palette.danger, marginTop: space.base },
 });

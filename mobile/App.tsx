@@ -5,17 +5,18 @@ import { StyleSheet } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { palette } from "./src/theme";
 import { LoadingScreen } from "./src/components/LoadingScreen";
-import { BottomNav, type ScreenName } from "./src/components/BottomNav";
+import { TopBar, type ScreenName } from "./src/components/TopBar";
+import { LocationProvider } from "./src/LocationContext";
 import HomeScreen from "./src/screens/HomeScreen";
 import MapScreen from "./src/screens/MapScreen";
-import HoubyScreen from "./src/screens/HoubyScreen";
 import MojeScreen from "./src/screens/MojeScreen";
+import SettingsScreen from "./src/screens/SettingsScreen";
 
 const SCREENS: Record<ScreenName, React.ComponentType> = {
   Domů: HomeScreen,
   Mapa: MapScreen,
-  Houby: HoubyScreen,
   Moje: MojeScreen,
+  Nastavení: SettingsScreen,
 };
 
 function AppShell() {
@@ -44,8 +45,8 @@ function AppShell() {
   return (
     <SafeAreaView style={styles.screen} edges={["top", "left", "right"]}>
       <StatusBar style="dark" />
+      <TopBar active={active} onNavigate={setActive} />
       <ActiveScreen />
-      <BottomNav active={active} onNavigate={setActive} />
     </SafeAreaView>
   );
 }
@@ -53,7 +54,9 @@ function AppShell() {
 export default function App() {
   return (
     <SafeAreaProvider>
-      <AppShell />
+      <LocationProvider>
+        <AppShell />
+      </LocationProvider>
     </SafeAreaProvider>
   );
 }

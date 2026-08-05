@@ -8,6 +8,7 @@ import { URL } from "node:url";
 const routes = {
   "/api/predict": (await import("./api/predict.ts")).default,
   "/api/forecast": (await import("./api/forecast.ts")).default,
+  "/api/grid": (await import("./api/grid.ts")).default,
 };
 
 const PORT = 3001;

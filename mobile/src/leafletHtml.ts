@@ -1,19 +1,57 @@
 // Real Leaflet map (OpenStreetMap + CARTO light basemap) as an HTML string,
 // rendered via <iframe srcDoc> on web and react-native-webview on native.
-// This is the same stack the kderostouhouby.cz reference actually uses —
 // react-native-maps doesn't run in the web preview, so this is the one
 // approach that looks identical in both places.
-export function buildMapHtml(opts: {
+//
+// Grid mode: each point from /api/grid becomes a soft, semi-transparent
+// circle roughly the size of its grid cell (with neighbors overlapping),
+// so adjacent same-tier cells visually blend into a cloud/area shape
+// instead of reading as precise pins — a single point on the map would
+// wrongly imply "mushrooms grow at this exact GPS coordinate", which
+// isn't what the model computes.
+
+export interface GridPoint {
   lat: number;
   lon: number;
-  probabilityPct?: number;
-  topSpeciesName?: string;
+  probabilityPct: number;
+  topSpeciesName: string;
+}
+
+const CZ_BOUNDS: [[number, number], [number, number]] = [
+  [48.5, 12.0],
+  [51.1, 18.9],
+];
+
+function scoreColor(pct: number): { stroke: string; fill: string } {
+  if (pct >= 55) return { stroke: "#4F7A3D", fill: "#4F7A3D" }; // success
+  if (pct >= 28) return { stroke: "#B5652E", fill: "#B5652E" }; // accent
+  return { stroke: "#A23B2E", fill: "#A23B2E" }; // danger
+}
+
+export function buildGridMapHtml(opts: {
+  points: GridPoint[];
+  gridSpacingM: number;
+  userLat?: number;
+  userLon?: number;
 }) {
-  const { lat, lon, probabilityPct, topSpeciesName } = opts;
-  const popup =
-    probabilityPct != null
-      ? `<b>${topSpeciesName ?? "Nejvyšší šance"}</b><br/>${probabilityPct} % dnes`
-      : "Vaše poloha";
+  const { points, gridSpacingM, userLat, userLon } = opts;
+  const circleRadius = Math.round(gridSpacingM * 0.72); // overlap neighbors for a blended "cloud" look
+
+  const circlesJs = points
+    .map((p) => {
+      const { fill } = scoreColor(p.probabilityPct);
+      const popup = `<b>${p.topSpeciesName}</b><br/>${p.probabilityPct} % dnes`;
+      return `L.circle([${p.lat},${p.lon}], {radius:${circleRadius}, color:'${fill}', weight:0, fillColor:'${fill}', fillOpacity:0.32})
+        .addTo(map)
+        .bindPopup(${JSON.stringify(popup)})
+        .on('click', function(){ notifyParent({type:'locationSelected', lat:${p.lat}, lon:${p.lon}, probabilityPct:${p.probabilityPct}, topSpeciesName:${JSON.stringify(p.topSpeciesName)}}); });`;
+    })
+    .join("\n");
+
+  const userMarkerJs =
+    userLat != null && userLon != null
+      ? `L.circleMarker([${userLat},${userLon}], {radius:6, color:'#24261D', weight:2, fillColor:'#EDE6D6', fillOpacity:1}).addTo(map).bindTooltip('Vaše poloha');`
+      : "";
 
   return `<!DOCTYPE html>
 <html>
@@ -30,13 +68,11 @@ export function buildMapHtml(opts: {
   <div id="map"></div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
-    var map = L.map('map', { zoomControl: true }).setView([${lat}, ${lon}], 8);
+    var map = L.map('map', { zoomControl: true });
+    map.fitBounds(${JSON.stringify(CZ_BOUNDS)});
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
       attribution: '&copy; OpenStreetMap &copy; CARTO',
       maxZoom: 19
-    }).addTo(map);
-    var marker = L.circleMarker([${lat}, ${lon}], {
-      radius: 10, color: '#33482C', fillColor: '#4F7A3D', fillOpacity: 0.85, weight: 2
     }).addTo(map);
 
     function notifyParent(payload) {
@@ -48,14 +84,8 @@ export function buildMapHtml(opts: {
       }
     }
 
-    marker.on('click', function() {
-      notifyParent({
-        type: 'locationSelected',
-        lat: ${lat}, lon: ${lon},
-        probabilityPct: ${probabilityPct ?? "null"},
-        topSpeciesName: ${JSON.stringify(topSpeciesName ?? null)}
-      });
-    });
+    ${circlesJs}
+    ${userMarkerJs}
   </script>
 </body>
 </html>`;
