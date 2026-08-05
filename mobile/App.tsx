@@ -7,6 +7,8 @@ import { palette } from "./src/theme";
 import { LoadingScreen } from "./src/components/LoadingScreen";
 import { TopBar, type ScreenName } from "./src/components/TopBar";
 import { LocationProvider } from "./src/LocationContext";
+import { SpeciesDetailProvider } from "./src/SpeciesDetailContext";
+import { SpeciesDetailSheet } from "./src/components/SpeciesDetailSheet";
 import HomeScreen from "./src/screens/HomeScreen";
 import MapScreen from "./src/screens/MapScreen";
 import MojeScreen from "./src/screens/MojeScreen";
@@ -47,6 +49,7 @@ function AppShell() {
       <StatusBar style="dark" />
       <TopBar active={active} onNavigate={setActive} />
       <ActiveScreen />
+      <SpeciesDetailSheet />
     </SafeAreaView>
   );
 }
@@ -55,7 +58,9 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <LocationProvider>
-        <AppShell />
+        <SpeciesDetailProvider>
+          <AppShell />
+        </SpeciesDetailProvider>
       </LocationProvider>
     </SafeAreaProvider>
   );

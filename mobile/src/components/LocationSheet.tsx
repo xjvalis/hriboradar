@@ -1,15 +1,17 @@
 import { useEffect, useRef, useState } from "react";
-import { Animated, StyleSheet, Text, View } from "react-native";
+import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
 import { palette, radius, scoreColor, scoreLabel, shadow, space, type } from "../theme";
 import { PrimaryButton } from "./PrimaryButton";
 import { ProbabilityBadge } from "./ProbabilityBadge";
 import { getForecast, type ForecastResponse } from "../api";
+import { useSpeciesDetail } from "../SpeciesDetailContext";
 
 export interface SelectedLocation {
   lat: number;
   lon: number;
   probabilityPct: number | null;
   topSpeciesName: string | null;
+  topSpeciesId: string | null;
 }
 
 export function LocationSheet({
@@ -21,6 +23,7 @@ export function LocationSheet({
 }) {
   const translateY = useRef(new Animated.Value(200)).current;
   const [detail, setDetail] = useState<ForecastResponse | null>(null);
+  const { openSpecies } = useSpeciesDetail();
 
   useEffect(() => {
     Animated.spring(translateY, { toValue: 0, useNativeDriver: true, damping: 16 }).start();
@@ -71,20 +74,23 @@ export function LocationSheet({
       {topSpecies.length > 0 ? (
         <View style={{ gap: space.xs }}>
           {topSpecies.map(({ sp, today }) => (
-            <View key={sp.id} style={styles.speciesRow}>
+            <Pressable key={sp.id} style={styles.speciesRow} onPress={() => openSpecies(sp.id)}>
               <Text style={styles.speciesName}>{sp.name_cz}</Text>
               <ProbabilityBadge pct={today.probability_pct} size="sm" />
-            </View>
+            </Pressable>
           ))}
         </View>
       ) : (
         selected.topSpeciesName && (
-          <View style={styles.speciesRow}>
+          <Pressable
+            style={styles.speciesRow}
+            onPress={() => selected.topSpeciesId && openSpecies(selected.topSpeciesId)}
+          >
             <Text style={styles.speciesName}>{selected.topSpeciesName}</Text>
             {selected.probabilityPct != null && (
               <ProbabilityBadge pct={selected.probabilityPct} size="sm" />
             )}
-          </View>
+          </Pressable>
         )
       )}
 

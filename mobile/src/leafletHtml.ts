@@ -72,7 +72,11 @@ export function buildGridMapHtml(opts: {
           },
         ];
 
-  const legendHtml = layers
+  // Two distinct legend concerns, kept visually separate: which color is
+  // which species (left), and what the shading of that color means (right)
+  // — otherwise a fully-green map reads as "mushrooms confirmed everywhere"
+  // instead of "this species' conditions are broadly favorable today".
+  const legendSpeciesHtml = layers
     .map(
       ({ species, color }) =>
         `<div style="display:flex;align-items:center;gap:6px;margin-top:4px;">
@@ -81,6 +85,19 @@ export function buildGridMapHtml(opts: {
          </div>`
     )
     .join("");
+  const legendHtml = `
+    <div style="display:flex;gap:14px;align-items:flex-start;">
+      <div>${legendSpeciesHtml}</div>
+      <div style="border-left:1px solid #DBCFA9;padding-left:12px;">
+        <div style="width:64px;height:9px;border-radius:5px;background:linear-gradient(to right, rgba(36,38,29,0.10), rgba(36,38,29,0.75));"></div>
+        <div style="display:flex;justify-content:space-between;font-size:9.5px;color:#8C8A6E;margin-top:2px;">
+          <span>slabá</span><span>silná</span>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:6px;font-size:10px;color:#8C8A6E;max-width:230px;">
+      Plocha = odhad podmínek podle počasí, půdy a lesa. Neznamená jistý nález.
+    </div>`;
 
   const userMarkerJs =
     userLat != null && userLon != null
@@ -211,7 +228,7 @@ export function buildGridMapHtml(opts: {
         if (best.scores[id] > topPct) { topPct = best.scores[id]; topId = id; }
       });
       if (topId == null) return;
-      notifyParent({ type: 'locationSelected', lat: best.lat, lon: best.lon, probabilityPct: topPct, topSpeciesName: speciesNames[topId] });
+      notifyParent({ type: 'locationSelected', lat: best.lat, lon: best.lon, probabilityPct: topPct, topSpeciesName: speciesNames[topId], topSpeciesId: topId });
     });
   </script>
 </body>
