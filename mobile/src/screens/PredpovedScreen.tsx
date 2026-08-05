@@ -191,7 +191,7 @@ export default function PredpovedScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: palette.bg },
+  screen: { flex: 1 },
   content: { paddingBottom: space.xxl },
   padded: { paddingHorizontal: space.lg },
   locationRow: { flexGrow: 0, paddingHorizontal: space.lg, marginBottom: space.sm },

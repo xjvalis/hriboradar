@@ -5,6 +5,7 @@ import { StyleSheet } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { palette } from "./src/theme";
 import { LoadingScreen } from "./src/components/LoadingScreen";
+import { PaperBackground } from "./src/components/PaperBackground";
 import { TopBar, type ScreenName } from "./src/components/TopBar";
 import { DrawerMenu } from "./src/components/DrawerMenu";
 import { LocationProvider } from "./src/LocationContext";
@@ -44,7 +45,9 @@ function AppShell() {
   if (!fontsLoaded) {
     return (
       <SafeAreaView style={styles.screen}>
-        <LoadingScreen />
+        <PaperBackground>
+          <LoadingScreen />
+        </PaperBackground>
       </SafeAreaView>
     );
   }
@@ -54,18 +57,20 @@ function AppShell() {
   return (
     <SafeAreaView style={styles.screen} edges={["top", "left", "right"]}>
       <StatusBar style="dark" />
-      <TopBar onMenuPress={() => setDrawerOpen(true)} />
-      <ActiveScreen />
-      <SpeciesDetailSheet />
-      <DrawerMenu
-        visible={drawerOpen}
-        active={active}
-        onNavigate={(screen) => {
-          setActive(screen);
-          setDrawerOpen(false);
-        }}
-        onClose={() => setDrawerOpen(false)}
-      />
+      <PaperBackground>
+        <TopBar onMenuPress={() => setDrawerOpen(true)} />
+        <ActiveScreen />
+        <SpeciesDetailSheet />
+        <DrawerMenu
+          visible={drawerOpen}
+          active={active}
+          onNavigate={(screen) => {
+            setActive(screen);
+            setDrawerOpen(false);
+          }}
+          onClose={() => setDrawerOpen(false)}
+        />
+      </PaperBackground>
     </SafeAreaView>
   );
 }

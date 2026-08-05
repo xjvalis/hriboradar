@@ -44,7 +44,7 @@ export default function HoubyScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: palette.bg },
+  screen: { flex: 1 },
   toggleRow: { flexDirection: "row", gap: space.sm, paddingHorizontal: space.lg, marginBottom: space.md },
   list: { paddingHorizontal: space.lg, paddingBottom: space.lg },
 });

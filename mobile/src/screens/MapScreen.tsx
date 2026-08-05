@@ -107,7 +107,7 @@ export default function MapScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: palette.bg },
+  screen: { flex: 1 },
   filters: { flexGrow: 0, paddingHorizontal: space.lg, marginBottom: space.sm },
   mapCard: {
     flex: 1,

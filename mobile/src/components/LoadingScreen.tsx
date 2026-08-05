@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Animated, Easing, StyleSheet, Text, View } from "react-native";
-import Svg, { Ellipse, Path } from "react-native-svg";
 import { palette, space, type } from "../theme";
+import { MorelLogo } from "./MorelLogo";
 
 const STEPS = [
   "Stahuji data o počasí…",
@@ -38,11 +38,7 @@ function SpinningMushroom() {
 
   return (
     <Animated.View style={{ transform: [{ translateY }, { rotate }] }}>
-      <Svg width={64} height={64} viewBox="0 0 32 32">
-        <Ellipse cx={16} cy={22} rx={4} ry={8} fill={palette.surfaceSunken} />
-        <Path d="M4 16 Q16 2 28 16 Q22 21 16 21 Q10 21 4 16 Z" fill={palette.primary} />
-        <Path d="M8 14 Q16 4 24 14" stroke={palette.secondary} strokeWidth={1.4} fill="none" opacity={0.6} />
-      </Svg>
+      <MorelLogo height={110} />
     </Animated.View>
   );
 }

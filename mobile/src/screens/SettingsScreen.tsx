@@ -94,7 +94,7 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: palette.bg },
+  screen: { flex: 1 },
   content: { paddingHorizontal: space.lg, paddingBottom: space.xxl },
   sectionTitle: { ...type.label, color: palette.inkSoft, marginTop: space.xl, marginBottom: space.sm },
   hint: { ...type.caption, color: palette.inkFaint, marginTop: -4, marginBottom: space.sm },

@@ -72,7 +72,7 @@ export default function MojeScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: palette.bg },
+  screen: { flex: 1 },
   content: { paddingBottom: space.xxl },
   padded: { paddingHorizontal: space.lg },
   sectionTitle: {

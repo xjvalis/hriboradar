@@ -168,7 +168,7 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: palette.bg },
+  screen: { flex: 1 },
   content: { paddingHorizontal: space.lg, paddingTop: space.base, paddingBottom: space.xxl },
   eyebrow: { ...type.eyebrow, color: palette.secondary },
   headline: { ...type.displayXl, color: palette.ink, marginTop: 2 },
