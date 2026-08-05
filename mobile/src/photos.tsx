@@ -2,11 +2,11 @@ import { Image, View, Text, StyleSheet } from "react-native";
 import { palette, fontFamily, radius } from "./theme";
 
 // Metro needs literal require() calls, so this map is spelled out by hand
-// rather than built from a string. 10 of 15 species have a real (licensed,
-// Wikimedia Commons) photo so far — the rest fall back to a plain
-// monogram until more photos are sourced.
+// rather than built from a string. All 15 species now have a real
+// (licensed, Wikimedia Commons — CC BY/CC BY-SA/public domain) photo.
 const PHOTOS: Record<string, ReturnType<typeof require>> = {
   "hrib-smrkovy": require("../assets/mushrooms/hrib-smrkovy.jpg"),
+  "hrib-dubovy": require("../assets/mushrooms/hrib-dubovy.jpg"),
   "liska-obecna": require("../assets/mushrooms/liska-obecna.jpg"),
   "kozak-brezovy": require("../assets/mushrooms/kozak-brezovy.jpg"),
   "kremenac-brezovy": require("../assets/mushrooms/kremenac-brezovy.jpg"),
@@ -16,6 +16,10 @@ const PHOTOS: Record<string, ReturnType<typeof require>> = {
   "kotrc-kadeřavy": require("../assets/mushrooms/kotrc-kadeřavy.jpg"),
   "kremenac-osikovy": require("../assets/mushrooms/kremenac-osikovy.jpg"),
   "holubinka-nazelenala": require("../assets/mushrooms/holubinka-nazelenala.jpg"),
+  "ryzec-smrkovy": require("../assets/mushrooms/ryzec-smrkovy.jpg"),
+  "muchomurka-ruzovka": require("../assets/mushrooms/muchomurka-ruzovka.jpg"),
+  "vaclavka-obecna": require("../assets/mushrooms/vaclavka-obecna.jpg"),
+  "ciruvka-fialova": require("../assets/mushrooms/ciruvka-fialova.jpg"),
 };
 
 export function MushroomThumb({

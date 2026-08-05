@@ -174,7 +174,7 @@
       "gbif_occurrence_count_cz": 171,
       "edibility": "jedlá",
       "model_confidence": "vysoká",
-      "confidence_note": "typicky se vrací na stejné místo roky po sobě — dobrý kandidát na 'moje místa'"
+      "confidence_note": "171 GBIF záznamů a jasná vazba na starší borovice podporují vysokou jistotu modelu"
     },
     {
       "id": "ryzec-smrkovy",

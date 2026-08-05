@@ -155,7 +155,14 @@ export default function PredpovedScreen() {
           </Text>
           <View style={styles.padded}>
             <WeatherSummary
-              tempC={shownDay.date === detail!.today ? (detail!.current?.tempC ?? shownWeather.tempC) : shownWeather.tempC}
+              tempC={
+                shownDay.date === detail!.today && detail!.current
+                  ? detail!.current.tempC
+                  : shownWeather.tempC
+              }
+              tempLabel={
+                shownDay.date === detail!.today && detail!.current ? "Teplota" : "Průměrná denní teplota"
+              }
               soilMoisturePct={shownWeather.soilMoisturePct}
               daysSinceRain={shownSpecies[0]?.day.factors.days_since_rain ?? null}
             />

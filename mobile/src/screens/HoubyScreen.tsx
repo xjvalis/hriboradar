@@ -1,55 +1,50 @@
-import { useEffect, useState } from "react";
-import { FlatList, StyleSheet, Text, View } from "react-native";
-import { palette, space, type } from "../theme";
-import { getForecast, type ForecastResponse } from "../api";
+import { useState } from "react";
+import { FlatList, StyleSheet, View } from "react-native";
+import { palette, space } from "../theme";
+import { SPECIES_BY_ID } from "../speciesInfo";
 import { PageHeader } from "../components/PageHeader";
+import { Chip } from "../components/Chip";
 import { MushroomCard } from "../components/MushroomCard";
-import { CardSkeleton } from "../components/LoadingSkeleton";
+import { SeasonTimeline } from "../components/SeasonTimeline";
 
-const DEFAULT_LOCATION = { lat: 50.075, lon: 14.44 };
+const allSpecies = Object.values(SPECIES_BY_ID).sort((a, b) => a.name_cz.localeCompare(b.name_cz, "cs"));
 
 export default function HoubyScreen() {
-  const [data, setData] = useState<ForecastResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    getForecast(DEFAULT_LOCATION.lat, DEFAULT_LOCATION.lon)
-      .then(setData)
-      .catch((e) => setError(String(e.message ?? e)));
-  }, []);
-
-  const sorted = [...(data?.species ?? [])].sort((a, b) =>
-    a.name_cz.localeCompare(b.name_cz, "cs")
-  );
+  const [mode, setMode] = useState<"timeline" | "list">("timeline");
 
   return (
     <View style={styles.screen}>
-      <PageHeader eyebrow={`všech ${data?.species.length ?? 15} druhů`} title="Houby" />
-      {error && <Text style={styles.error}>Nepodařilo se načíst atlas: {error}</Text>}
-      <FlatList
-        data={sorted.length ? sorted : Array.from({ length: 6 })}
-        keyExtractor={(item, i) => (item as any)?.id ?? String(i)}
-        contentContainerStyle={styles.list}
-        renderItem={({ item }) =>
-          sorted.length ? (
+      <PageHeader eyebrow={`všech ${allSpecies.length} druhů`} title="Houby" />
+
+      <View style={styles.toggleRow}>
+        <Chip label="Podle měsíce" active={mode === "timeline"} onPress={() => setMode("timeline")} />
+        <Chip label="Podle abecedy" active={mode === "list"} onPress={() => setMode("list")} />
+      </View>
+
+      {mode === "timeline" ? (
+        <SeasonTimeline />
+      ) : (
+        <FlatList
+          data={allSpecies}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.list}
+          renderItem={({ item }) => (
             <MushroomCard
-              id={(item as any).id}
-              nameCz={(item as any).name_cz}
-              nameLatin={(item as any).name_latin}
-              edibility={(item as any).edibility}
+              id={item.id}
+              nameCz={item.name_cz}
+              nameLatin={item.name_latin}
+              edibility={item.edibility}
             />
-          ) : (
-            <CardSkeleton />
-          )
-        }
-        ItemSeparatorComponent={() => <View style={{ height: space.sm }} />}
-      />
+          )}
+          ItemSeparatorComponent={() => <View style={{ height: space.sm }} />}
+        />
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: palette.bg },
+  toggleRow: { flexDirection: "row", gap: space.sm, paddingHorizontal: space.lg, marginBottom: space.md },
   list: { paddingHorizontal: space.lg, paddingBottom: space.lg },
-  error: { ...type.bodySmall, color: palette.danger, paddingHorizontal: space.lg, marginBottom: space.sm },
 });

@@ -56,3 +56,34 @@ export function groupLabel(group: string): string {
   if (group.includes("parazit")) return "parazitická — roste na dřevě, pařezech, kořenech";
   return group;
 }
+
+export const MONTH_NAMES_FULL_CZ = [
+  "Leden",
+  "Únor",
+  "Březen",
+  "Duben",
+  "Květen",
+  "Červen",
+  "Červenec",
+  "Srpen",
+  "Září",
+  "Říjen",
+  "Listopad",
+  "Prosinec",
+];
+
+// Mycorrhizal fungi live in a years-long symbiosis with a specific host
+// tree's roots — unlike a one-off saprotroph on decaying litter, a real
+// find here is a genuine signal the same spot is worth remembering.
+// Kotrč (parasitic on old pines) gets the same tip for the same underlying
+// reason (it returns to the same root system year after year), so this is
+// keyed off id there rather than group.
+export function siteFidelityTip(info: SpeciesInfo): string | null {
+  if (info.group.includes("mykorhizní")) {
+    return "Žije roky ve svazku s konkrétním stromem — pokud tu houbu najdete, vyplatí se místo uložit a zkusit ho příští sezónu znovu.";
+  }
+  if (info.id === "kotrc-kadeřavy") {
+    return "Typicky se vrací na stejné místo roky po sobě — dobrý kandidát na uložení mezi oblíbená místa.";
+  }
+  return null;
+}

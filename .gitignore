@@ -4,3 +4,6 @@ node_modules/
 .env.local
 *.log
 .DS_Store
+
+# Runtime-generated data, not source — see api/observations.ts
+api/data/observations.jsonl

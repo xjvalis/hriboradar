@@ -7,13 +7,18 @@ export function WeatherSummary({
   tempC,
   soilMoisturePct,
   daysSinceRain,
+  tempLabel = "Teplota",
 }: {
   tempC: number;
   soilMoisturePct: number;
   daysSinceRain: number | null;
+  /** Defaults to "Teplota" (implying "right now") — pass an explicit label
+   * like "Průměrná denní teplota" whenever tempC is a day average rather
+   * than a live reading, so it doesn't misrepresent itself. */
+  tempLabel?: string;
 }) {
   const items = [
-    { Icon: Thermometer, label: "Teplota", value: `${Math.round(tempC)} °C` },
+    { Icon: Thermometer, label: tempLabel, value: `${Math.round(tempC)} °C` },
     { Icon: Droplets, label: "Vlhkost půdy", value: `${Math.round(soilMoisturePct)} %` },
     {
       Icon: CloudRain,

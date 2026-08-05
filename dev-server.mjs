@@ -11,6 +11,7 @@ const routes = {
   "/api/forecast": (await import("./api/forecast.ts")).default,
   "/api/grid": (await import("./api/grid.ts")).default,
   "/api/geocode": (await import("./api/geocode.ts")).default,
+  "/api/observations": (await import("./api/observations.ts")).default,
 };
 
 const PORT = 3001;
@@ -34,6 +35,19 @@ async function getGridData() {
   });
 }
 
+async function readJsonBody(nodeReq) {
+  if (nodeReq.method !== "POST") return undefined;
+  const chunks = [];
+  for await (const chunk of nodeReq) chunks.push(chunk);
+  const raw = Buffer.concat(chunks).toString("utf-8");
+  if (!raw) return undefined;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return undefined;
+  }
+}
+
 function makeRes(nodeRes) {
   return {
     _status: 200,
@@ -55,7 +69,8 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "OPTIONS") {
     res.writeHead(204, {
       "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET,OPTIONS",
+      "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type",
     });
     res.end();
     return;
@@ -92,7 +107,8 @@ const server = http.createServer(async (req, res) => {
 
   const query = Object.fromEntries(url.searchParams);
   try {
-    await handler({ query }, makeRes(res));
+    const body = await readJsonBody(req);
+    await handler({ query, body, method: req.method }, makeRes(res));
   } catch (err) {
     res.writeHead(500, { "Access-Control-Allow-Origin": "*" });
     res.end(JSON.stringify({ error: String(err) }));

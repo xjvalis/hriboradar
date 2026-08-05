@@ -1,7 +1,8 @@
 import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { MapPin } from "lucide-react-native";
 import { palette, radius, space, type } from "../theme";
 import { MushroomThumb } from "../photos";
-import { SPECIES_BY_ID, groupLabel, monthsToLabel } from "../speciesInfo";
+import { SPECIES_BY_ID, groupLabel, monthsToLabel, siteFidelityTip } from "../speciesInfo";
 import { useSpeciesDetail } from "../SpeciesDetailContext";
 import { BottomSheet } from "./BottomSheet";
 
@@ -10,6 +11,8 @@ export function SpeciesDetailSheet() {
   const info = selectedSpeciesId ? SPECIES_BY_ID[selectedSpeciesId] : null;
 
   if (!info) return null;
+
+  const fidelityTip = siteFidelityTip(info);
 
   return (
     <BottomSheet onClose={closeSpecies} maxHeight="80%">
@@ -53,6 +56,19 @@ export function SpeciesDetailSheet() {
         </Text>
         <Text style={styles.bodyFaint}>Vlhkost: {info.moisture_need} · Půda: {info.soil}</Text>
 
+        {fidelityTip && (
+          <View style={styles.tipBox}>
+            <MapPin size={16} strokeWidth={1.8} color={palette.primary} style={{ marginTop: 1 }} />
+            <Text style={styles.tipText}>{fidelityTip}</Text>
+          </View>
+        )}
+
+        <Text style={styles.sectionLabel}>Jak sbírat</Text>
+        <Text style={styles.bodyFaint}>
+          Vykruťte nebo opatrně vytrhněte, neřežte — houba se množí výtrusy z klobouku, pahýl nožičky
+          v zemi jejímu šíření nijak nepomůže a jen zbytečně hnije.
+        </Text>
+
         <Text style={styles.sectionLabel}>O modelu</Text>
         <Text style={styles.bodyFaint}>
           Procenta v appce popisují, jak moc aktuální počasí, půda a okolní les odpovídají tomu, co má tenhle
@@ -88,4 +104,13 @@ const styles = StyleSheet.create({
   sectionLabel: { ...type.label, color: palette.inkFaint, marginTop: space.lg, marginBottom: space.xs },
   body: { ...type.body, color: palette.ink },
   bodyFaint: { ...type.bodySmall, color: palette.inkSoft, marginTop: 3 },
+  tipBox: {
+    flexDirection: "row",
+    gap: space.sm,
+    marginTop: space.md,
+    padding: space.sm,
+    backgroundColor: palette.primary + "14",
+    borderRadius: radius.sm,
+  },
+  tipText: { ...type.bodySmall, color: palette.primaryDeep, flex: 1, lineHeight: 18 },
 });

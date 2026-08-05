@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Animated, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Svg, { Ellipse, Path } from "react-native-svg";
+import Svg, { Ellipse, G, Path } from "react-native-svg";
 import { CalendarDays, Home, Leaf, Map, MapPin, Settings, X } from "lucide-react-native";
 import { palette, radius, space, type } from "../theme";
 import { BrandMark } from "./BrandMark";
@@ -16,45 +16,53 @@ const ITEMS: { name: ScreenName; Icon: typeof Home; label: string }[] = [
   { name: "Nastavení", Icon: Settings, label: "Nastavení" },
 ];
 
-// A few loose mushroom-cap outlines, faint and line-only — decorative, not
-// informational, so it stays out of the way of the actual nav list instead
-// of competing with it for attention.
+// Bold, filled mushroom silhouettes in the drawer's lower (otherwise-empty)
+// half — meant to read like a jacket lining: a real flash of color and
+// pattern, not a decorative afterthought. Sits entirely below the nav list
+// so it never fights with the text for legibility; the original thin gray
+// line-art version read as barely-there rather than playful.
+const MUSHROOM_COLORS = [palette.accent, palette.primary, palette.secondary];
+
+function Mushroom({
+  x,
+  y,
+  scale = 1,
+  rotate = 0,
+  color,
+}: {
+  x: number;
+  y: number;
+  scale?: number;
+  rotate?: number;
+  color: string;
+}) {
+  return (
+    <G transform={`translate(${x} ${y}) rotate(${rotate}) scale(${scale})`}>
+      <Path d="M-38 0 C-38 -34 38 -34 38 0 C 20 10 -20 10 -38 0 Z" fill={color} />
+      <Path d="M-16 4 L-11 46 Q0 52 11 46 L16 4 Z" fill={palette.surface} stroke={color} strokeWidth={1.5} />
+      <Ellipse cx={-14} cy={-16} rx={5} ry={4} fill={palette.surface} opacity={0.55} />
+      <Ellipse cx={10} cy={-22} rx={4} ry={3} fill={palette.surface} opacity={0.5} />
+      <Ellipse cx={18} cy={-10} rx={3.5} ry={3} fill={palette.surface} opacity={0.5} />
+    </G>
+  );
+}
+
 function BackgroundArt() {
   return (
     <Svg
       width="100%"
-      height={260}
-      viewBox="0 0 260 260"
+      height={360}
+      viewBox="0 0 300 360"
       style={styles.art}
       pointerEvents="none"
     >
-      <Path
-        d="M40 150 Q40 100 85 100 Q130 100 130 150"
-        stroke={palette.line}
-        strokeWidth={1.4}
-        fill="none"
-      />
-      <Path d="M60 150 L64 190" stroke={palette.line} strokeWidth={1.4} fill="none" />
-      <Path d="M108 150 L104 190" stroke={palette.line} strokeWidth={1.4} fill="none" />
-      <Ellipse cx={84} cy={192} rx={22} ry={6} stroke={palette.line} strokeWidth={1.2} fill="none" />
+      <Mushroom x={55} y={90} scale={1.15} rotate={-8} color={MUSHROOM_COLORS[0]} />
+      <Mushroom x={215} y={150} scale={0.85} rotate={10} color={MUSHROOM_COLORS[1]} />
+      <Mushroom x={40} y={250} scale={0.7} rotate={6} color={MUSHROOM_COLORS[2]} />
+      <Mushroom x={225} y={300} scale={1.05} rotate={-6} color={MUSHROOM_COLORS[0]} />
+      <Mushroom x={120} y={320} scale={0.6} rotate={14} color={MUSHROOM_COLORS[1]} />
 
-      <Path
-        d="M150 210 Q150 165 195 165 Q240 165 240 210"
-        stroke={palette.line}
-        strokeWidth={1.4}
-        fill="none"
-      />
-      <Path d="M172 210 L175 240" stroke={palette.line} strokeWidth={1.4} fill="none" />
-      <Path d="M216 210 L213 240" stroke={palette.line} strokeWidth={1.4} fill="none" />
-
-      <Path
-        d="M10 235 Q10 205 38 205 Q66 205 66 235"
-        stroke={palette.line}
-        strokeWidth={1.2}
-        fill="none"
-      />
-      <Path d="M24 235 L26 255" stroke={palette.line} strokeWidth={1.2} fill="none" />
-      <Path d="M52 235 L50 255" stroke={palette.line} strokeWidth={1.2} fill="none" />
+      <Path d="M0 360 Q75 335 150 355 T300 350 L300 360 Z" fill={palette.primary} opacity={0.16} />
     </Svg>
   );
 }
@@ -176,5 +184,5 @@ const styles = StyleSheet.create({
   itemActive: { backgroundColor: palette.bg },
   itemText: { ...type.body, color: palette.inkSoft },
   itemTextActive: { color: palette.primary, fontFamily: "Manrope-SemiBold" },
-  art: { position: "absolute", left: 0, right: 0, bottom: 0, opacity: 0.5 },
+  art: { position: "absolute", left: 0, right: 0, bottom: 0, opacity: 0.85 },
 });

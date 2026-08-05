@@ -105,3 +105,25 @@ export async function searchLocations(query: string): Promise<GeocodeResult[]> {
   const data = await res.json();
   return data.results;
 }
+
+export interface ObservationInput {
+  lat: number;
+  lon: number;
+  date: string;
+  found: boolean;
+  speciesIds?: string[];
+  note?: string;
+}
+
+export async function submitObservation(input: ObservationInput): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_BASE}/api/observations`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}

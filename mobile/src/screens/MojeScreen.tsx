@@ -1,10 +1,12 @@
+import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { Sprout, Trash2 } from "lucide-react-native";
+import { ClipboardCheck, Sprout, Trash2 } from "lucide-react-native";
 import { palette, radius, space, type } from "../theme";
 import { PageHeader } from "../components/PageHeader";
 import { EmptyState } from "../components/EmptyState";
 import { LocationSearchInput } from "../components/LocationSearchInput";
-import { useSavedLocations } from "../SavedLocationsContext";
+import { ObservationSheet } from "../components/ObservationSheet";
+import { useSavedLocations, type SavedLocation } from "../SavedLocationsContext";
 import { useLocation } from "../LocationContext";
 
 function placesLabel(n: number): string {
@@ -16,6 +18,7 @@ function placesLabel(n: number): string {
 export default function MojeScreen() {
   const { locations, addLocation, removeLocation } = useSavedLocations();
   const { setLocation } = useLocation();
+  const [observing, setObserving] = useState<SavedLocation | null>(null);
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
@@ -46,6 +49,9 @@ export default function MojeScreen() {
                   {loc.lat.toFixed(4)}, {loc.lon.toFixed(4)}
                 </Text>
               </Pressable>
+              <Pressable onPress={() => setObserving(loc)} hitSlop={8} style={styles.deleteBtn}>
+                <ClipboardCheck size={17} strokeWidth={1.8} color={palette.secondary} />
+              </Pressable>
               <Pressable onPress={() => removeLocation(loc.id)} hitSlop={8} style={styles.deleteBtn}>
                 <Trash2 size={17} strokeWidth={1.8} color={palette.inkFaint} />
               </Pressable>
@@ -56,8 +62,11 @@ export default function MojeScreen() {
 
       <Text style={styles.note}>
         Klepnutím na místo ho nastavíte jako aktuální — Domů a Mapa se přepnou na něj. Předpověď umí
-        zobrazit všechna uložená místa najednou.
+        zobrazit všechna uložená místa najednou. Ikonka se zaškrtnutím zapíše, jestli tam houby fakt
+        rostly — pomáhá to zpřesňovat model.
       </Text>
+
+      {observing && <ObservationSheet location={observing} onClose={() => setObserving(null)} />}
     </ScrollView>
   );
 }
