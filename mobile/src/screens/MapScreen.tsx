@@ -1,38 +1,59 @@
-import { useEffect, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { WebView } from "react-native-webview";
 import { palette, radius, space, type } from "../theme";
-import { getGrid, GRID_THRESHOLD_PCT, type GridResponse } from "../api";
+import { getGrid, type GridResponse } from "../api";
 import { useLocation } from "../LocationContext";
-import { buildGridMapHtml } from "../leafletHtml";
+import { buildGridMapHtml, type MapMode } from "../leafletHtml";
 import { PageHeader } from "../components/PageHeader";
+import { Chip } from "../components/Chip";
 import { LocationSheet, type SelectedLocation } from "../components/LocationSheet";
 
 export default function MapScreen() {
   const { location } = useLocation();
   const [grid, setGrid] = useState<GridResponse | null>(null);
+  const [mode, setMode] = useState<MapMode>({ type: "top3" });
   const [selected, setSelected] = useState<SelectedLocation | null>(null);
 
   useEffect(() => {
     getGrid().then(setGrid).catch(() => {});
   }, []);
 
-  const html = grid
-    ? buildGridMapHtml({
-        points: grid.points,
-        gridSpacingM: grid.gridSpacingM,
-        userLat: location.lat,
-        userLon: location.lon,
-      })
-    : null;
+  const html = useMemo(() => {
+    if (!grid) return null;
+    return buildGridMapHtml({
+      points: grid.points,
+      speciesList: grid.speciesList,
+      mode,
+      userLat: location.lat,
+      userLon: location.lon,
+    });
+  }, [grid, mode, location.lat, location.lon]);
 
   return (
     <View style={styles.screen}>
       <PageHeader
-        eyebrow={`celá ČR · nad ${GRID_THRESHOLD_PCT} %`}
+        eyebrow="celá ČR · dnes"
         title="Mapa"
-        subtitle="Oblasti, ne přesné body — model počítá pravděpodobnost pro okolí, ne pro jeden metr čtvereční."
+        subtitle="Hustota mraku = pravděpodobnost. Klepni na mapu pro detail místa."
       />
+
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filters} contentContainerStyle={{ gap: space.sm }}>
+        <Chip
+          label="Top 3 dnes"
+          active={mode.type === "top3"}
+          onPress={() => setMode({ type: "top3" })}
+        />
+        {grid?.speciesList.map((sp) => (
+          <Chip
+            key={sp.id}
+            label={sp.name_cz}
+            active={mode.type === "species" && mode.id === sp.id}
+            onPress={() => setMode({ type: "species", id: sp.id })}
+          />
+        ))}
+      </ScrollView>
+
       <View style={styles.mapCard}>
         {html ? (
           <WebView
@@ -59,6 +80,7 @@ export default function MapScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: palette.bg },
+  filters: { flexGrow: 0, paddingHorizontal: space.lg, marginBottom: space.sm },
   mapCard: {
     flex: 1,
     marginHorizontal: space.lg,

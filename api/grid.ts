@@ -2,32 +2,34 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { fetchWeather } from "./lib/weather";
 import { fetchTerrain } from "./lib/terrain";
 import { scoreSpeciesDay, type Species } from "./lib/scoring";
+import { isInsideCzechia } from "./lib/geo";
 import speciesData from "./data/species.json";
 
 /**
- * GET /api/grid?threshold=20
+ * GET /api/grid
  *
- * Today's best-species probability across a grid covering the Czech
- * Republic, for the map screen. Each point is real (same weather/terrain/
- * scoring pipeline as /api/forecast), not interpolated — just coarser and
- * "today only" so a country-wide grid is actually fast enough to compute.
+ * Today's probability for every species, across a grid of points clipped
+ * to the real Czech Republic border (not a rectangle — the first version
+ * painted circles into Germany/Austria/Poland/Slovakia, which was wrong).
  *
- * Only points at or above `threshold` are returned — the map is meant to
- * show "where's actually worth going", not the whole country tinted at
- * 3%. Default 20 for dev/testing (so the grid has visible points even
- * during a dry spell); a live deployment should default this to ~40.
+ * Returns full per-species scores per point (not just "today's winner")
+ * so the client can filter by species, or by "top 3 today", without a
+ * refetch — the expensive part is the two external fetches per point,
+ * which happen once regardless of how many species we score from them.
  */
 
 const BOUNDS = { latMin: 48.55, latMax: 51.06, lonMin: 12.09, lonMax: 18.87 };
-const LAT_STEP = 0.5; // ~55km
-const LON_STEP = 0.7; // ~50km at this latitude
-export const GRID_SPACING_M = 45000; // used by the client to size each point's area circle
+const LAT_STEP = 0.28;
+const LON_STEP = 0.4;
+export const GRID_SPACING_M = 30000; // for the client to size each point's heat radius
 
 function buildGridPoints(): { lat: number; lon: number }[] {
   const points: { lat: number; lon: number }[] = [];
   for (let lat = BOUNDS.latMin; lat <= BOUNDS.latMax; lat += LAT_STEP) {
     for (let lon = BOUNDS.lonMin; lon <= BOUNDS.lonMax; lon += LON_STEP) {
-      points.push({ lat: Math.round(lat * 100) / 100, lon: Math.round(lon * 100) / 100 });
+      const rlat = Math.round(lat * 100) / 100;
+      const rlon = Math.round(lon * 100) / 100;
+      if (isInsideCzechia(rlat, rlon)) points.push({ lat: rlat, lon: rlon });
     }
   }
   return points;
@@ -36,13 +38,10 @@ function buildGridPoints(): { lat: number; lon: number }[] {
 interface GridPointResult {
   lat: number;
   lon: number;
-  probabilityPct: number;
-  topSpeciesName: string;
-  topSpeciesId: string;
+  scores: Record<string, number>; // speciesId -> probability_pct
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  const threshold = req.query.threshold ? Number(req.query.threshold) : 20;
+export default async function handler(_req: VercelRequest, res: VercelResponse) {
   const species = speciesData.species as Species[];
   const points = buildGridPoints();
   const todayStr = new Date().toISOString().slice(0, 10);
@@ -57,21 +56,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const todayIndex = days.findIndex((d) => d.date === todayStr);
         if (todayIndex < 0) return null;
 
-        let best: { id: string; name: string; pct: number } | null = null;
+        const scores: Record<string, number> = {};
         for (const sp of species) {
-          const score = scoreSpeciesDay(days, todayIndex, sp, terrain);
-          if (!best || score.probability_pct > best.pct) {
-            best = { id: sp.id, name: sp.name_cz, pct: score.probability_pct };
-          }
+          scores[sp.id] = scoreSpeciesDay(days, todayIndex, sp, terrain).probability_pct;
         }
-        if (!best || best.pct < threshold) return null;
-        return {
-          lat: pt.lat,
-          lon: pt.lon,
-          probabilityPct: best.pct,
-          topSpeciesName: best.name,
-          topSpeciesId: best.id,
-        };
+        return { lat: pt.lat, lon: pt.lon, scores };
       } catch {
         return null;
       }
@@ -80,8 +69,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   res.status(200).json({
     generated_at: new Date().toISOString(),
-    threshold,
     gridSpacingM: GRID_SPACING_M,
+    speciesList: species.map((sp) => ({ id: sp.id, name_cz: sp.name_cz })),
     points: results.filter((r): r is GridPointResult => !!r),
   });
 }
