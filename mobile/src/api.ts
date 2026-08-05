@@ -17,7 +17,7 @@ function resolveApiBase(): string {
   return host ? `http://${host}:3001` : "http://localhost:3001";
 }
 
-const API_BASE = resolveApiBase();
+export const API_BASE = resolveApiBase();
 
 export interface DayScore {
   date: string;
@@ -82,4 +82,19 @@ export async function getGrid(): Promise<GridResponse> {
     throw new Error(`Server vrátil chybu ${res.status}`);
   }
   return res.json();
+}
+
+export interface GeocodeResult {
+  label: string;
+  sublabel: string;
+  lat: number;
+  lon: number;
+}
+
+export async function searchLocations(query: string): Promise<GeocodeResult[]> {
+  if (query.trim().length < 3) return [];
+  const res = await fetch(`${API_BASE}/api/geocode?q=${encodeURIComponent(query)}`);
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.results;
 }

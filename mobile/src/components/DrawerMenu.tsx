@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { Animated, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Ellipse, Path } from "react-native-svg";
 import { Home, Leaf, Map, MapPin, Settings, X } from "lucide-react-native";
 import { palette, radius, space, type } from "../theme";
@@ -69,6 +70,7 @@ export function DrawerMenu({
   onClose: () => void;
 }) {
   const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const drawerWidth = Math.min(300, width * 0.8);
   const translateX = useRef(new Animated.Value(-drawerWidth)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
@@ -97,7 +99,7 @@ export function DrawerMenu({
       <Animated.View style={[styles.drawer, { width: drawerWidth, transform: [{ translateX }] }]}>
         <BackgroundArt />
 
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: insets.top + space.sm }]}>
           <BrandMark size="sm" />
           <Pressable onPress={onClose} hitSlop={8}>
             <X size={20} strokeWidth={1.8} color={palette.inkFaint} />

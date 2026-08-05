@@ -2,9 +2,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { WebView } from "react-native-webview";
 import { palette, radius, space, type } from "../theme";
-import { getGrid, type GridResponse } from "../api";
+import { getGrid, API_BASE, type GridResponse } from "../api";
 import { useLocation } from "../LocationContext";
-import { buildGridMapHtml, type MapMode } from "../leafletHtml";
+import { type MapMode } from "../leafletHtml";
 import { PageHeader } from "../components/PageHeader";
 import { Chip } from "../components/Chip";
 import { LocationSheet, type SelectedLocation } from "../components/LocationSheet";
@@ -25,20 +25,18 @@ export default function MapScreen() {
       .catch((e) => setGridError(String(e.message ?? e)));
   }, []);
 
-  // The HTML is built once per (grid, location) — NOT per mode. Switching
-  // species shouldn't reload every map tile and reset pan/zoom; instead the
-  // mode change is pushed into the already-loaded page below.
-  const html = useMemo(() => {
-    if (!grid) return null;
-    return buildGridMapHtml({
-      points: grid.points,
-      speciesList: grid.speciesList,
-      userLat: location.lat,
-      userLon: location.lon,
-      initialMode: mode,
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [grid, location.lat, location.lon]);
+  // Loaded as a real fetched page (dev-server.mjs's /map route), not passed
+  // through react-native-webview's `source={{ html }}` prop — that prop
+  // silently failed to render on a real iPhone once the page got large
+  // (Leaflet + every grid point), almost certainly an RN-bridge size limit
+  // rather than anything WebView itself reports as an error. A normal HTTP
+  // load sidesteps that entirely. Keyed on location only, not mode —
+  // switching species pushes a postMessage into the already-loaded page
+  // instead of reloading it (see the mode effect below).
+  const mapUri = useMemo(
+    () => `${API_BASE}/map?lat=${location.lat}&lon=${location.lon}`,
+    [location.lat, location.lon]
+  );
 
   useEffect(() => {
     if (isFirstMode.current) {
@@ -78,12 +76,18 @@ export default function MapScreen() {
             Mapu se nepodařilo načíst: {gridError ?? webviewError}
             {"\n"}Je telefon na stejné Wi-Fi jako server?
           </Text>
-        ) : html ? (
+        ) : (
           <WebView
             ref={webviewRef}
             originWhitelist={["*"]}
-            source={{ html }}
+            source={{ uri: mapUri }}
             style={{ flex: 1 }}
+            startInLoadingState
+            renderLoading={() => (
+              <View style={styles.loadingWrap}>
+                <Text style={styles.loading}>Počítám mřížku pro celou republiku…</Text>
+              </View>
+            )}
             onError={(e) => setWebviewError(e.nativeEvent.description)}
             onHttpError={(e) => setWebviewError(`HTTP ${e.nativeEvent.statusCode}`)}
             onMessage={(e) => {
@@ -95,8 +99,6 @@ export default function MapScreen() {
               }
             }}
           />
-        ) : (
-          <Text style={styles.loading}>Počítám mřížku pro celou republiku…</Text>
         )}
       </View>
       {selected && <LocationSheet selected={selected} onClose={() => setSelected(null)} />}
@@ -119,5 +121,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   loading: { ...type.bodySmall, color: palette.inkFaint },
+  loadingWrap: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: palette.bg,
+  },
   error: { ...type.bodySmall, color: palette.danger, textAlign: "center", paddingHorizontal: space.lg },
 });

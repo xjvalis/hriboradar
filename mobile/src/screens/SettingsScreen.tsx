@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-
 import { palette, radius, space, type } from "../theme";
 import { PageHeader } from "../components/PageHeader";
 import { PrimaryButton } from "../components/PrimaryButton";
+import { LocationSearchInput } from "../components/LocationSearchInput";
 import { useLocation, PRESET_LOCATIONS } from "../LocationContext";
 
 export default function SettingsScreen() {
@@ -30,6 +31,11 @@ export default function SettingsScreen() {
         </Text>
       </View>
 
+      <Text style={styles.sectionTitle}>Hledat místo</Text>
+      <LocationSearchInput
+        onSelect={(r) => setLocation({ lat: r.lat, lon: r.lon, label: r.label })}
+      />
+
       <Text style={styles.sectionTitle}>Rychlá volba</Text>
       <View style={styles.presetRow}>
         {PRESET_LOCATIONS.map((preset) => {
@@ -48,7 +54,8 @@ export default function SettingsScreen() {
         })}
       </View>
 
-      <Text style={styles.sectionTitle}>Vlastní souřadnice</Text>
+      <Text style={styles.sectionTitle}>Přesné souřadnice</Text>
+      <Text style={styles.hint}>Pro místa bez jména na mapě — třeba oblíbený les.</Text>
       <View style={styles.form}>
         <TextInput
           style={styles.input}
@@ -90,6 +97,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: palette.bg },
   content: { paddingHorizontal: space.lg, paddingBottom: space.xxl },
   sectionTitle: { ...type.label, color: palette.inkSoft, marginTop: space.xl, marginBottom: space.sm },
+  hint: { ...type.caption, color: palette.inkFaint, marginTop: -4, marginBottom: space.sm },
   currentCard: {
     backgroundColor: palette.surface,
     borderRadius: radius.md,
