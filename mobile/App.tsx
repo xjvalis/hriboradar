@@ -1,9 +1,10 @@
 import { StatusBar } from "expo-status-bar";
 import { useFonts } from "expo-font";
 import { useState } from "react";
-import { ActivityIndicator, StyleSheet } from "react-native";
+import { StyleSheet } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { palette } from "./src/theme";
+import { LoadingScreen } from "./src/components/LoadingScreen";
 import { BottomNav, type ScreenName } from "./src/components/BottomNav";
 import HomeScreen from "./src/screens/HomeScreen";
 import MapScreen from "./src/screens/MapScreen";
@@ -32,8 +33,8 @@ function AppShell() {
 
   if (!fontsLoaded) {
     return (
-      <SafeAreaView style={styles.center}>
-        <ActivityIndicator color={palette.primary} />
+      <SafeAreaView style={styles.screen}>
+        <LoadingScreen />
       </SafeAreaView>
     );
   }
@@ -59,5 +60,4 @@ export default function App() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: palette.bg },
-  center: { flex: 1, backgroundColor: palette.bg, alignItems: "center", justifyContent: "center" },
 });

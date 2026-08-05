@@ -19,6 +19,8 @@
  * this is a best-effort signal, not a certified forest inventory.
  */
 
+import { cached, roundCoord } from "./cache";
+
 // overpass.kumi.systems was the only endpoint that reliably returned data
 // with a proper User-Agent in testing; the official overpass-api.de
 // cluster 406'd fetch() requests regardless of headers (Apache-level
@@ -32,6 +34,16 @@ const OVERPASS_ENDPOINTS = [
 ];
 
 const SEARCH_RADIUS_M = 1500;
+
+// Forest composition doesn't change minute to minute — cache aggressively.
+const TERRAIN_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24h
+// But a failed lookup (Overpass down/rate-limited) gets a short TTL — long
+// enough to stop every request paying the full timeout during an outage,
+// short enough that we retry for real data soon after.
+const TERRAIN_FAILURE_TTL_MS = 90 * 1000; // 90s
+// Each endpoint gets less time before falling back — the old 9s x 3
+// endpoints meant a single request could take up to 27s in the worst case.
+const OVERPASS_TIMEOUT_MS = 5000;
 
 export type DominantForestType = "jehličnatý" | "listnatý" | "smíšený" | null;
 
@@ -94,31 +106,45 @@ function forestTypeFromGenera(genera: string[]): DominantForestType {
   return null;
 }
 
-async function queryOverpass(query: string): Promise<OverpassResponse> {
-  let lastError: unknown;
-  for (const endpoint of OVERPASS_ENDPOINTS) {
-    try {
-      const res = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          // Some Overpass mirrors 406/429 requests without a real UA.
-          "User-Agent": "RostouApp/0.1 (+https://github.com/xjvalis/rostou)",
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: new URLSearchParams({ data: query }),
-        signal: AbortSignal.timeout(9000),
-      });
-      if (!res.ok) throw new Error(`Overpass ${endpoint} returned ${res.status}`);
-      const text = await res.text();
-      return JSON.parse(text) as OverpassResponse;
-    } catch (err) {
-      lastError = err;
-    }
-  }
-  throw lastError;
+async function queryOne(endpoint: string, query: string): Promise<OverpassResponse> {
+  const res = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      // Some Overpass mirrors 406/429 requests without a real UA.
+      "User-Agent": "RostouApp/0.1 (+https://github.com/xjvalis/rostou)",
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: new URLSearchParams({ data: query }),
+    signal: AbortSignal.timeout(OVERPASS_TIMEOUT_MS),
+  });
+  if (!res.ok) throw new Error(`Overpass ${endpoint} returned ${res.status}`);
+  const text = await res.text();
+  return JSON.parse(text) as OverpassResponse;
 }
 
-export async function fetchTerrain(lat: number, lon: number): Promise<TerrainInfo> {
+// Race all endpoints instead of trying them one after another — sequential
+// fallback meant a request could wait up to endpoints.length x timeout
+// before failing (measured ~15s cold). Racing means we wait only as long
+// as the fastest endpoint that actually answers.
+async function queryOverpass(query: string): Promise<OverpassResponse> {
+  return Promise.any(OVERPASS_ENDPOINTS.map((endpoint) => queryOne(endpoint, query)));
+}
+
+export function fetchTerrain(lat: number, lon: number): Promise<TerrainInfo> {
+  const key = `terrain:${roundCoord(lat)},${roundCoord(lon)}`;
+  return cached(
+    key,
+    TERRAIN_CACHE_TTL_MS,
+    () => fetchTerrainUncached(lat, lon),
+    // hasForestNearby:true + polygonsFound:0 only happens in the catch-all
+    // fallback below (Overpass failed) — give that a short TTL instead of
+    // the full day, so a transient outage self-heals quickly.
+    (result) =>
+      result.hasForestNearby && result.polygonsFound === 0 ? TERRAIN_FAILURE_TTL_MS : null
+  );
+}
+
+async function fetchTerrainUncached(lat: number, lon: number): Promise<TerrainInfo> {
   const query = `[out:json][timeout:8];(way(around:${SEARCH_RADIUS_M},${lat},${lon})["landuse"="forest"];way(around:${SEARCH_RADIUS_M},${lat},${lon})["natural"="wood"];);out tags 30;`;
 
   try {

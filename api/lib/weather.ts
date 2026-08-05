@@ -1,3 +1,5 @@
+import { cached, roundCoord } from "./cache";
+
 const OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast";
 
 // How far back we look for a "qualifying rain" event when computing
@@ -6,6 +8,10 @@ const OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast";
 const PAST_DAYS = 16;
 // How far forward we forecast — covers the "za N dní upozornění" use case.
 const FORECAST_DAYS = 7;
+// Weather changes slowly relative to our daily-resolution model — safe to
+// cache for a while, and it's what stops the Home screen's 8 region calls
+// from re-fetching the same forecast on every load.
+const WEATHER_CACHE_TTL_MS = 30 * 60 * 1000; // 30 min
 
 export interface DayWeather {
   date: string; // YYYY-MM-DD
@@ -28,7 +34,12 @@ interface OpenMeteoResponse {
   };
 }
 
-export async function fetchWeather(lat: number, lon: number): Promise<DayWeather[]> {
+export function fetchWeather(lat: number, lon: number): Promise<DayWeather[]> {
+  const key = `weather:${roundCoord(lat)},${roundCoord(lon)}`;
+  return cached(key, WEATHER_CACHE_TTL_MS, () => fetchWeatherUncached(lat, lon));
+}
+
+async function fetchWeatherUncached(lat: number, lon: number): Promise<DayWeather[]> {
   const url = new URL(OPEN_METEO_URL);
   url.searchParams.set("latitude", String(lat));
   url.searchParams.set("longitude", String(lon));

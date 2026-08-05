@@ -10,6 +10,7 @@ import { LocationCard } from "../components/LocationCard";
 import { MushroomCard } from "../components/MushroomCard";
 import { WeatherSummary } from "../components/WeatherSummary";
 import { CardSkeleton } from "../components/LoadingSkeleton";
+import { LoadingScreen } from "../components/LoadingScreen";
 
 const DEFAULT_LOCATION = { lat: 50.075, lon: 14.44, name: "Praha (výchozí)" };
 
@@ -76,6 +77,13 @@ export default function HomeScreen() {
   const todayWeather = data?.weather?.find((w) => w.date === data.today);
   const daysSinceRainToday = top[0]?.today.factors.days_since_rain ?? null;
 
+  // First load: the fun full-screen version, not a bare spinner or an
+  // empty page — this is the 3-10s window the whole app was waiting
+  // silently through before caching + this screen existed.
+  if (!data && !error) {
+    return <LoadingScreen />;
+  }
+
   return (
     <ScrollView
       style={styles.screen}
@@ -104,15 +112,11 @@ export default function HomeScreen() {
         </Text>
       )}
 
-      {!data && !error ? (
-        <View style={{ marginTop: space.base }}>
-          <CardSkeleton />
-        </View>
-      ) : data ? (
+      {data && (
         <View style={{ marginTop: space.base }}>
           <IndexCard value={indexValue} explanation={buildExplanation(data, top)} />
         </View>
-      ) : null}
+      )}
 
       <SectionHeader title="Kam dnes?" />
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.sm }}>
