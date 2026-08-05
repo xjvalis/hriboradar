@@ -3,7 +3,7 @@ import { Menu } from "lucide-react-native";
 import { palette, space } from "../theme";
 import { BrandMark } from "./BrandMark";
 
-export type ScreenName = "Domů" | "Mapa" | "Houby" | "Moje" | "Nastavení";
+export type ScreenName = "Domů" | "Mapa" | "Předpověď" | "Houby" | "Moje" | "Nastavení";
 
 export function TopBar({ onMenuPress }: { onMenuPress: () => void }) {
   return (

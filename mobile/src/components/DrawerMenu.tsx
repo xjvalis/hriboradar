@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { Animated, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Ellipse, Path } from "react-native-svg";
-import { Home, Leaf, Map, MapPin, Settings, X } from "lucide-react-native";
+import { CalendarDays, Home, Leaf, Map, MapPin, Settings, X } from "lucide-react-native";
 import { palette, radius, space, type } from "../theme";
 import { BrandMark } from "./BrandMark";
 import type { ScreenName } from "./TopBar";
@@ -10,6 +10,7 @@ import type { ScreenName } from "./TopBar";
 const ITEMS: { name: ScreenName; Icon: typeof Home; label: string }[] = [
   { name: "Domů", Icon: Home, label: "Domů" },
   { name: "Mapa", Icon: Map, label: "Mapa" },
+  { name: "Předpověď", Icon: CalendarDays, label: "Předpověď" },
   { name: "Houby", Icon: Leaf, label: "Houby" },
   { name: "Moje", Icon: MapPin, label: "Moje místa" },
   { name: "Nastavení", Icon: Settings, label: "Nastavení" },

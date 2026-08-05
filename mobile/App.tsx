@@ -8,10 +8,12 @@ import { LoadingScreen } from "./src/components/LoadingScreen";
 import { TopBar, type ScreenName } from "./src/components/TopBar";
 import { DrawerMenu } from "./src/components/DrawerMenu";
 import { LocationProvider } from "./src/LocationContext";
+import { SavedLocationsProvider } from "./src/SavedLocationsContext";
 import { SpeciesDetailProvider } from "./src/SpeciesDetailContext";
 import { SpeciesDetailSheet } from "./src/components/SpeciesDetailSheet";
 import HomeScreen from "./src/screens/HomeScreen";
 import MapScreen from "./src/screens/MapScreen";
+import PredpovedScreen from "./src/screens/PredpovedScreen";
 import HoubyScreen from "./src/screens/HoubyScreen";
 import MojeScreen from "./src/screens/MojeScreen";
 import SettingsScreen from "./src/screens/SettingsScreen";
@@ -19,6 +21,7 @@ import SettingsScreen from "./src/screens/SettingsScreen";
 const SCREENS: Record<ScreenName, React.ComponentType> = {
   Domů: HomeScreen,
   Mapa: MapScreen,
+  Předpověď: PredpovedScreen,
   Houby: HoubyScreen,
   Moje: MojeScreen,
   Nastavení: SettingsScreen,
@@ -71,9 +74,11 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <LocationProvider>
-        <SpeciesDetailProvider>
-          <AppShell />
-        </SpeciesDetailProvider>
+        <SavedLocationsProvider>
+          <SpeciesDetailProvider>
+            <AppShell />
+          </SpeciesDetailProvider>
+        </SavedLocationsProvider>
       </LocationProvider>
     </SafeAreaProvider>
   );

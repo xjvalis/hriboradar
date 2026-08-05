@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from "react";
-import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
-import { palette, radius, scoreColor, scoreLabel, shadow, space, type } from "../theme";
+import { useEffect, useState } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { palette, radius, scoreColor, scoreLabel, space, type } from "../theme";
 import { PrimaryButton } from "./PrimaryButton";
 import { ProbabilityBadge } from "./ProbabilityBadge";
+import { BottomSheet } from "./BottomSheet";
 import { getForecast, type ForecastResponse } from "../api";
 import { useSpeciesDetail } from "../SpeciesDetailContext";
 
@@ -21,13 +22,8 @@ export function LocationSheet({
   selected: SelectedLocation;
   onClose: () => void;
 }) {
-  const translateY = useRef(new Animated.Value(200)).current;
   const [detail, setDetail] = useState<ForecastResponse | null>(null);
   const { openSpecies } = useSpeciesDetail();
-
-  useEffect(() => {
-    Animated.spring(translateY, { toValue: 0, useNativeDriver: true, damping: 16 }).start();
-  }, [selected]);
 
   useEffect(() => {
     setDetail(null);
@@ -52,85 +48,68 @@ export function LocationSheet({
   const todayWeather = detail?.weather?.find((w) => w.date === detail.today);
 
   return (
-    <Animated.View style={[styles.sheet, shadow.sheet, { transform: [{ translateY }] }]}>
-      <View style={styles.handle} />
-      <View style={styles.headerRow}>
-        <Text style={styles.title}>Vybraná oblast</Text>
-        <Text onPress={onClose} style={styles.close}>
-          Zavřít
-        </Text>
-      </View>
-
-      <View style={styles.indexRow}>
-        <Text style={styles.eyebrow}>Houbový index</Text>
-        <View style={styles.scoreRow}>
-          <Text style={[styles.score, { color }]}>{pct}</Text>
-          <Text style={styles.scoreMax}>/ 100</Text>
+    <BottomSheet onClose={onClose}>
+      <View style={styles.content}>
+        <View style={styles.headerRow}>
+          <Text style={styles.title}>Vybraná oblast</Text>
+          <Text onPress={onClose} style={styles.close}>
+            Zavřít
+          </Text>
         </View>
-        <Text style={[styles.status, { color }]}>{scoreLabel(pct)}</Text>
-      </View>
 
-      <Text style={styles.listTitle}>Co tu roste</Text>
-      {topSpecies.length > 0 ? (
-        <View style={{ gap: space.xs }}>
-          {topSpecies.map(({ sp, today }) => (
-            <Pressable key={sp.id} style={styles.speciesRow} onPress={() => openSpecies(sp.id)}>
-              <Text style={styles.speciesName}>{sp.name_cz}</Text>
-              <ProbabilityBadge pct={today.probability_pct} size="sm" />
+        <View style={styles.indexRow}>
+          <Text style={styles.eyebrow}>Houbový index</Text>
+          <View style={styles.scoreRow}>
+            <Text style={[styles.score, { color }]}>{pct}</Text>
+            <Text style={styles.scoreMax}>/ 100</Text>
+          </View>
+          <Text style={[styles.status, { color }]}>{scoreLabel(pct)}</Text>
+        </View>
+
+        <Text style={styles.listTitle}>Co tu roste</Text>
+        {topSpecies.length > 0 ? (
+          <View style={{ gap: space.xs }}>
+            {topSpecies.map(({ sp, today }) => (
+              <Pressable key={sp.id} style={styles.speciesRow} onPress={() => openSpecies(sp.id)}>
+                <Text style={styles.speciesName}>{sp.name_cz}</Text>
+                <ProbabilityBadge pct={today.probability_pct} size="sm" />
+              </Pressable>
+            ))}
+          </View>
+        ) : (
+          selected.topSpeciesName && (
+            <Pressable
+              style={styles.speciesRow}
+              onPress={() => selected.topSpeciesId && openSpecies(selected.topSpeciesId)}
+            >
+              <Text style={styles.speciesName}>{selected.topSpeciesName}</Text>
+              {selected.probabilityPct != null && (
+                <ProbabilityBadge pct={selected.probabilityPct} size="sm" />
+              )}
             </Pressable>
-          ))}
+          )
+        )}
+
+        {first && todayWeather && (
+          <Text style={styles.why}>
+            {first.factors.days_since_rain == null
+              ? "Delší dobu bez vydatnějšího deště"
+              : `${first.factors.days_since_rain}. den po dešti`}
+            {" · "}
+            {todayWeather.tempC} °C
+          </Text>
+        )}
+
+        <View style={{ marginTop: space.base }}>
+          <PrimaryButton label="Uložit lokalitu" disabled />
         </View>
-      ) : (
-        selected.topSpeciesName && (
-          <Pressable
-            style={styles.speciesRow}
-            onPress={() => selected.topSpeciesId && openSpecies(selected.topSpeciesId)}
-          >
-            <Text style={styles.speciesName}>{selected.topSpeciesName}</Text>
-            {selected.probabilityPct != null && (
-              <ProbabilityBadge pct={selected.probabilityPct} size="sm" />
-            )}
-          </Pressable>
-        )
-      )}
-
-      {first && todayWeather && (
-        <Text style={styles.why}>
-          {first.factors.days_since_rain == null
-            ? "Delší dobu bez vydatnějšího deště"
-            : `${first.factors.days_since_rain}. den po dešti`}
-          {" · "}
-          {todayWeather.tempC} °C
-        </Text>
-      )}
-
-      <View style={{ marginTop: space.base }}>
-        <PrimaryButton label="Uložit lokalitu" disabled />
       </View>
-    </Animated.View>
+    </BottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  sheet: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: palette.surface,
-    borderTopLeftRadius: radius.sheet,
-    borderTopRightRadius: radius.sheet,
-    padding: space.lg,
-    paddingBottom: space.xl,
-  },
-  handle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: palette.line,
-    alignSelf: "center",
-    marginBottom: space.md,
-  },
+  content: { padding: space.lg, paddingTop: 0, paddingBottom: space.xl },
   headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   title: { ...type.headingMd, color: palette.ink },
   close: { ...type.bodySmall, color: palette.inkFaint },
