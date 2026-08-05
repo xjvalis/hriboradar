@@ -48,6 +48,12 @@ export interface DayWeather {
   precipMm: number;
 }
 
+export interface CurrentConditions {
+  tempC: number;
+  precipMm: number;
+  time: string;
+}
+
 export interface ForecastResponse {
   location: { lat: number; lon: number };
   generated_at: string;
@@ -57,6 +63,7 @@ export interface ForecastResponse {
     dominantType: string | null;
     polygonsFound: number;
   };
+  current: CurrentConditions | null;
   weather: DayWeather[];
   species: SpeciesForecast[];
 }

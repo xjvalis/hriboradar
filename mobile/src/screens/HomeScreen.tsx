@@ -157,7 +157,7 @@ export default function HomeScreen() {
         <>
           <SectionHeader title="Podmínky" />
           <WeatherSummary
-            tempC={todayWeather.tempC}
+            tempC={data?.current?.tempC ?? todayWeather.tempC}
             soilMoisturePct={todayWeather.soilMoisturePct}
             daysSinceRain={daysSinceRainToday}
           />

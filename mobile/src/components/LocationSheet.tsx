@@ -96,7 +96,7 @@ export function LocationSheet({
               ? "Delší dobu bez vydatnějšího deště"
               : `${first.factors.days_since_rain}. den po dešti`}
             {" · "}
-            {todayWeather.tempC} °C
+            {detail?.current?.tempC ?? todayWeather.tempC} °C
           </Text>
         )}
 

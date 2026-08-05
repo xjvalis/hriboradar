@@ -155,7 +155,7 @@ export default function PredpovedScreen() {
           </Text>
           <View style={styles.padded}>
             <WeatherSummary
-              tempC={shownWeather.tempC}
+              tempC={shownDay.date === detail!.today ? (detail!.current?.tempC ?? shownWeather.tempC) : shownWeather.tempC}
               soilMoisturePct={shownWeather.soilMoisturePct}
               daysSinceRain={shownSpecies[0]?.day.factors.days_since_rain ?? null}
             />

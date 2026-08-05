@@ -12,6 +12,10 @@ const FORECAST_DAYS = 7;
 // cache for a while, and it's what stops the Home screen's 8 region calls
 // from re-fetching the same forecast on every load.
 const WEATHER_CACHE_TTL_MS = 30 * 60 * 1000; // 30 min
+// "Right now" is a different question from the daily avg(max,min) the
+// model runs on — on a hot day the two can differ by 5-6°C — so it gets
+// its own short-lived cache rather than reusing the daily one.
+const CURRENT_CACHE_TTL_MS = 10 * 60 * 1000; // 10 min
 
 export interface DayWeather {
   date: string; // YYYY-MM-DD
@@ -19,6 +23,12 @@ export interface DayWeather {
   tempAvgC: number;
   soilMoisturePct: number; // volumetric water content 0-9cm depth, as %
   isForecast: boolean;
+}
+
+export interface CurrentConditions {
+  tempC: number;
+  precipMm: number; // in the current ~15-min interval, not a daily total
+  time: string;
 }
 
 interface OpenMeteoResponse {
@@ -31,6 +41,14 @@ interface OpenMeteoResponse {
   hourly: {
     time: string[];
     soil_moisture_3_to_9cm: number[];
+  };
+}
+
+interface OpenMeteoCurrentResponse {
+  current: {
+    time: string;
+    temperature_2m: number;
+    precipitation: number;
   };
 }
 
@@ -85,6 +103,30 @@ async function fetchWeatherUncached(lat: number, lon: number): Promise<DayWeathe
       isForecast: date > todayStr,
     };
   });
+}
+
+export function fetchCurrentConditions(lat: number, lon: number): Promise<CurrentConditions> {
+  const key = `current:${roundCoord(lat)},${roundCoord(lon)}`;
+  return cached(key, CURRENT_CACHE_TTL_MS, () => fetchCurrentConditionsUncached(lat, lon));
+}
+
+async function fetchCurrentConditionsUncached(lat: number, lon: number): Promise<CurrentConditions> {
+  const url = new URL(OPEN_METEO_URL);
+  url.searchParams.set("latitude", String(lat));
+  url.searchParams.set("longitude", String(lon));
+  url.searchParams.set("current", "temperature_2m,precipitation");
+  url.searchParams.set("timezone", "Europe/Prague");
+
+  const res = await fetch(url.toString());
+  if (!res.ok) {
+    throw new Error(`Open-Meteo current-conditions request failed: ${res.status}`);
+  }
+  const data = (await res.json()) as OpenMeteoCurrentResponse;
+  return {
+    tempC: Math.round(data.current.temperature_2m * 10) / 10,
+    precipMm: data.current.precipitation,
+    time: data.current.time,
+  };
 }
 
 /**

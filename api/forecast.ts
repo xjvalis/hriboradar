@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { fetchWeather } from "./lib/weather";
+import { fetchWeather, fetchCurrentConditions } from "./lib/weather";
 import { scoreSpeciesDay, type Species } from "./lib/scoring";
 import { fetchTerrain } from "./lib/terrain";
 import speciesData from "./data/species.json";
@@ -19,6 +19,14 @@ import speciesData from "./data/species.json";
  * ("today's % per species, click in for conditions") should call. The
  * +N day entries are what the "za 5 dní by mohly růst..." notification
  * job should scan for threshold crossings.
+ *
+ * `weather[].tempC` is a daily avg(max,min) — the right input for the
+ * model (mushroom growth responds to the day, not the instant), but the
+ * wrong thing to show next to "right now" on the UI, which on a hot day
+ * can genuinely be 5-6°C off from that average. `current` is the actual
+ * live reading for exactly that purpose; may be null if Open-Meteo's
+ * current-conditions endpoint failed (not worth failing the whole
+ * request over).
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const lat = parseFloat(String(req.query.lat));
@@ -30,9 +38,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const [days, terrain] = await Promise.all([
+    const [days, terrain, current] = await Promise.all([
       fetchWeather(lat, lon),
       fetchTerrain(lat, lon),
+      fetchCurrentConditions(lat, lon).catch(() => null), // "right now" is a nice-to-have, not worth failing the whole request over
     ]);
     const species = speciesData.species as Species[];
 
@@ -71,6 +80,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       generated_at: new Date().toISOString(),
       today: todayStr,
       terrain,
+      current,
       weather,
       species: result,
     });
