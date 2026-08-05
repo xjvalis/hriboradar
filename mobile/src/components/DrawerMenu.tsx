@@ -16,13 +16,30 @@ const ITEMS: { name: ScreenName; Icon: typeof Home; label: string }[] = [
   { name: "Nastavení", Icon: Settings, label: "Nastavení" },
 ];
 
-// Real botanical line-art (user-supplied reference, mobile/assets/background.png)
-// — a single tightly-cropped cluster of ~5 whole mushrooms, not the dense
-// tiled pattern, with the fade to transparent baked into the PNG itself
-// (feathered radial alpha mask) so there's no hard rectangular edge and
-// no mushroom gets cut off mid-illustration. Meant to read as a faint
-// hint in the drawer's lower half, not as an obviously "pasted" image.
-const DRAWER_PATTERN = require("../../assets/drawer-pattern.png");
+// Individual mushrooms cut out of the user-supplied reference sheet
+// (mobile/assets/background.png), each on its own transparent PNG —
+// a feathered single-image fade read as "an image with a blur filter on
+// it"; these are placed one at a time like field-guide clippings, so
+// every mushroom is whole (never cropped mid-illustration) and there's no
+// image edge for the eye to find at all, faded or not.
+const SPRITES = {
+  amanita: require("../../assets/sprites/amanita.png"),
+  chanterelle: require("../../assets/sprites/chanterelle.png"),
+  porcini: require("../../assets/sprites/porcini_pair.png"),
+  morel: require("../../assets/sprites/morel_small.png"),
+  single: require("../../assets/sprites/single_grass.png"),
+};
+
+// Hand-placed scatter within the drawer's lower art area (roughly
+// drawerWidth x remaining-flex-height) — sized/positioned to fill the
+// space without overlapping the nav list above.
+const SCATTER: { key: keyof typeof SPRITES; left: number; top: number; height: number; aspect: number }[] = [
+  { key: "amanita", left: 8, top: 4, height: 92, aspect: 111 / 239 },
+  { key: "chanterelle", left: 150, top: 0, height: 78, aspect: 260 / 234 },
+  { key: "morel", left: 205, top: 110, height: 96, aspect: 201 / 260 },
+  { key: "porcini", left: 6, top: 150, height: 100, aspect: 198 / 260 },
+  { key: "single", left: 175, top: 225, height: 88, aspect: 204 / 225 },
+];
 
 export function DrawerMenu({
   visible,
@@ -59,7 +76,8 @@ export function DrawerMenu({
   return (
     <View style={[styles.overlay, { pointerEvents: visible ? "auto" : "none" }]}>
       <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]}>
-        <BlurView intensity={28} tint="light" style={StyleSheet.absoluteFill} />
+        <View style={styles.backdropTint} />
+        <BlurView intensity={65} tint="light" style={StyleSheet.absoluteFill} />
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
       </Animated.View>
 
@@ -87,7 +105,16 @@ export function DrawerMenu({
           })}
         </View>
 
-        <Image source={DRAWER_PATTERN} resizeMode="contain" style={styles.art} />
+        <View style={styles.art}>
+          {SCATTER.map(({ key, left, top, height, aspect }) => (
+            <Image
+              key={key}
+              source={SPRITES[key]}
+              resizeMode="contain"
+              style={{ position: "absolute", left, top, height, width: height * aspect, opacity: 0.55 }}
+            />
+          ))}
+        </View>
       </Animated.View>
     </View>
   );
@@ -108,6 +135,14 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
+  },
+  // Belt-and-braces with BlurView: if the native blur effect doesn't
+  // render for any reason, this still dims/softens the page behind
+  // instead of leaving it fully sharp and undimmed.
+  backdropTint: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: palette.surface,
+    opacity: 0.4,
   },
   drawer: {
     position: "absolute",
@@ -144,6 +179,6 @@ const styles = StyleSheet.create({
   art: {
     flex: 1,
     width: "100%",
-    height: "100%",
+    overflow: "hidden",
   },
 });
