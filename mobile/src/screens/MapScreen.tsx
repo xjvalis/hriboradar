@@ -12,13 +12,17 @@ import { LocationSheet, type SelectedLocation } from "../components/LocationShee
 export default function MapScreen() {
   const { location } = useLocation();
   const [grid, setGrid] = useState<GridResponse | null>(null);
+  const [gridError, setGridError] = useState<string | null>(null);
+  const [webviewError, setWebviewError] = useState<string | null>(null);
   const [mode, setMode] = useState<MapMode>({ type: "overall" });
   const [selected, setSelected] = useState<SelectedLocation | null>(null);
   const webviewRef = useRef<WebView>(null);
   const isFirstMode = useRef(true);
 
   useEffect(() => {
-    getGrid().then(setGrid).catch(() => {});
+    getGrid()
+      .then(setGrid)
+      .catch((e) => setGridError(String(e.message ?? e)));
   }, []);
 
   // The HTML is built once per (grid, location) — NOT per mode. Switching
@@ -69,12 +73,19 @@ export default function MapScreen() {
       </ScrollView>
 
       <View style={styles.mapCard}>
-        {html ? (
+        {gridError || webviewError ? (
+          <Text style={styles.error}>
+            Mapu se nepodařilo načíst: {gridError ?? webviewError}
+            {"\n"}Je telefon na stejné Wi-Fi jako server?
+          </Text>
+        ) : html ? (
           <WebView
             ref={webviewRef}
             originWhitelist={["*"]}
             source={{ html }}
             style={{ flex: 1 }}
+            onError={(e) => setWebviewError(e.nativeEvent.description)}
+            onHttpError={(e) => setWebviewError(`HTTP ${e.nativeEvent.statusCode}`)}
             onMessage={(e) => {
               try {
                 const msg = JSON.parse(e.nativeEvent.data);
@@ -108,4 +119,5 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   loading: { ...type.bodySmall, color: palette.inkFaint },
+  error: { ...type.bodySmall, color: palette.danger, textAlign: "center", paddingHorizontal: space.lg },
 });

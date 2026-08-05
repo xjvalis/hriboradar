@@ -26,6 +26,8 @@
 // mushrooms here" when it just meant two unrelated species happened to
 // both be present nearby.
 
+import { LEAFLET_CSS, LEAFLET_JS } from "./leafletAssets";
+
 export interface GridPoint {
   lat: number;
   lon: number;
@@ -72,7 +74,7 @@ export function buildGridMapHtml(opts: {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>${LEAFLET_CSS}</style>
   <style>
     html, body, #map { height: 100%; margin: 0; padding: 0; background: #F1ECDC; }
     .cloud-layer { filter: blur(3px); transition: opacity 420ms ease; }
@@ -87,7 +89,7 @@ export function buildGridMapHtml(opts: {
 <body>
   <div id="map"></div>
   <div class="legend"></div>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>${LEAFLET_JS}</script>
   <script>
     var map = L.map('map', { zoomControl: true });
     map.fitBounds(${JSON.stringify(CZ_BOUNDS)});

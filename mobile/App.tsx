@@ -6,17 +6,20 @@ import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { palette } from "./src/theme";
 import { LoadingScreen } from "./src/components/LoadingScreen";
 import { TopBar, type ScreenName } from "./src/components/TopBar";
+import { DrawerMenu } from "./src/components/DrawerMenu";
 import { LocationProvider } from "./src/LocationContext";
 import { SpeciesDetailProvider } from "./src/SpeciesDetailContext";
 import { SpeciesDetailSheet } from "./src/components/SpeciesDetailSheet";
 import HomeScreen from "./src/screens/HomeScreen";
 import MapScreen from "./src/screens/MapScreen";
+import HoubyScreen from "./src/screens/HoubyScreen";
 import MojeScreen from "./src/screens/MojeScreen";
 import SettingsScreen from "./src/screens/SettingsScreen";
 
 const SCREENS: Record<ScreenName, React.ComponentType> = {
   Domů: HomeScreen,
   Mapa: MapScreen,
+  Houby: HoubyScreen,
   Moje: MojeScreen,
   Nastavení: SettingsScreen,
 };
@@ -33,6 +36,7 @@ function AppShell() {
   });
 
   const [active, setActive] = useState<ScreenName>("Domů");
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   if (!fontsLoaded) {
     return (
@@ -47,9 +51,18 @@ function AppShell() {
   return (
     <SafeAreaView style={styles.screen} edges={["top", "left", "right"]}>
       <StatusBar style="dark" />
-      <TopBar active={active} onNavigate={setActive} />
+      <TopBar onMenuPress={() => setDrawerOpen(true)} />
       <ActiveScreen />
       <SpeciesDetailSheet />
+      <DrawerMenu
+        visible={drawerOpen}
+        active={active}
+        onNavigate={(screen) => {
+          setActive(screen);
+          setDrawerOpen(false);
+        }}
+        onClose={() => setDrawerOpen(false)}
+      />
     </SafeAreaView>
   );
 }

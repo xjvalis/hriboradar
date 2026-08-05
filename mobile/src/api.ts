@@ -1,7 +1,23 @@
+import { Platform } from "react-native";
+import Constants from "expo-constants";
+
 // In dev, mobile talks to the local stand-in server (see /dev-server.mjs
 // at the repo root, started with `npm run dev:api`). Point this at the
 // real Vercel deployment once one exists.
-const API_BASE = "http://localhost:3001";
+//
+// "localhost" only resolves on the machine actually running dev-server.mjs
+// — fine for the web preview, broken on a phone in Expo Go. Constants'
+// hostUri is the LAN address Metro is already using to serve the JS bundle
+// to that phone, so reusing its host gets us the right IP automatically
+// instead of a hardcoded address that breaks on a different network.
+function resolveApiBase(): string {
+  if (Platform.OS === "web") return "http://localhost:3001";
+  const hostUri = Constants.expoConfig?.hostUri ?? Constants.expoGoConfig?.hostUri;
+  const host = hostUri?.split(":")[0];
+  return host ? `http://${host}:3001` : "http://localhost:3001";
+}
+
+const API_BASE = resolveApiBase();
 
 export interface DayScore {
   date: string;

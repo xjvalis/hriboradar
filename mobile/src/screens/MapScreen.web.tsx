@@ -11,13 +11,16 @@ import { LocationSheet, type SelectedLocation } from "../components/LocationShee
 export default function MapScreen() {
   const { location } = useLocation();
   const [grid, setGrid] = useState<GridResponse | null>(null);
+  const [gridError, setGridError] = useState<string | null>(null);
   const [mode, setMode] = useState<MapMode>({ type: "overall" });
   const [selected, setSelected] = useState<SelectedLocation | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const isFirstMode = useRef(true);
 
   useEffect(() => {
-    getGrid().then(setGrid).catch(() => {});
+    getGrid()
+      .then(setGrid)
+      .catch((e) => setGridError(String(e.message ?? e)));
   }, []);
 
   useEffect(() => {
@@ -81,7 +84,9 @@ export default function MapScreen() {
       </ScrollView>
 
       <View style={styles.mapCard}>
-        {html ? (
+        {gridError ? (
+          <Text style={styles.error}>Mapu se nepodařilo načíst: {gridError}</Text>
+        ) : html ? (
           <iframe ref={iframeRef} title="Mapa" srcDoc={html} style={{ width: "100%", height: "100%", border: 0 }} />
         ) : (
           <Text style={styles.loading}>Počítám mřížku pro celou republiku…</Text>
@@ -107,4 +112,5 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   loading: { ...type.bodySmall, color: palette.inkFaint },
+  error: { ...type.bodySmall, color: palette.danger, textAlign: "center", paddingHorizontal: space.lg },
 });
