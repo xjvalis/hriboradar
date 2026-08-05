@@ -10,7 +10,7 @@ import { SeasonTimeline } from "../components/SeasonTimeline";
 const allSpecies = Object.values(SPECIES_BY_ID).sort((a, b) => a.name_cz.localeCompare(b.name_cz, "cs"));
 
 export default function HoubyScreen() {
-  const [mode, setMode] = useState<"timeline" | "list">("timeline");
+  const [mode, setMode] = useState<"timeline" | "list">("list");
 
   return (
     <View style={styles.screen}>
