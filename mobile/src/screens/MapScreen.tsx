@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { WebView } from "react-native-webview";
 import { palette, radius, space, type } from "../theme";
@@ -12,23 +12,37 @@ import { LocationSheet, type SelectedLocation } from "../components/LocationShee
 export default function MapScreen() {
   const { location } = useLocation();
   const [grid, setGrid] = useState<GridResponse | null>(null);
-  const [mode, setMode] = useState<MapMode>({ type: "top3" });
+  const [mode, setMode] = useState<MapMode>({ type: "overall" });
   const [selected, setSelected] = useState<SelectedLocation | null>(null);
+  const webviewRef = useRef<WebView>(null);
+  const isFirstMode = useRef(true);
 
   useEffect(() => {
     getGrid().then(setGrid).catch(() => {});
   }, []);
 
+  // The HTML is built once per (grid, location) — NOT per mode. Switching
+  // species shouldn't reload every map tile and reset pan/zoom; instead the
+  // mode change is pushed into the already-loaded page below.
   const html = useMemo(() => {
     if (!grid) return null;
     return buildGridMapHtml({
       points: grid.points,
       speciesList: grid.speciesList,
-      mode,
       userLat: location.lat,
       userLon: location.lon,
+      initialMode: mode,
     });
-  }, [grid, mode, location.lat, location.lon]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [grid, location.lat, location.lon]);
+
+  useEffect(() => {
+    if (isFirstMode.current) {
+      isFirstMode.current = false;
+      return;
+    }
+    webviewRef.current?.postMessage(JSON.stringify({ type: "setMode", mode }));
+  }, [mode]);
 
   return (
     <View style={styles.screen}>
@@ -40,9 +54,9 @@ export default function MapScreen() {
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filters} contentContainerStyle={{ gap: space.sm }}>
         <Chip
-          label="Top 3 dnes"
-          active={mode.type === "top3"}
-          onPress={() => setMode({ type: "top3" })}
+          label="Všechny houby"
+          active={mode.type === "overall"}
+          onPress={() => setMode({ type: "overall" })}
         />
         {grid?.speciesList.map((sp) => (
           <Chip
@@ -57,6 +71,7 @@ export default function MapScreen() {
       <View style={styles.mapCard}>
         {html ? (
           <WebView
+            ref={webviewRef}
             originWhitelist={["*"]}
             source={{ html }}
             style={{ flex: 1 }}

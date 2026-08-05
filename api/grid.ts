@@ -12,10 +12,11 @@ import speciesData from "./data/species.json";
  * to the real Czech Republic border (not a rectangle — the first version
  * painted circles into Germany/Austria/Poland/Slovakia, which was wrong).
  *
- * Returns full per-species scores per point (not just "today's winner")
- * so the client can filter by species, or by "top 3 today", without a
- * refetch — the expensive part is the two external fetches per point,
- * which happen once regardless of how many species we score from them.
+ * Returns both a per-point "overall" score and full per-species scores, so
+ * the client can switch between "všechny houby" and any single species
+ * without a refetch — the expensive part is the two external fetches per
+ * point, which happen once regardless of how many species we score from
+ * them.
  */
 
 const BOUNDS = { latMin: 48.55, latMax: 51.06, lonMin: 12.09, lonMax: 18.87 };
@@ -42,7 +43,27 @@ function buildGridPoints(): { lat: number; lon: number }[] {
 interface GridPointResult {
   lat: number;
   lon: number;
+  overall: number; // "how good are conditions here in general", distinct from any one species
   scores: Record<string, number>; // speciesId -> probability_pct
+}
+
+// "Overall" is deliberately not max(species) and not mean(all 15 species):
+// max would make it identical to "the best species today" (the whole point
+// of the two map modes is that those are different questions); a flat mean
+// gets diluted into near-invisibility by the dozen species that are always
+// a bad fit for a given spot's terrain. A weighted average of the best few
+// species is a reasonable proxy for "general favorability" without either
+// problem — literature-informed starting weights, same caveat as the rest
+// of the scoring model (see species.json _meta).
+const OVERALL_WEIGHTS = [0.5, 0.3, 0.2];
+
+function overallScore(scores: Record<string, number>): number {
+  const top = Object.values(scores)
+    .sort((a, b) => b - a)
+    .slice(0, OVERALL_WEIGHTS.length);
+  const weighted = top.reduce((sum, v, i) => sum + v * OVERALL_WEIGHTS[i], 0);
+  const weightUsed = OVERALL_WEIGHTS.slice(0, top.length).reduce((a, b) => a + b, 0);
+  return weightUsed > 0 ? Math.round(weighted / weightUsed) : 0;
 }
 
 export default async function handler(_req: VercelRequest, res: VercelResponse) {
@@ -64,7 +85,7 @@ export default async function handler(_req: VercelRequest, res: VercelResponse) 
         for (const sp of species) {
           scores[sp.id] = scoreSpeciesDay(days, todayIndex, sp, terrain).probability_pct;
         }
-        return { lat: pt.lat, lon: pt.lon, scores };
+        return { lat: pt.lat, lon: pt.lon, overall: overallScore(scores), scores };
       } catch {
         return null;
       }

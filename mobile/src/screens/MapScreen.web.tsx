@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { palette, radius, space, type } from "../theme";
 import { getGrid, type GridResponse } from "../api";
@@ -11,8 +11,10 @@ import { LocationSheet, type SelectedLocation } from "../components/LocationShee
 export default function MapScreen() {
   const { location } = useLocation();
   const [grid, setGrid] = useState<GridResponse | null>(null);
-  const [mode, setMode] = useState<MapMode>({ type: "top3" });
+  const [mode, setMode] = useState<MapMode>({ type: "overall" });
   const [selected, setSelected] = useState<SelectedLocation | null>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const isFirstMode = useRef(true);
 
   useEffect(() => {
     getGrid().then(setGrid).catch(() => {});
@@ -31,16 +33,28 @@ export default function MapScreen() {
     return () => window.removeEventListener("message", onMessage);
   }, []);
 
+  // The HTML is built once per (grid, location) — NOT per mode. Switching
+  // species shouldn't reload every map tile and reset pan/zoom; instead the
+  // mode change is pushed into the already-loaded page below.
   const html = useMemo(() => {
     if (!grid) return null;
     return buildGridMapHtml({
       points: grid.points,
       speciesList: grid.speciesList,
-      mode,
       userLat: location.lat,
       userLon: location.lon,
+      initialMode: mode,
     });
-  }, [grid, mode, location.lat, location.lon]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [grid, location.lat, location.lon]);
+
+  useEffect(() => {
+    if (isFirstMode.current) {
+      isFirstMode.current = false;
+      return;
+    }
+    iframeRef.current?.contentWindow?.postMessage(JSON.stringify({ type: "setMode", mode }), "*");
+  }, [mode]);
 
   return (
     <View style={styles.screen}>
@@ -52,9 +66,9 @@ export default function MapScreen() {
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filters} contentContainerStyle={{ gap: space.sm }}>
         <Chip
-          label="Top 3 dnes"
-          active={mode.type === "top3"}
-          onPress={() => setMode({ type: "top3" })}
+          label="Všechny houby"
+          active={mode.type === "overall"}
+          onPress={() => setMode({ type: "overall" })}
         />
         {grid?.speciesList.map((sp) => (
           <Chip
@@ -68,7 +82,7 @@ export default function MapScreen() {
 
       <View style={styles.mapCard}>
         {html ? (
-          <iframe title="Mapa" srcDoc={html} style={{ width: "100%", height: "100%", border: 0 }} />
+          <iframe ref={iframeRef} title="Mapa" srcDoc={html} style={{ width: "100%", height: "100%", border: 0 }} />
         ) : (
           <Text style={styles.loading}>Počítám mřížku pro celou republiku…</Text>
         )}

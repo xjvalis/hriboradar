@@ -57,7 +57,7 @@ export interface GridResponse {
   generated_at: string;
   gridSpacingM: number;
   speciesList: { id: string; name_cz: string }[];
-  points: { lat: number; lon: number; scores: Record<string, number> }[];
+  points: { lat: number; lon: number; overall: number; scores: Record<string, number> }[];
 }
 
 export async function getGrid(): Promise<GridResponse> {
