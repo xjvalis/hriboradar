@@ -17,10 +17,12 @@ const ITEMS: { name: ScreenName; Icon: typeof Home; label: string }[] = [
 ];
 
 // Real botanical line-art (user-supplied reference, mobile/assets/background.png)
-// instead of hand-drawn cartoon shapes — sits in the drawer's lower
-// (otherwise-empty) half, below the nav list, so it never competes with
-// the text for legibility.
-const DRAWER_PATTERN = require("../../assets/drawer-pattern.jpg");
+// — a single tightly-cropped cluster of ~5 whole mushrooms, not the dense
+// tiled pattern, with the fade to transparent baked into the PNG itself
+// (feathered radial alpha mask) so there's no hard rectangular edge and
+// no mushroom gets cut off mid-illustration. Meant to read as a faint
+// hint in the drawer's lower half, not as an obviously "pasted" image.
+const DRAWER_PATTERN = require("../../assets/drawer-pattern.png");
 
 export function DrawerMenu({
   visible,
@@ -85,7 +87,7 @@ export function DrawerMenu({
           })}
         </View>
 
-        <Image source={DRAWER_PATTERN} resizeMode="repeat" style={styles.art} />
+        <Image source={DRAWER_PATTERN} resizeMode="contain" style={styles.art} />
       </Animated.View>
     </View>
   );
@@ -143,6 +145,5 @@ const styles = StyleSheet.create({
     flex: 1,
     width: "100%",
     height: "100%",
-    opacity: 0.9,
   },
 });
