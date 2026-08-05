@@ -49,8 +49,11 @@ function pickTop3(points: GridPoint[], speciesList: SpeciesRef[]): SpeciesRef[] 
 }
 
 // Below this score, a point renders nothing at all — "empty" is the
-// correct answer for a 12% day, not a faint tint.
-const VISIBILITY_FLOOR_PCT = 30;
+// correct answer for a genuinely dry day, not a faint tint. 20 matches
+// what real grid data clears right now (137 of 1305 species×point
+// combos); the previous 30 with a steep exponent left almost nothing
+// visible even though the data had real variation.
+const VISIBILITY_FLOOR_PCT = 20;
 // How many meters an island's outer ring spans at 100% — scales down for
 // lower (but still-visible) scores so weaker spots read as smaller, not
 // just fainter.
@@ -59,7 +62,9 @@ const MAX_ISLAND_RADIUS_M = 26000;
 function islandOpacity(scorePct: number): number {
   if (scorePct < VISIBILITY_FLOOR_PCT) return 0;
   const t = (scorePct - VISIBILITY_FLOOR_PCT) / (100 - VISIBILITY_FLOOR_PCT);
-  return Math.pow(t, 1.3) * 0.75; // steep ramp — only strong scores get strongly visible
+  // Linear, generous floor at the threshold — anything that clears the
+  // bar should read as clearly present, not a barely-there whisper.
+  return 0.32 + t * 0.5;
 }
 
 export function buildGridMapHtml(opts: {
@@ -99,9 +104,9 @@ export function buildGridMapHtml(opts: {
       return islands
         .map(
           (isl) => `
-        L.circle([${isl.lat},${isl.lon}], {radius:${isl.radius}, stroke:false, fillColor:'${color}', fillOpacity:${(isl.opacity * 0.45).toFixed(3)}}).addTo(map);
-        L.circle([${isl.lat},${isl.lon}], {radius:${Math.round(isl.radius * 0.62)}, stroke:false, fillColor:'${color}', fillOpacity:${(isl.opacity * 0.7).toFixed(3)}}).addTo(map);
-        L.circle([${isl.lat},${isl.lon}], {radius:${Math.round(isl.radius * 0.3)}, stroke:false, fillColor:'${color}', fillOpacity:${isl.opacity.toFixed(3)}}).addTo(map);`
+        L.circle([${isl.lat},${isl.lon}], {radius:${isl.radius}, color:'${color}', weight:1, opacity:0.5, fillColor:'${color}', fillOpacity:${(isl.opacity * 0.55).toFixed(3)}}).addTo(map);
+        L.circle([${isl.lat},${isl.lon}], {radius:${Math.round(isl.radius * 0.62)}, stroke:false, fillColor:'${color}', fillOpacity:${(isl.opacity * 0.8).toFixed(3)}}).addTo(map);
+        L.circle([${isl.lat},${isl.lon}], {radius:${Math.round(isl.radius * 0.3)}, stroke:false, fillColor:'${color}', fillOpacity:${Math.min(1, isl.opacity * 1.15).toFixed(3)}}).addTo(map);`
         )
         .join("");
     })

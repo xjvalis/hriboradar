@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Animated, StyleSheet, Text, View } from "react-native";
 import { palette, radius, scoreColor, scoreLabel, shadow, space, type } from "../theme";
 import { PrimaryButton } from "./PrimaryButton";
-import { Chip } from "./Chip";
+import { ProbabilityBadge } from "./ProbabilityBadge";
 import { getForecast, type ForecastResponse } from "../api";
 
 export interface SelectedLocation {
@@ -67,16 +67,23 @@ export function LocationSheet({
         <Text style={[styles.status, { color }]}>{scoreLabel(pct)}</Text>
       </View>
 
+      <Text style={styles.listTitle}>Co tu roste</Text>
       {topSpecies.length > 0 ? (
-        <View style={styles.chipRow}>
-          {topSpecies.map(({ sp }) => (
-            <Chip key={sp.id} label={sp.name_cz} />
+        <View style={{ gap: space.xs }}>
+          {topSpecies.map(({ sp, today }) => (
+            <View key={sp.id} style={styles.speciesRow}>
+              <Text style={styles.speciesName}>{sp.name_cz}</Text>
+              <ProbabilityBadge pct={today.probability_pct} size="sm" />
+            </View>
           ))}
         </View>
       ) : (
         selected.topSpeciesName && (
-          <View style={styles.chipRow}>
-            <Chip label={selected.topSpeciesName} />
+          <View style={styles.speciesRow}>
+            <Text style={styles.speciesName}>{selected.topSpeciesName}</Text>
+            {selected.probabilityPct != null && (
+              <ProbabilityBadge pct={selected.probabilityPct} size="sm" />
+            )}
           </View>
         )
       )}
@@ -127,6 +134,16 @@ const styles = StyleSheet.create({
   score: { ...type.displayLg, fontSize: 32, lineHeight: 32 },
   scoreMax: { ...type.body, color: palette.inkFaint, marginLeft: 4, marginBottom: 2 },
   status: { ...type.bodySmall, marginTop: 2 },
-  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: space.xs, marginTop: space.md },
+  listTitle: { ...type.label, color: palette.inkFaint, marginTop: space.md, marginBottom: space.xs },
+  speciesRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: palette.bg,
+    borderRadius: radius.sm,
+    paddingVertical: space.xs,
+    paddingHorizontal: space.sm,
+  },
+  speciesName: { ...type.body, color: palette.ink },
   why: { ...type.bodySmall, color: palette.inkSoft, marginTop: space.md },
 });
