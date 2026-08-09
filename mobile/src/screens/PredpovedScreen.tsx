@@ -186,7 +186,7 @@ export default function PredpovedScreen() {
       )}
 
       <Text style={styles.disclaimer}>
-        Předpověď na 7 dní dopředu je odhad podle vývoje počasí — čím dál v budoucnu, tím méně jistý.
+        Předpověď na 7 dní dopředu je odhad podle vývoje počasí - čím dál v budoucnu, tím méně jistý.
       </Text>
       </PaperBackground>
     </ScrollView>

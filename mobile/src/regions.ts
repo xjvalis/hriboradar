@@ -1,8 +1,8 @@
-// Curated, real Czech mycology-relevant regions (mostly CHKO — chráněné
-// krajinné oblasti — chosen for genuine forest cover and known mushroom
+// Curated, real Czech mycology-relevant regions (mostly CHKO - chráněné
+// krajinné oblasti - chosen for genuine forest cover and known mushroom
 // grounds, not invented). Used to drive "Kam dnes?" by running the real
 // forecast engine against each center point and ranking by actual
-// computed probability — no fabricated scores.
+// computed probability - no fabricated scores.
 export interface Region {
   id: string;
   name: string;

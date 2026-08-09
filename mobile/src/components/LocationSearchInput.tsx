@@ -5,7 +5,7 @@ import { searchLocations, type GeocodeResult } from "../api";
 
 // Self-contained: owns its own query text and debounced results, and hands
 // back just the picked result. Built to be dropped into any screen that
-// needs "type a place name, pick a suggestion" — Settings today, the
+// needs "type a place name, pick a suggestion" - Settings today, the
 // (currently disabled) "add a saved place" flow on Moje once that ships.
 export function LocationSearchInput({ onSelect }: { onSelect: (result: GeocodeResult) => void }) {
   const [query, setQuery] = useState("");

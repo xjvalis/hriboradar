@@ -4,7 +4,7 @@ import type { AppLocation } from "./LocationContext";
 
 export interface SavedLocation extends AppLocation {
   id: string;
-  // Undefined means "on" — older saved entries predate this field and
+  // Undefined means "on" - older saved entries predate this field and
   // should default to alerting rather than silently going quiet.
   alertsEnabled?: boolean;
 }

@@ -38,7 +38,7 @@ function buildExplanation(data: ForecastResponse, top: ReturnType<typeof topSpec
       : since <= 2
         ? "nedávno pršelo, půda ještě sytí"
         : `${since}. den po posledním vydatnějším dešti`;
-  return `${scoreFlavor(indexValue)} — ${rainPart}. Nejlepší podmínky mají teď ${names || "mykorhizní druhy"}.`;
+  return `${scoreFlavor(indexValue)} - ${rainPart}. Nejlepší podmínky mají teď ${names || "mykorhizní druhy"}.`;
 }
 
 export default function HomeScreen() {
@@ -58,7 +58,7 @@ export default function HomeScreen() {
   }
 
   function loadRegions() {
-    // The 8 "Kam dnes?" regions are fixed, real places — independent of
+    // The 8 "Kam dnes?" regions are fixed, real places - independent of
     // whatever location the user is currently looking at.
     Promise.all(
       REGIONS.map((region) =>
@@ -83,14 +83,14 @@ export default function HomeScreen() {
 
   const top = data ? topSpeciesOf(data) : [];
   // Same weighted-top-3 formula as Předpověď's daily cards (forecastMath.ts,
-  // mirroring api/grid.ts's overallScore()) — using a different average here
+  // mirroring api/grid.ts's overallScore()) - using a different average here
   // would show a different number for the same day/location on each screen.
   const indexValue = data ? computeDailyOverall(data).find((d) => d.date === data.today)?.overall ?? 0 : 0;
   const todayWeather = data?.weather?.find((w) => w.date === data.today);
   const daysSinceRainToday = top[0]?.today.factors.days_since_rain ?? null;
 
   // First load: the fun full-screen version, not a bare spinner or an
-  // empty page — this is the 3-10s window the whole app was waiting
+  // empty page - this is the 3-10s window the whole app was waiting
   // silently through before caching + this screen existed.
   if (!data && !error) {
     return <LoadingScreen />;

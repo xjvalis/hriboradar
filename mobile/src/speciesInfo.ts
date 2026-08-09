@@ -1,6 +1,6 @@
 import speciesData from "./data/species.json";
 
-// Static field-guide data (habitat, host trees, season, ...) — unlike
+// Static field-guide data (habitat, host trees, season, ...) - unlike
 // weather/terrain scores this doesn't depend on location or date, so it's
 // bundled straight from api/data/species.json rather than fetched.
 export interface SpeciesInfo {
@@ -50,11 +50,11 @@ export function monthsToLabel(months: number[]): string {
 }
 
 export function groupLabel(group: string): string {
-  if (group.includes("mykorhizní")) return "mykorhizní — roste ve vazbě na konkrétní stromy";
+  if (group.includes("mykorhizní")) return "mykorhizní - roste ve vazbě na konkrétní stromy";
   if (group.includes("saprotrofní") && group.includes("parazit"))
-    return "parazitická / saprotrofní — roste na dřevě";
-  if (group.includes("saprotrofní")) return "saprotrofní — roste na opadu, ne na konkrétním stromu";
-  if (group.includes("parazit")) return "parazitická — roste na dřevě, pařezech, kořenech";
+    return "parazitická / saprotrofní - roste na dřevě";
+  if (group.includes("saprotrofní")) return "saprotrofní - roste na opadu, ne na konkrétním stromu";
+  if (group.includes("parazit")) return "parazitická - roste na dřevě, pařezech, kořenech";
   return group;
 }
 
@@ -74,7 +74,7 @@ export const MONTH_NAMES_FULL_CZ = [
 ];
 
 // Mycorrhizal fungi live in a years-long symbiosis with a specific host
-// tree's roots — unlike a one-off saprotroph on decaying litter, a real
+// tree's roots - unlike a one-off saprotroph on decaying litter, a real
 // find here is a genuine signal the same spot is worth remembering.
 // Kotrč (parasitic on old pines) gets the same tip for the same underlying
 // reason (it returns to the same root system year after year), so this is
@@ -82,14 +82,14 @@ export const MONTH_NAMES_FULL_CZ = [
 // Checked 2026-08-06: mycelium persisting and re-fruiting at the same spot
 // for years/decades as long as the host tree stays healthy is well
 // documented (waldwissen.net; general foraging literature on porcini/
-// chanterelle patches) — hedged as "worth trying again," not a guarantee,
+// chanterelle patches) - hedged as "worth trying again," not a guarantee,
 // since even known productive patches don't reliably fruit every year.
 export function siteFidelityTip(info: SpeciesInfo): string | null {
   if (info.group.includes("mykorhizní")) {
-    return "Žije roky ve svazku s konkrétním stromem — pokud tu houbu najdete, vyplatí se místo uložit a zkusit ho příští sezónu znovu.";
+    return "Žije roky ve svazku s konkrétním stromem - pokud tu houbu najdete, vyplatí se místo uložit a zkusit ho příští sezónu znovu.";
   }
   if (info.id === "kotrc-kadeřavy") {
-    return "Typicky se vrací na stejné místo roky po sobě — dobrý kandidát na uložení mezi oblíbená místa.";
+    return "Typicky se vrací na stejné místo roky po sobě - dobrý kandidát na uložení mezi oblíbená místa.";
   }
   return null;
 }

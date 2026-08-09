@@ -4,7 +4,7 @@ import { Image, StyleSheet, View, type StyleProp, type ViewStyle } from "react-n
 const TEXTURE = require("../../assets/texture.jpg");
 
 // One texture image stretched to cover its container ("cover", not
-// "repeat") — a tiled pattern reads as a repeating swatch with visible
+// "repeat") - a tiled pattern reads as a repeating swatch with visible
 // seams, one photo read as an actual sheet of paper. Meant to be placed
 // *inside* each screen's scrollable content (not around the whole app) so
 // the paper scrolls together with the cards sitting on it, instead of

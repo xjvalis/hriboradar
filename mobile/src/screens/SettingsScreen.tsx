@@ -65,7 +65,7 @@ export default function SettingsScreen() {
       </View>
 
       <Text style={styles.sectionTitle}>Přesné souřadnice</Text>
-      <Text style={styles.hint}>Pro místa bez jména na mapě — třeba oblíbený les.</Text>
+      <Text style={styles.hint}>Pro místa bez jména na mapě - třeba oblíbený les.</Text>
       <View style={styles.form}>
         <TextInput
           style={styles.input}
@@ -96,17 +96,17 @@ export default function SettingsScreen() {
       </View>
 
       <Text style={styles.note}>
-        Appka zatím nepoužívá GPS zařízení — poloha se zadává ručně. Vhodné pro
+        Appka zatím nepoužívá GPS zařízení - poloha se zadává ručně. Vhodné pro
         testování z libovolného místa, i pro plánování výletu předem.
       </Text>
 
       <Text style={styles.sectionTitle}>Upozornění</Text>
       <Text style={styles.hint}>
-        Upozornění pro jednotlivá uložená místa se zapínají zvonečkem přímo v sekci Moje — tady jen
+        Upozornění pro jednotlivá uložená místa se zapínají zvonečkem přímo v sekci Moje - tady jen
         vybíráte, které druhy chcete sledovat.
       </Text>
       <Text style={[styles.hint, { marginTop: space.md }]}>
-        Sledované druhy — upozorníme, když jim začíná nebo vrcholí sezóna. Jde zapnout i přímo v detailu
+        Sledované druhy - upozorníme, když jim začíná nebo vrcholí sezóna. Jde zapnout i přímo v detailu
         houby.
       </Text>
       <View style={styles.presetRow}>

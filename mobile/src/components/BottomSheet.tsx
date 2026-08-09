@@ -3,7 +3,7 @@ import { Animated, PanResponder, Pressable, StyleSheet, View } from "react-nativ
 import { palette, radius, shadow, space } from "../theme";
 
 // Backdrop tap and swipe-down-to-dismiss, shared by every bottom sheet in
-// the app (location detail, species detail, ...) — previously only the
+// the app (location detail, species detail, ...) - previously only the
 // explicit "Zavřít" text closed these, which is a dead end for anyone used
 // to how every other sheet/modal on their phone behaves.
 export function BottomSheet({

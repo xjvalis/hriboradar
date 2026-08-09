@@ -8,7 +8,7 @@ import speciesData from "./data/species.json";
  * GET /api/forecast?lat=50.075&lon=14.44
  *
  * Real multi-factor probability per species, per day (yesterday through
- * +6 days forecast) — not a season-only lookup. Combines:
+ * +6 days forecast) - not a season-only lookup. Combines:
  *   - season (species.json season_months/season_peak_months)
  *   - recent temperature vs species.json temp_range_c
  *   - days since a qualifying rain vs species.json days_after_rain
@@ -20,7 +20,7 @@ import speciesData from "./data/species.json";
  * +N day entries are what the "za 5 dní by mohly růst..." notification
  * job should scan for threshold crossings.
  *
- * `weather[].tempC` is a daily avg(max,min) — the right input for the
+ * `weather[].tempC` is a daily avg(max,min) - the right input for the
  * model (mushroom growth responds to the day, not the instant), but the
  * wrong thing to show next to "right now" on the UI, which on a hot day
  * can genuinely be 5-6°C off from that average. `current` is the actual
@@ -66,7 +66,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }));
 
     // Real day-level weather (not derived from the normalized 0-1 scoring
-    // factors) — the UI needs actual °C / soil-moisture-% / rain-mm, not a
+    // factors) - the UI needs actual °C / soil-moisture-% / rain-mm, not a
     // back-computed approximation of them.
     const weather = days.slice(outputStart).map((d) => ({
       date: d.date,
@@ -85,7 +85,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       species: result,
     });
   } catch (err) {
-    // Logged server-side for debugging, not sent to the client — a raw
+    // Logged server-side for debugging, not sent to the client - a raw
     // exception string can leak internal paths/stack details (OWASP API
     // security: verbose error responses), and isn't actionable for the
     // app anyway beyond "something failed."

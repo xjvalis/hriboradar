@@ -11,7 +11,7 @@ WebBrowser.maybeCompleteAuthSession();
 interface AuthResult {
   error: string | null;
   // Set (with error: null) when the call "succeeded" but doesn't produce a
-  // session yet — currently just the signUp-with-email-confirmation-on
+  // session yet - currently just the signUp-with-email-confirmation-on
   // case. Without this, a successful signup under Supabase's default
   // "Confirm email" setting looks identical to the login screen doing
   // nothing at all, since no session ever arrives to flip the app past it.
@@ -22,28 +22,35 @@ interface AuthContextValue {
   user: User | null;
   loading: boolean;
   isConfigured: boolean;
+  // True from the moment a password-recovery link opens the app until a
+  // new password is set - App.tsx uses this to force the "set new
+  // password" screen ahead of the normal login/main-app branch, even
+  // though Supabase's recovery link does technically hand back a session.
+  passwordRecovery: boolean;
   signInWithEmail: (email: string, password: string) => Promise<AuthResult>;
   signUpWithEmail: (email: string, password: string) => Promise<AuthResult>;
   signInWithGoogle: () => Promise<AuthResult>;
   signInWithApple: () => Promise<AuthResult>;
+  requestPasswordReset: (email: string) => Promise<AuthResult>;
+  setNewPassword: (newPassword: string) => Promise<AuthResult>;
   signOut: () => Promise<void>;
 }
 
-const NOT_CONFIGURED_ERROR = "Přihlášení zatím není nastavené — zkuste to prosím později.";
+const NOT_CONFIGURED_ERROR = "Přihlášení zatím není nastavené - zkuste to prosím později.";
 
 // Supabase's error messages come back in English regardless of app locale
-// — translating the handful anyone actually hits in normal use so the
+// - translating the handful anyone actually hits in normal use so the
 // screen never shows raw SDK text next to otherwise all-Czech copy.
 function translateAuthError(message: string): string {
   const known: [string, string][] = [
-    ["Email not confirmed", "E-mail ještě není potvrzený — zkontrolujte schránku a klikněte na odkaz v potvrzovacím e-mailu."],
+    ["Email not confirmed", "E-mail ještě není potvrzený - zkontrolujte schránku a klikněte na odkaz v potvrzovacím e-mailu."],
     ["Invalid login credentials", "Nesprávný e-mail nebo heslo."],
-    ["User already registered", "Účet s tímhle e-mailem už existuje — zkuste se rovnou přihlásit."],
+    ["User already registered", "Účet s tímhle e-mailem už existuje - zkuste se rovnou přihlásit."],
     ["Password should be at least", "Heslo je příliš krátké."],
     // Supabase's built-in email sender (no custom SMTP configured) is
-    // rate-limited to a handful of emails/hour — expected during active
+    // rate-limited to a handful of emails/hour - expected during active
     // testing of signup, not a real app bug.
-    ["email rate limit exceeded", "Příliš mnoho registrací za krátkou dobu — Supabase dočasně omezuje odesílání potvrzovacích e-mailů. Zkuste to za chvíli, nebo si v Supabase dashboardu (Authentication → Providers → Email) dočasně vypněte 'Confirm email' pro testování."],
+    ["email rate limit exceeded", "Příliš mnoho registrací za krátkou dobu - Supabase dočasně omezuje odesílání potvrzovacích e-mailů. Zkuste to za chvíli, nebo si v Supabase dashboardu (Authentication → Providers → Email) dočasně vypněte 'Confirm email' pro testování."],
   ];
   const hit = known.find(([needle]) => message.includes(needle));
   return hit ? hit[1] : message;
@@ -51,13 +58,13 @@ function translateAuthError(message: string): string {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-// Gates the whole app (see App.tsx) — nothing renders past the login
+// Gates the whole app (see App.tsx) - nothing renders past the login
 // screen without a session. Supabase handles the actual auth (email/
 // password + Google + Apple); this context just wraps its client SDK in
 // the same shape as the app's other providers and adds the Expo-specific
 // OAuth redirect dance Supabase's web-first docs don't cover.
 //
-// Wired against real Supabase calls from day one rather than stubbed —
+// Wired against real Supabase calls from day one rather than stubbed -
 // isSupabaseConfigured is false until EXPO_PUBLIC_SUPABASE_URL/ANON_KEY
 // are set (see .env.example), so every method below fails with a clear
 // Czech message instead of a network error until then. Nothing else needs
@@ -65,6 +72,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [passwordRecovery, setPasswordRecovery] = useState(false);
 
   useEffect(() => {
     if (!isSupabaseConfigured) {
@@ -75,7 +83,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(data.session?.user ?? null);
       setLoading(false);
     });
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "PASSWORD_RECOVERY") setPasswordRecovery(true);
       setUser(session?.user ?? null);
     });
     return () => listener.subscription.unsubscribe();
@@ -92,12 +101,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data, error } = await supabase.auth.signUp({ email, password });
     if (error) return { error: translateAuthError(error.message) };
     // signUp() succeeds (no error) even when email confirmation is
-    // required — it just doesn't hand back a session yet. Without this
+    // required - it just doesn't hand back a session yet. Without this
     // check, a real success looks identical to a silent no-op.
     if (!data.session) {
       return {
         error: null,
-        info: "Účet vytvořen — zkontrolujte e-mail a potvrďte registraci, pak se přihlaste.",
+        info: "Účet vytvořen - zkontrolujte e-mail a potvrďte registraci, pak se přihlaste.",
       };
     }
     return { error: null };
@@ -106,7 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Supabase's signInWithOAuth() is built for the web (it just redirects
   // the page); on native it instead hands back a URL we open ourselves in
   // an in-app browser tab, then have to pull the tokens back out of the
-  // redirect URL by hand — expo-auth-session/expo-web-browser cover that
+  // redirect URL by hand - expo-auth-session/expo-web-browser cover that
   // gap, but neither is Supabase-aware, so this glue has to live here.
   async function signInWithGoogle(): Promise<AuthResult> {
     if (!isSupabaseConfigured) return { error: NOT_CONFIGURED_ERROR };
@@ -120,7 +129,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
-    if (result.type !== "success" || !result.url) return { error: null }; // user backed out — not an error
+    if (result.type !== "success" || !result.url) return { error: null }; // user backed out - not an error
 
     const hash = result.url.split("#")[1] ?? "";
     const params = new URLSearchParams(hash);
@@ -132,7 +141,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: sessionError ? translateAuthError(sessionError.message) : null };
   }
 
-  // Apple's native SDK hands back an identity token directly — no
+  // Apple's native SDK hands back an identity token directly - no
   // redirect/browser dance needed, Supabase accepts it as-is.
   async function signInWithApple(): Promise<AuthResult> {
     if (!isSupabaseConfigured) return { error: NOT_CONFIGURED_ERROR };
@@ -158,8 +167,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  // Deliberately the same message whether or not the address has an
+  // account - confirming/denying account existence to an unauthenticated
+  // caller is a standard enumeration risk (OWASP ASVS 2.2.1), not just a
+  // UX nicety.
+  async function requestPasswordReset(email: string): Promise<AuthResult> {
+    if (!isSupabaseConfigured) return { error: NOT_CONFIGURED_ERROR };
+    const redirectTo = AuthSession.makeRedirectUri();
+    await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+    return { error: null, info: "Pokud účet s tímto e-mailem existuje, poslali jsme na něj odkaz na obnovení hesla." };
+  }
+
+  async function setNewPassword(newPassword: string): Promise<AuthResult> {
+    if (!isSupabaseConfigured) return { error: NOT_CONFIGURED_ERROR };
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) return { error: translateAuthError(error.message) };
+    setPasswordRecovery(false);
+    return { error: null };
+  }
+
   async function signOut() {
     if (!isSupabaseConfigured) return;
+    setPasswordRecovery(false);
     await supabase.auth.signOut();
   }
 
@@ -169,10 +198,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         loading,
         isConfigured: isSupabaseConfigured,
+        passwordRecovery,
         signInWithEmail,
         signUpWithEmail,
         signInWithGoogle,
         signInWithApple,
+        requestPasswordReset,
+        setNewPassword,
         signOut,
       }}
     >

@@ -1,13 +1,13 @@
 import type { ForecastResponse } from "./api";
 import { scoreTier } from "./theme";
 
-// Same "overall conditions" definition as api/grid.ts's overallScore() —
+// Same "overall conditions" definition as api/grid.ts's overallScore() -
 // a weighted average of a location's own best 3 species, not the single
 // best species (that's a different question) and not a flat mean across
 // all 15 (a saprotroph-heavy species list would permanently drag that
 // near zero). Recomputed here client-side because /api/forecast returns
 // per-species days, not a precomputed daily overall the way /api/grid
-// does for "today" — this is the same shape of number applied across the
+// does for "today" - this is the same shape of number applied across the
 // week instead of one snapshot.
 const OVERALL_WEIGHTS = [0.5, 0.3, 0.2];
 
@@ -18,7 +18,7 @@ export interface DayOverall {
 
 export function computeDailyOverall(detail: ForecastResponse): DayOverall[] {
   // /api/forecast's weather[] starts at yesterday (needed server-side for
-  // days-since-rain lookback) — not relevant to a forward-looking forecast.
+  // days-since-rain lookback) - not relevant to a forward-looking forecast.
   return detail.weather
     .filter((w) => w.date >= detail.today)
     .map((w) => {
@@ -39,7 +39,7 @@ export type NextOpportunity =
 
 // "Notable" = clears the same medium-tier bar the rest of the app already
 // uses for a badge to stop reading as background noise (scoreTier, theme.ts)
-// — not a separate, newly-invented threshold.
+// - not a separate, newly-invented threshold.
 export function findNextOpportunity(daily: DayOverall[], todayStr: string): NextOpportunity {
   const todayIdx = daily.findIndex((d) => d.date === todayStr);
   if (todayIdx === -1) return { type: "none" };

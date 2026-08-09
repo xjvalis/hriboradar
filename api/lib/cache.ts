@@ -5,7 +5,7 @@
  * concurrent Overpass requests competing for the same rate-limited public
  * instance is exactly what was making the app take 10-20s to load.
  *
- * Process-lifetime only (resets on server restart) — fine for dev-server.mjs
+ * Process-lifetime only (resets on server restart) - fine for dev-server.mjs
  * and still helps on Vercel, where warm serverless instances persist memory
  * across requests for a while. A real deployment with real traffic should
  * graduate to Vercel KV or similar, but this removes the actual bottleneck
@@ -24,7 +24,7 @@ export async function cached<T>(
   ttlMs: number,
   fetcher: () => Promise<T>,
   /**
-   * Override the TTL for a specific result — used for "I don't know"
+   * Override the TTL for a specific result - used for "I don't know"
    * fallback results (e.g. an Overpass timeout) so a transient outage
    * doesn't get baked in for the full `ttlMs`, but also doesn't force
    * every single request to pay the full lookup cost while the outage

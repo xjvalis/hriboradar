@@ -1,6 +1,6 @@
 // Lightweight local stand-in for `vercel dev` (which needs `vercel login`).
 // Serves the same api/*.ts handlers over plain HTTP for local app
-// development. Not used in production — Vercel serves api/ directly once
+// development. Not used in production - Vercel serves api/ directly once
 // the repo is connected on vercel.com.
 import http from "node:http";
 import { URL } from "node:url";
@@ -16,7 +16,7 @@ const routes = {
 const PORT = 3001;
 
 // Serves the same Leaflet page previously passed to react-native-webview via
-// the `source={{ html }}` prop — inline HTML of this size (Leaflet itself
+// the `source={{ html }}` prop - inline HTML of this size (Leaflet itself
 // plus every grid point) turned out to silently fail on a real iPhone,
 // almost certainly a react-native-webview/RN-bridge limit on that prop, not
 // an error WebView ever reports. Loading it as a normal fetched page (like

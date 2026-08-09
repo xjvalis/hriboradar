@@ -9,18 +9,18 @@ import speciesData from "./data/species.json";
  * GET /api/grid
  *
  * Today's probability for every species, across a grid of points clipped
- * to the real Czech Republic border (not a rectangle — the first version
+ * to the real Czech Republic border (not a rectangle - the first version
  * painted circles into Germany/Austria/Poland/Slovakia, which was wrong).
  *
  * Returns both a per-point "overall" score and full per-species scores, so
  * the client can switch between "všechny houby" and any single species
- * without a refetch — the expensive part is the two external fetches per
+ * without a refetch - the expensive part is the two external fetches per
  * point, which happen once regardless of how many species we score from
  * them.
  */
 
 const BOUNDS = { latMin: 48.55, latMax: 51.06, lonMin: 12.09, lonMax: 18.87 };
-// Denser than the original 0.28/0.4 grid — the client now interpolates a
+// Denser than the original 0.28/0.4 grid - the client now interpolates a
 // smooth field between points rather than drawing one shape per point, and
 // that interpolation only looks genuinely precise (forest-scale islands,
 // not province-scale blobs) when the source grid is fine enough to feed it.
@@ -53,7 +53,7 @@ interface GridPointResult {
 // gets diluted into near-invisibility by the dozen species that are always
 // a bad fit for a given spot's terrain. A weighted average of the best few
 // species is a reasonable proxy for "general favorability" without either
-// problem — literature-informed starting weights, same caveat as the rest
+// problem - literature-informed starting weights, same caveat as the rest
 // of the scoring model (see species.json _meta).
 const OVERALL_WEIGHTS = [0.5, 0.3, 0.2];
 

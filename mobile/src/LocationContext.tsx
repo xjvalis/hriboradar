@@ -6,7 +6,7 @@ export interface AppLocation {
   label: string;
 }
 
-// Smržovka (Jizerské hory) — real forest, unlike Prague, which is why this
+// Smržovka (Jizerské hory) - real forest, unlike Prague, which is why this
 // replaced Prague as the dev default (geocoded via OSM Nominatim).
 export const DEFAULT_LOCATION: AppLocation = { lat: 50.7385, lon: 15.2463, label: "Smržovka" };
 

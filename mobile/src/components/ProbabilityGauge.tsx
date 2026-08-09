@@ -28,7 +28,7 @@ const ZONES = [
 
 const TICK_VALUES = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
 
-// A playful analog barometer instead of a flat progress ring — a needle
+// A playful analog barometer instead of a flat progress ring - a needle
 // sweeps a fixed red/amber/green zone band, spring-animated so it settles
 // like a real instrument needle rather than a counter ticking up.
 export function ProbabilityGauge({
@@ -50,7 +50,7 @@ export function ProbabilityGauge({
     Animated.spring(anim, { toValue: value, useNativeDriver: false, damping: 14, mass: 0.6 }).start();
     // Non-native-driver Animated ticks via requestAnimationFrame under the
     // hood, which some WebView/preview contexts silently suspend when the
-    // surface isn't actively compositing — without this, the needle would
+    // surface isn't actively compositing - without this, the needle would
     // stay stuck at 0 forever instead of just skipping the animation.
     const fallback = setTimeout(() => {
       anim.setValue(value);
@@ -73,7 +73,7 @@ export function ProbabilityGauge({
 
   // The needle is drawn once pointing left (angle 180deg = value 0), then
   // rotated 0deg -> 180deg as value goes 0 -> 100 via the SVG `transform`
-  // attribute string — not the rotation/origin props, which don't
+  // attribute string - not the rotation/origin props, which don't
   // translate cleanly to web (they log invalid-DOM-property warnings there).
   const rotateTransform = anim.interpolate({
     inputRange: [0, 100],

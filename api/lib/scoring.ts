@@ -42,7 +42,7 @@ function clamp(v: number, min: number, max: number): number {
 function seasonFactor(month: number, species: Species): number {
   if (species.season_peak_months.includes(month)) return 1;
   if (species.season_months.includes(month)) return 0.6;
-  return 0.05; // small residual — off-season stragglers do happen
+  return 0.05; // small residual - off-season stragglers do happen
 }
 
 function tempFactor(avgTempC: number, [tmin, tmax]: number[]): number {
@@ -69,7 +69,7 @@ function moistureFactor(soilMoisturePct: number, need: string): number {
 /**
  * Scores one species for one day in the fetched weather window.
  * `terrain` is looked up once per location (it doesn't change day to day)
- * and passed in — see api/forecast.ts.
+ * and passed in - see api/forecast.ts.
  */
 export function scoreSpeciesDay(
   days: DayWeather[],
@@ -87,7 +87,7 @@ export function scoreSpeciesDay(
   const moisture = moistureFactor(day.soilMoisturePct, species.moisture_need);
   const terrainMatch = terrainMatchFactor(species.host_trees, terrain);
 
-  // Season and terrain are hard gates (multiplied) — wrong forest or wrong
+  // Season and terrain are hard gates (multiplied) - wrong forest or wrong
   // month should crush the score, not just nudge it. Temp/rain-timing/
   // moisture are weighted-averaged so decent-but-imperfect weather doesn't
   // collapse to near-zero the way multiplying three sub-1 factors would.

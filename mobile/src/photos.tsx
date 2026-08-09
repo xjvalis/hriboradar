@@ -3,7 +3,7 @@ import { palette, fontFamily, radius } from "./theme";
 
 // Metro needs literal require() calls, so this map is spelled out by hand
 // rather than built from a string. All 15 species now have a real
-// (licensed, Wikimedia Commons — CC BY/CC BY-SA/public domain) photo.
+// (licensed, Wikimedia Commons - CC BY/CC BY-SA/public domain) photo.
 const PHOTOS: Record<string, ReturnType<typeof require>> = {
   "hrib-smrkovy": require("../assets/mushrooms/hrib-smrkovy.jpg"),
   "hrib-dubovy": require("../assets/mushrooms/hrib-dubovy.jpg"),

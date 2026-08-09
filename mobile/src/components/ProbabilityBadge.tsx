@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from "react-native";
 import { palette, radius, scoreColor, type } from "../theme";
 
-// A structured badge, not a giant pill — small rounded-rect in the score
+// A structured badge, not a giant pill - small rounded-rect in the score
 // color, used consistently anywhere a probability % appears.
 export function ProbabilityBadge({ pct, size = "md" }: { pct: number; size?: "sm" | "md" }) {
   const color = scoreColor(pct);

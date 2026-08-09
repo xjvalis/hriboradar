@@ -17,7 +17,7 @@ const ITEMS: { name: ScreenName; Icon: typeof Home; label: string }[] = [
 ];
 
 // One piece cut straight from the user's reference sheet (mobile/assets/
-// background.png) rather than several hand-placed cutouts — every prior
+// background.png) rather than several hand-placed cutouts - every prior
 // attempt at compositing individual sprites kept producing overlaps or
 // edge artifacts. This is a single rectangular region auto-selected so
 // no mushroom's linework touches its boundary (nothing is ever mid-cut),
@@ -41,7 +41,7 @@ export function DrawerMenu({
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const drawerWidth = Math.min(300, width * 0.8);
-  // Computed explicitly rather than via the `aspectRatio` style — that
+  // Computed explicitly rather than via the `aspectRatio` style - that
   // style didn't constrain height on web here and the image rendered at
   // its full natural size instead of scaling down with its width.
   const artWidth = drawerWidth * 0.9;

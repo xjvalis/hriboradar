@@ -1,10 +1,10 @@
 {
   "_meta": {
-    "description": "Species-condition table for the Rostou? growth model. season_months/season_peak/gbif_occurrence_count are derived empirically from GBIF Czechia occurrence records (see gbif_phenology_raw.json, fetched 2026-08-04). host_trees/habitat/soil/moisture/temp_range_c/days_after_rain are compiled from standard field-guide mycology (First Nature, myko.cz, Czech Mycological Society materials) — NOT from a downloadable dataset, because none exists. Treat numeric thresholds (temp_range_c, days_after_rain, min_rain_mm) as literature-informed starting estimates, not calibrated constants; they should be tuned against real NDOP/GBIF finds once the model is running.",
+    "description": "Species-condition table for the Rostou? growth model. season_months/season_peak/gbif_occurrence_count are derived empirically from GBIF Czechia occurrence records (see gbif_phenology_raw.json, fetched 2026-08-04). host_trees/habitat/soil/moisture/temp_range_c/days_after_rain are compiled from standard field-guide mycology (First Nature, myko.cz, Czech Mycological Society materials) - NOT from a downloadable dataset, because none exists. Treat numeric thresholds (temp_range_c, days_after_rain, min_rain_mm) as literature-informed starting estimates, not calibrated constants; they should be tuned against real NDOP/GBIF finds once the model is running.",
     "source_note": "months = GBIF occurrence facet, country=CZ, per-species taxonKey. conditions = compiled, cite before publishing as fact.",
     "generated": "2026-08-04",
-    "fact_check_2026-08-06": "Spot-checked host_trees, edibility, and season/peak claims for the mycologically riskiest and highest-visibility species (Boletus edulis/reticulatus, Leccinum scabrum, Suillus luteus, Amanita rubescens, Armillaria mellea) against myko.cz, First Nature, Wikipedia (cs), and the Egli et al. 2006 Swiss long-term harvesting study (ScienceDirect/DORA WSL) — all held up. Added safety_note (deadly-lookalike warnings) to muchomurka-ruzovka and vaclavka-obecna, the two species with real, documented confusion risk with toxic/deadly relatives. NOT independently re-verified against primary literature this pass: the remaining 10 species' host_trees/habitat, and the numeric temp_range_c/days_after_rain/min_rain_mm thresholds for all 15 (still literature-informed estimates per source_note above, not calibrated) — those follow the same standard taxonomic associations (one genus/host per species, e.g. Leccinum aurantiacum-aspen, Lactarius deterrimus-spruce) found in any general field guide, but weren't individually re-checked source-by-source.",
-    "season_months_correction_2026-08-06": "User flagged January in bedla-vysoka and liska-obecna's season_months, which prompted a full systematic re-check against the underlying gbif_phenology_raw.json (raw per-month occurrence counts) rather than just the two flagged species. Method: for every species, checked whether any nonzero-count month is separated from the rest of the season by a run of zero-count months on both sides — real fruiting seasons are contiguous, so an isolated month cut off by a gap of complete zeros is a strong signal of a mis-dated/mis-identified GBIF record rather than genuine phenology, regardless of its raw count (e.g. bedla-vysoka had 3 raw January records against a real season of May-November — a plausible count on its own, but isolated by 3 solid zero-months, and directly contradicted by field-guide consensus that it 'does not fruit during winter months or after hard frosts'). Found and removed 8 such isolated months across 7 species, each cross-checked against field-guide sources: liska-obecna, bedla-vysoka, muchomurka-ruzovka, vaclavka-obecna (spurious January each), ryzec-smrkovy (spurious February), plus three caught only by this systematic pass — kotrc-kadeřavy (spurious May; Sparassis crispa documented late July-October, no May mention anywhere), vaclavka-obecna again (spurious June; 'mushrooms in spring/summer are almost always not A. mellea'), and ciruvka-fialova (spurious June; Lepista nuda documented strictly September-December, 'no references to spring or early summer fruiting' despite a non-trivial raw count of 10/51 — count magnitude alone isn't proof of genuine signal). season_peak_months were unaffected throughout (already mid-year/autumn only). Contiguous edge months with thin counts (e.g. hrib-smrkovy's month 5 at count=1, directly attached to the rest of the season with no gap) were deliberately left alone — the rule targets temporal isolation, not low counts per se, since low-count genuine shoulder-season months are expected for less-recorded species."
+    "fact_check_2026-08-06": "Spot-checked host_trees, edibility, and season/peak claims for the mycologically riskiest and highest-visibility species (Boletus edulis/reticulatus, Leccinum scabrum, Suillus luteus, Amanita rubescens, Armillaria mellea) against myko.cz, First Nature, Wikipedia (cs), and the Egli et al. 2006 Swiss long-term harvesting study (ScienceDirect/DORA WSL) - all held up. Added safety_note (deadly-lookalike warnings) to muchomurka-ruzovka and vaclavka-obecna, the two species with real, documented confusion risk with toxic/deadly relatives. NOT independently re-verified against primary literature this pass: the remaining 10 species' host_trees/habitat, and the numeric temp_range_c/days_after_rain/min_rain_mm thresholds for all 15 (still literature-informed estimates per source_note above, not calibrated) - those follow the same standard taxonomic associations (one genus/host per species, e.g. Leccinum aurantiacum-aspen, Lactarius deterrimus-spruce) found in any general field guide, but weren't individually re-checked source-by-source.",
+    "season_months_correction_2026-08-06": "User flagged January in bedla-vysoka and liska-obecna's season_months, which prompted a full systematic re-check against the underlying gbif_phenology_raw.json (raw per-month occurrence counts) rather than just the two flagged species. Method: for every species, checked whether any nonzero-count month is separated from the rest of the season by a run of zero-count months on both sides - real fruiting seasons are contiguous, so an isolated month cut off by a gap of complete zeros is a strong signal of a mis-dated/mis-identified GBIF record rather than genuine phenology, regardless of its raw count (e.g. bedla-vysoka had 3 raw January records against a real season of May-November - a plausible count on its own, but isolated by 3 solid zero-months, and directly contradicted by field-guide consensus that it 'does not fruit during winter months or after hard frosts'). Found and removed 8 such isolated months across 7 species, each cross-checked against field-guide sources: liska-obecna, bedla-vysoka, muchomurka-ruzovka, vaclavka-obecna (spurious January each), ryzec-smrkovy (spurious February), plus three caught only by this systematic pass - kotrc-kadeřavy (spurious May; Sparassis crispa documented late July-October, no May mention anywhere), vaclavka-obecna again (spurious June; 'mushrooms in spring/summer are almost always not A. mellea'), and ciruvka-fialova (spurious June; Lepista nuda documented strictly September-December, 'no references to spring or early summer fruiting' despite a non-trivial raw count of 10/51 - count magnitude alone isn't proof of genuine signal). season_peak_months were unaffected throughout (already mid-year/autumn only). Contiguous edge months with thin counts (e.g. hrib-smrkovy's month 5 at count=1, directly attached to the rest of the season with no gap) were deliberately left alone - the rule targets temporal isolation, not low counts per se, since low-count genuine shoulder-season months are expected for less-recorded species."
   },
   "species": [
     {
@@ -43,7 +43,7 @@
       "gbif_occurrence_count_cz": 114,
       "edibility": "jedlá",
       "model_confidence": "vysoká",
-      "confidence_note": "teplomilný, roste dřív a v teplejších lokalitách než hřib smrkový — nezaměňovat sezónu"
+      "confidence_note": "teplomilný, roste dřív a v teplejších lokalitách než hřib smrkový - nezaměňovat sezónu"
     },
     {
       "id": "kozak-brezovy",
@@ -81,7 +81,7 @@
       "gbif_occurrence_count_cz": 30,
       "edibility": "jedlá",
       "model_confidence": "střední",
-      "confidence_note": "málo GBIF záznamů (30) — sezóna méně jistá než u kozáka"
+      "confidence_note": "málo GBIF záznamů (30) - sezóna méně jistá než u kozáka"
     },
     {
       "id": "liska-obecna",
@@ -108,7 +108,7 @@
       "name_latin": "Macrolepiota procera",
       "group": "saprotrofní",
       "host_trees": [],
-      "habitat": "louky, lesní okraje, paseky, pastviny — ne vázaná na konkrétní strom",
+      "habitat": "louky, lesní okraje, paseky, pastviny - ne vázaná na konkrétní strom",
       "soil": "neurčeno (široká tolerance)",
       "moisture_need": "střední",
       "temp_range_c": [12, 22],
@@ -119,7 +119,7 @@
       "gbif_occurrence_count_cz": 540,
       "edibility": "jedlá",
       "model_confidence": "vysoká",
-      "confidence_note": "saprotrof — model podle hostitelského stromu se tu neuplatní, jen podle typu terénu (otevřená plocha, ne hustý les)"
+      "confidence_note": "saprotrof - model podle hostitelského stromu se tu neuplatní, jen podle typu terénu (otevřená plocha, ne hustý les)"
     },
     {
       "id": "klouzek-slizky",
@@ -195,7 +195,7 @@
       "gbif_occurrence_count_cz": 71,
       "edibility": "jedlá",
       "model_confidence": "vysoká",
-      "confidence_note": "výhradní vazba na smrk, chladnomilnější — pozdní podzim"
+      "confidence_note": "výhradní vazba na smrk, chladnomilnější - pozdní podzim"
     },
     {
       "id": "holubinka-nazelenala",
@@ -214,7 +214,7 @@
       "gbif_occurrence_count_cz": 14,
       "edibility": "jedlá",
       "model_confidence": "nízká",
-      "confidence_note": "jen 14 GBIF záznamů + rod Holubinka je obecně obtížně určitelný na úroveň druhu — brát jako hrubý odhad, kandidát na vyřazení z 'přesné' patnáctky"
+      "confidence_note": "jen 14 GBIF záznamů + rod Holubinka je obecně obtížně určitelný na úroveň druhu - brát jako hrubý odhad, kandidát na vyřazení z 'přesné' patnáctky"
     },
     {
       "id": "muchomurka-ruzovka",
@@ -234,7 +234,7 @@
       "edibility": "jedlá po důkladné tepelné úpravě",
       "model_confidence": "vysoká",
       "confidence_note": "nejvíc GBIF záznamů ze všech 15 druhů",
-      "safety_note": "Syrová obsahuje hemolyzin (rozkládá se teplem, proto nutná důkladná tepelná úprava). Zaměnitelná s jedovatou muchomůrkou tygrovanou (Amanita pantherina) a v mladí i s vzhledem podobnou smrtelně jedovatou muchomůrkou zelenou (Amanita phalloides) — nejspolehlivější znak: dužnina a třeň růžovky při poranění červená/růžoví, u tygrované ani zelené muchomůrky k tomu nedochází. Bez jistoty v určení nesbírejte."
+      "safety_note": "Syrová obsahuje hemolyzin (rozkládá se teplem, proto nutná důkladná tepelná úprava). Zaměnitelná s jedovatou muchomůrkou tygrovanou (Amanita pantherina) a v mladí i s vzhledem podobnou smrtelně jedovatou muchomůrkou zelenou (Amanita phalloides) - nejspolehlivější znak: dužnina a třeň růžovky při poranění červená/růžoví, u tygrované ani zelené muchomůrky k tomu nedochází. Bez jistoty v určení nesbírejte."
     },
     {
       "id": "kremenac-osikovy",
@@ -261,7 +261,7 @@
       "name_latin": "Armillaria mellea",
       "group": "parazitická",
       "host_trees": [],
-      "habitat": "u pařezů a kořenů, trsy na listnatém i jehličnatém dřevě — na rozdíl od mykorhizních druhů neváže na konkrétní rod stromu",
+      "habitat": "u pařezů a kořenů, trsy na listnatém i jehličnatém dřevě - na rozdíl od mykorhizních druhů neváže na konkrétní rod stromu",
       "soil": "neurčeno",
       "moisture_need": "vysoká",
       "temp_range_c": [8, 16],
@@ -272,8 +272,8 @@
       "gbif_occurrence_count_cz": 60,
       "edibility": "jedlá po tepelné úpravě",
       "model_confidence": "střední",
-      "confidence_note": "parazit dřeva, ne mykorhiza — host_trees je záměrně prázdné pole (stejná konvence jako u saprotrofů bedla-vysoka/ciruvka-fialova), protože roste na libovolné dřevině, ne na konkrétním rodu. Do 2026-08-06 tu bylo místo prázdného pole celou větou popsané 'libovolná dřevina' — terrainMatchFactor() ale porovnává host_trees proti krátkým rodovým tokenům (dub/buk/smrk...), takže ta věta nikdy nic nenamatchovala a všude, kde OSM/ÚHÚL mělo konkrétní data o dřevinách, to spadlo do větve 'špatný typ lesa' a srazilo terénní skóre na 0.1 — desetkrát nižší, než mělo být, i za jinak ideálních podmínek. Opraveno na []; textový popis dřevin přesunut do habitat.",
-      "safety_note": "Syrová nebo nedovařená způsobuje zažívací potíže — vařte/duste alespoň 20–30 minut. Na dřevě a pařezech roste i smrtelně jedovatá čepičatka jehličnanová (Galerina marginata): má hladký (ne šupinatý) klobouk, roste skoro výhradně na jehličnatém dřevě a má rezavohnědé výtrusy/lupeny oproti bílým u václavky. U trsů na pařezu si klobouky/lupeny každého kousku zkontrolujte zvlášť."
+      "confidence_note": "parazit dřeva, ne mykorhiza - host_trees je záměrně prázdné pole (stejná konvence jako u saprotrofů bedla-vysoka/ciruvka-fialova), protože roste na libovolné dřevině, ne na konkrétním rodu. Do 2026-08-06 tu bylo místo prázdného pole celou větou popsané 'libovolná dřevina' - terrainMatchFactor() ale porovnává host_trees proti krátkým rodovým tokenům (dub/buk/smrk...), takže ta věta nikdy nic nenamatchovala a všude, kde OSM/ÚHÚL mělo konkrétní data o dřevinách, to spadlo do větve 'špatný typ lesa' a srazilo terénní skóre na 0.1 - desetkrát nižší, než mělo být, i za jinak ideálních podmínek. Opraveno na []; textový popis dřevin přesunut do habitat.",
+      "safety_note": "Syrová nebo nedovařená způsobuje zažívací potíže - vařte/duste alespoň 20–30 minut. Na dřevě a pařezech roste i smrtelně jedovatá čepičatka jehličnanová (Galerina marginata): má hladký (ne šupinatý) klobouk, roste skoro výhradně na jehličnatém dřevě a má rezavohnědé výtrusy/lupeny oproti bílým u václavky. U trsů na pařezu si klobouky/lupeny každého kousku zkontrolujte zvlášť."
     },
     {
       "id": "ciruvka-fialova",
@@ -281,7 +281,7 @@
       "name_latin": "Lepista nuda",
       "group": "saprotrofní",
       "host_trees": [],
-      "habitat": "listnatá hrabanka, kompost, i zahrady — pozdní druh",
+      "habitat": "listnatá hrabanka, kompost, i zahrady - pozdní druh",
       "soil": "neurčeno",
       "moisture_need": "střední",
       "temp_range_c": [5, 15],
@@ -292,7 +292,7 @@
       "gbif_occurrence_count_cz": 51,
       "edibility": "jedlá",
       "model_confidence": "střední",
-      "confidence_note": "saprotrof na hrabance — roste i pozdě na podzim/mírné zimě, chladnomilnější než většina ostatních"
+      "confidence_note": "saprotrof na hrabance - roste i pozdě na podzim/mírné zimě, chladnomilnější než většina ostatních"
     }
   ]
 }

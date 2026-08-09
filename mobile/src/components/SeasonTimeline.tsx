@@ -8,7 +8,7 @@ import { useSpeciesDetail } from "../SpeciesDetailContext";
 const allSpecies = Object.values(SPECIES_BY_ID);
 const currentMonth = new Date().getMonth() + 1;
 
-// Scroll-through "what grows when" — the app's one deliberately educational
+// Scroll-through "what grows when" - the app's one deliberately educational
 // screen, built to make someone feel like they're learning the rhythm of
 // the mycological year rather than just checking a forecast. One section
 // per month, each species clickable into the same detail sheet as
@@ -23,7 +23,7 @@ export function SeasonTimeline() {
   useEffect(() => {
     // Two different mechanisms because RN's onLayout-derived y-offset +
     // ScrollView.scrollTo (the standard native approach) proved unreliable
-    // on web in testing — the DOM's own scrollIntoView is what actually
+    // on web in testing - the DOM's own scrollIntoView is what actually
     // worked there. Native keeps the onLayout/scrollTo path since
     // scrollIntoView doesn't exist off-web.
     const timer = setTimeout(() => {
@@ -65,7 +65,7 @@ export function SeasonTimeline() {
             </View>
 
             {peak.length === 0 && also.length === 0 ? (
-              <Text style={styles.emptyText}>Mimo sezónu — v tomhle měsíci toho moc neroste.</Text>
+              <Text style={styles.emptyText}>Mimo sezónu - v tomhle měsíci toho moc neroste.</Text>
             ) : (
               <>
                 {peak.length > 0 && (

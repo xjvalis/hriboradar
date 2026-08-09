@@ -4,7 +4,7 @@
 // one approach that looks identical in both places.
 //
 // The page is built ONCE per (grid data, user location) and never rebuilt
-// just to switch what's being visualized — switching between "všechny
+// just to switch what's being visualized - switching between "všechny
 // houby" and a single species sends a postMessage into the already-loaded
 // page (see applyMode/handleIncoming below), which repaints the overlay in
 // place and crossfades it. Rebuilding the whole iframe/WebView on every
@@ -18,7 +18,7 @@
 // between regions stay gaps (disconnected islands) instead of the whole
 // country reading as one continuous wash.
 //
-// Exactly one field is ever drawn at a time — "všechny houby" (a blended
+// Exactly one field is ever drawn at a time - "všechny houby" (a blended
 // overall-conditions score, see api/grid.ts) OR one selected species,
 // never several species layered together. Compositing multiple
 // semi-transparent species colors was tried and rejected: overlapping
@@ -101,18 +101,18 @@ export function buildGridMapHtml(opts: {
     var gridPoints = ${pointsJs};
     var speciesNames = ${speciesNamesJs};
 
-    // Below this interpolated score, a pixel renders fully transparent —
+    // Below this interpolated score, a pixel renders fully transparent -
     // "empty" is correct for a genuinely low-chance area, not a faint tint.
     var FLOOR = 20;
     // How far (in degrees, roughly lat-scaled) one grid point's influence
     // reaches. Kept short and close to the real grid spacing so a single
-    // hot spot makes a forest-scale island, not a province-scale wash —
+    // hot spot makes a forest-scale island, not a province-scale wash -
     // this is also what keeps separate strong regions as separate islands
     // instead of merging into one blob across the weak area between them.
     var CUTOFF_DEG = 0.30;
     var RENDER_W = 340, RENDER_H = 130;
 
-    // Continuous color ramps, not discrete bands — each stop is
+    // Continuous color ramps, not discrete bands - each stop is
     // [score, r, g, b, alpha]; colorAt() linearly interpolates between the
     // two bracketing stops. "Všechny houby" reads as a weather-radar-style
     // progression (green -> yellow -> orange -> red = how good, in
@@ -238,7 +238,7 @@ export function buildGridMapHtml(opts: {
       layer.addTo(map);
       var old = currentLayer;
       currentLayer = layer;
-      // setTimeout, not requestAnimationFrame — rAF can be suspended on a
+      // setTimeout, not requestAnimationFrame - rAF can be suspended on a
       // tab/screen that isn't actively compositing, which would silently
       // strand the crossfade at opacity 0 forever.
       setTimeout(function () {

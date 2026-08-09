@@ -28,7 +28,7 @@ export function LocationSheet({
   useEffect(() => {
     setDetail(null);
     // The point tapped comes straight from /api/grid, which already
-    // computed & cached weather+terrain for this exact coordinate — this
+    // computed & cached weather+terrain for this exact coordinate - this
     // fetch almost always resolves from cache, not a fresh lookup.
     getForecast(selected.lat, selected.lon)
       .then(setDetail)

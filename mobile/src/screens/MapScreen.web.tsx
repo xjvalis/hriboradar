@@ -36,7 +36,7 @@ export default function MapScreen() {
     return () => window.removeEventListener("message", onMessage);
   }, []);
 
-  // The HTML is built once per (grid, location) — NOT per mode. Switching
+  // The HTML is built once per (grid, location) - NOT per mode. Switching
   // species shouldn't reload every map tile and reset pan/zoom; instead the
   // mode change is pushed into the already-loaded page below.
   const html = useMemo(() => {

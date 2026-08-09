@@ -12,7 +12,7 @@ export function WeatherSummary({
   tempC: number;
   soilMoisturePct: number;
   daysSinceRain: number | null;
-  /** Defaults to "Teplota" (implying "right now") — pass an explicit label
+  /** Defaults to "Teplota" (implying "right now") - pass an explicit label
    * like "Průměrná denní teplota" whenever tempC is a day average rather
    * than a live reading, so it doesn't misrepresent itself. */
   tempLabel?: string;

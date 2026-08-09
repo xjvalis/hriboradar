@@ -6,14 +6,14 @@ const OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast";
 // days-since-rain. Must cover the largest days_after_rain window in
 // species.json (currently max 14) with margin.
 const PAST_DAYS = 16;
-// How far forward we forecast — covers the "za N dní upozornění" use case.
+// How far forward we forecast - covers the "za N dní upozornění" use case.
 const FORECAST_DAYS = 7;
-// Weather changes slowly relative to our daily-resolution model — safe to
+// Weather changes slowly relative to our daily-resolution model - safe to
 // cache for a while, and it's what stops the Home screen's 8 region calls
 // from re-fetching the same forecast on every load.
 const WEATHER_CACHE_TTL_MS = 30 * 60 * 1000; // 30 min
 // "Right now" is a different question from the daily avg(max,min) the
-// model runs on — on a hot day the two can differ by 5-6°C — so it gets
+// model runs on - on a hot day the two can differ by 5-6°C - so it gets
 // its own short-lived cache rather than reusing the daily one.
 const CURRENT_CACHE_TTL_MS = 10 * 60 * 1000; // 10 min
 

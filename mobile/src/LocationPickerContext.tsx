@@ -8,7 +8,7 @@ interface LocationPickerContextValue {
 
 const LocationPickerContext = createContext<LocationPickerContextValue | null>(null);
 
-// Same shape as SpeciesDetailContext — the sheet itself is rendered once
+// Same shape as SpeciesDetailContext - the sheet itself is rendered once
 // at the app shell's top level and toggled via this context, rather than
 // living inside whichever screen triggers it. A sheet nested inside a
 // screen's own ScrollView doesn't reliably get full-screen absolute

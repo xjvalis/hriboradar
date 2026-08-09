@@ -11,7 +11,7 @@ import type { SavedLocation } from "../SavedLocationsContext";
 
 // Ground truth the scoring model has no other way to get: did mushrooms
 // actually turn up where the app said they might? Anonymous for now (no
-// login yet) — just enough to start accumulating real observations
+// login yet) - just enough to start accumulating real observations
 // alongside the weather-driven predictions.
 export function ObservationSheet({
   location,
@@ -52,7 +52,7 @@ export function ObservationSheet({
         <View style={styles.doneWrap}>
           <Text style={styles.doneTitle}>Díky za zpětnou vazbu</Text>
           <Text style={styles.doneBody}>
-            Tahle pozorování časem pomůžou zpřesnit předpověď — čím víc jich posbíráme, tím lepší bude
+            Tahle pozorování časem pomůžou zpřesnit předpověď - čím víc jich posbíráme, tím lepší bude
             model pro všechny.
           </Text>
           <View style={{ marginTop: space.base, alignSelf: "stretch" }}>

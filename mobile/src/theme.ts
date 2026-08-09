@@ -1,8 +1,8 @@
 // ============================================================================
-// DESIGN SYSTEM — "Rostou?"
+// DESIGN SYSTEM - "Rostou?"
 // Modern Czech mycology: botanical field guide translated into a 2026
 // consumer mobile app. Forest + paper + restraint, not SaaS-dashboard.
-// Every screen must consume these tokens — no ad-hoc hex values or
+// Every screen must consume these tokens - no ad-hoc hex values or
 // one-off spacing in screen code.
 // ============================================================================
 
@@ -15,15 +15,15 @@ export const palette = {
   inkFaint: "#8C8A6E",
   line: "#DBCFA9",
 
-  primary: "#33482C", // deep forest green — primary actions, active states
+  primary: "#33482C", // deep forest green - primary actions, active states
   primaryDeep: "#243420",
-  secondary: "#7C8552", // moss / muted olive — tags, secondary emphasis
-  accent: "#B5652E", // restrained earthy accent (terracotta) — used sparingly
-  danger: "#A23B2E", // muted red — poisonous warnings, errors
-  success: "#4F7A3D", // natural green — good conditions, confirmations
+  secondary: "#7C8552", // moss / muted olive - tags, secondary emphasis
+  accent: "#B5652E", // restrained earthy accent (terracotta) - used sparingly
+  danger: "#A23B2E", // muted red - poisonous warnings, errors
+  success: "#4F7A3D", // natural green - good conditions, confirmations
 
-  wood: "#6B4A2E", // brown wood — top-bar icon color
-  springGreen: "#6FA23A", // fresh conifer-needle green — active nav icon ring
+  wood: "#6B4A2E", // brown wood - top-bar icon color
+  springGreen: "#6FA23A", // fresh conifer-needle green - active nav icon ring
 
   white: "#FFFFFF",
 } as const;
@@ -44,7 +44,7 @@ export function scoreLabel(pct: number): string {
   return tier === "good" ? "Dobré podmínky" : tier === "medium" ? "Slabší šance" : "Nepravděpodobné";
 }
 
-// A one-line editorial opener, distinct from scoreLabel (a status word) —
+// A one-line editorial opener, distinct from scoreLabel (a status word) -
 // this is the "field guide voice" line that precedes the factual weather
 // explanation, e.g. "Houbám dnes chybí vlhkost a čas. 4. den po dešti..."
 export function scoreFlavor(pct: number): string {
@@ -55,7 +55,7 @@ export function scoreFlavor(pct: number): string {
 }
 
 // ---------------------------------------------------------------------------
-// Typography — one editorial display serif (Fraunces), one UI sans (Manrope).
+// Typography - one editorial display serif (Fraunces), one UI sans (Manrope).
 // ---------------------------------------------------------------------------
 export const fontFamily = {
   displayBold: "Fraunces-Bold",
@@ -87,7 +87,7 @@ export const type = {
 };
 
 // ---------------------------------------------------------------------------
-// Spacing — one scale, used everywhere. No invented one-off margins.
+// Spacing - one scale, used everywhere. No invented one-off margins.
 // ---------------------------------------------------------------------------
 export const space = {
   xs: 4,
@@ -102,7 +102,7 @@ export const space = {
 };
 
 // ---------------------------------------------------------------------------
-// Radius — restrained. Cards are structured, not pills.
+// Radius - restrained. Cards are structured, not pills.
 // ---------------------------------------------------------------------------
 export const radius = {
   sm: 8,
@@ -113,7 +113,7 @@ export const radius = {
 };
 
 // ---------------------------------------------------------------------------
-// Shadow — used sparingly (sheets/modals only). Cards prefer borders.
+// Shadow - used sparingly (sheets/modals only). Cards prefer borders.
 // ---------------------------------------------------------------------------
 export const shadow = {
   sheet: {

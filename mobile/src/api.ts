@@ -2,25 +2,25 @@ import { Platform } from "react-native";
 import Constants from "expo-constants";
 import { supabase } from "./supabase";
 
-// Real Vercel deployment (api/*.ts serverless functions) — this is what a
+// Real Vercel deployment (api/*.ts serverless functions) - this is what a
 // published/store build talks to, since a phone on a real network has no
 // route to anyone's "localhost". Note this is NOT the vercel.app project
-// slug you'd guess from the dashboard URL — "rostou.vercel.app" turned out
+// slug you'd guess from the dashboard URL - "rostou.vercel.app" turned out
 // to belong to an unrelated older deployment (a static Lovable mockup
 // export) that had already claimed that exact subdomain; Vercel assigned
 // this project "rostou-delta.vercel.app" instead. Confirmed working
-// 2026-08-09 (real forecast JSON, not the mockup) — if this ever needs to
+// 2026-08-09 (real forecast JSON, not the mockup) - if this ever needs to
 // change, check Vercel dashboard → Settings → Domains, don't assume the
 // obvious slug.
 const PRODUCTION_API_BASE = "https://rostou-delta.vercel.app";
 
 // In dev, mobile talks to the local stand-in server (see /dev-server.mjs
 // at the repo root, started with `npm run dev:api`) instead of the real
-// deployment above — faster iteration, works offline, and lets you test
+// deployment above - faster iteration, works offline, and lets you test
 // backend changes before they're deployed.
 //
 // "localhost" only resolves on the machine actually running dev-server.mjs
-// — fine for the web preview, broken on a phone in Expo Go. Constants'
+// - fine for the web preview, broken on a phone in Expo Go. Constants'
 // hostUri is the LAN address Metro is already using to serve the JS bundle
 // to that phone, so reusing its host gets us the right IP automatically
 // instead of a hardcoded address that breaks on a different network.
@@ -130,13 +130,13 @@ export interface ObservationInput {
   note?: string;
 }
 
-// Writes straight to Supabase instead of through a Vercel API route — the
+// Writes straight to Supabase instead of through a Vercel API route - the
 // old /api/observations serverless function tried to append to a local
 // JSONL file, which doesn't work on Vercel's read-only/ephemeral
 // filesystem (every submission there 500'd). Row Level Security on
 // rostou_observations (see supabase/rostou_schema.sql) scopes each insert
 // to the signed-in user automatically via auth.uid(), so there's no
-// user_id to pass here — an unauthenticated caller simply can't insert.
+// user_id to pass here - an unauthenticated caller simply can't insert.
 export async function submitObservation(input: ObservationInput): Promise<boolean> {
   const { error } = await supabase.from("rostou_observations").insert({
     lat: input.lat,

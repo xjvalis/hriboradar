@@ -11,7 +11,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
  *
  * This is the moisture half of the growth model. Species-specific
  * probability (host tree match, soil pH, season) is not computed here yet
- * — this endpoint only answers "how wet has the ground been lately".
+ * - this endpoint only answers "how wet has the ground been lately".
  */
 
 const OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast";
@@ -94,7 +94,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       avgTemp7d: Math.round(avgTemp7d * 10) / 10,
       tempCorrection,
       correctedIndex,
-      note: "Sezónní koeficient a shoda s dřevinami/půdou zatím chybí — přidá se ve species-condition vrstvě.",
+      note: "Sezónní koeficient a shoda s dřevinami/půdou zatím chybí - přidá se ve species-condition vrstvě.",
     });
   } catch (err) {
     res.status(500).json({ error: "Nepodařilo se spočítat index.", detail: String(err) });

@@ -19,7 +19,7 @@ const KIND_ICON: Record<AppNotification["kind"], typeof Bell> = {
 };
 
 // Self-contained and rendered once at the app shell's top level, same as
-// SpeciesDetailSheet — mounting it inside TopBar (a thin header component)
+// SpeciesDetailSheet - mounting it inside TopBar (a thin header component)
 // constrained BottomSheet's full-screen absolute positioning to TopBar's
 // own height instead of the whole screen.
 export function NotificationsSheet() {

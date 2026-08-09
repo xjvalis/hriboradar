@@ -11,6 +11,7 @@ import { LocationProvider } from "./src/LocationContext";
 import { SavedLocationsProvider } from "./src/SavedLocationsContext";
 import { AuthProvider, useAuth } from "./src/AuthContext";
 import LoginScreen from "./src/screens/LoginScreen";
+import NewPasswordScreen from "./src/screens/NewPasswordScreen";
 import { NotificationProvider } from "./src/NotificationContext";
 import { useNotificationGenerator } from "./src/useNotificationGenerator";
 import { NotificationsSheet } from "./src/components/NotificationsSheet";
@@ -47,7 +48,7 @@ function AppShell() {
 
   const [active, setActive] = useState<ScreenName>("Domů");
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, passwordRecovery } = useAuth();
   useNotificationGenerator();
 
   if (!fontsLoaded || authLoading) {
@@ -58,7 +59,19 @@ function AppShell() {
     );
   }
 
-  // Gate everything behind login — nothing past this point renders for an
+  // Checked before the normal !user branch below - a password-recovery
+  // link does hand back a real session, but the standard flow is "set a
+  // new password first," not "drop straight into the app."
+  if (passwordRecovery) {
+    return (
+      <SafeAreaView style={styles.screen} edges={["top", "left", "right"]}>
+        <StatusBar style="dark" />
+        <NewPasswordScreen />
+      </SafeAreaView>
+    );
+  }
+
+  // Gate everything behind login - nothing past this point renders for an
   // unauthenticated visitor. LoginScreen itself needs fonts loaded too
   // (Fraunces/Manrope), which is why this check comes after the fonts
   // branch above, not before it.

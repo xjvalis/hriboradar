@@ -5,13 +5,13 @@
  * city block.
  *
  * Two signals, best available wins:
- *  1. `uhul:slt` — in some regions OSM forest polygons were imported
+ *  1. `uhul:slt` - in some regions OSM forest polygons were imported
  *     straight from ÚHÚL's own typology WFS (source=UHULtypoWFS), with a
  *     real Czech forestry "skupina lesních typů" description like
  *     "Bohatá habrová doubrava". We keyword-match tree genera out of that
- *     text — the closest thing to real ÚHÚL data we can get without a
+ *     text - the closest thing to real ÚHÚL data we can get without a
  *     licensed GIS pipeline.
- *  2. `leaf_type` / `wood` — coarser broadleaved/needleleaved/mixed tag,
+ *  2. `leaf_type` / `wood` - coarser broadleaved/needleleaved/mixed tag,
  *     present on plain volunteer-mapped polygons. Used when there's no
  *     ÚHÚL import for that polygon.
  *
@@ -35,13 +35,13 @@ const OVERPASS_ENDPOINTS = [
 
 const SEARCH_RADIUS_M = 1500;
 
-// Forest composition doesn't change minute to minute — cache aggressively.
+// Forest composition doesn't change minute to minute - cache aggressively.
 const TERRAIN_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24h
-// But a failed lookup (Overpass down/rate-limited) gets a short TTL — long
+// But a failed lookup (Overpass down/rate-limited) gets a short TTL - long
 // enough to stop every request paying the full timeout during an outage,
 // short enough that we retry for real data soon after.
 const TERRAIN_FAILURE_TTL_MS = 90 * 1000; // 90s
-// Each endpoint gets less time before falling back — the old 9s x 3
+// Each endpoint gets less time before falling back - the old 9s x 3
 // endpoints meant a single request could take up to 27s in the worst case.
 const OVERPASS_TIMEOUT_MS = 5000;
 
@@ -122,7 +122,7 @@ async function queryOne(endpoint: string, query: string): Promise<OverpassRespon
   return JSON.parse(text) as OverpassResponse;
 }
 
-// Race all endpoints instead of trying them one after another — sequential
+// Race all endpoints instead of trying them one after another - sequential
 // fallback meant a request could wait up to endpoints.length x timeout
 // before failing (measured ~15s cold). Racing means we wait only as long
 // as the fastest endpoint that actually answers.
@@ -137,7 +137,7 @@ export function fetchTerrain(lat: number, lon: number): Promise<TerrainInfo> {
     TERRAIN_CACHE_TTL_MS,
     () => fetchTerrainUncached(lat, lon),
     // hasForestNearby:true + polygonsFound:0 only happens in the catch-all
-    // fallback below (Overpass failed) — give that a short TTL instead of
+    // fallback below (Overpass failed) - give that a short TTL instead of
     // the full day, so a transient outage self-heals quickly.
     (result) =>
       result.hasForestNearby && result.polygonsFound === 0 ? TERRAIN_FAILURE_TTL_MS : null
@@ -193,7 +193,7 @@ async function fetchTerrainUncached(lat: number, lon: number): Promise<TerrainIn
       source: "osm-overpass",
     };
   } catch {
-    // Overpass down/timed out — treat as "unknown", not "no forest", so we
+    // Overpass down/timed out - treat as "unknown", not "no forest", so we
     // don't wrongly zero out every species just because a lookup failed.
     return {
       hasForestNearby: true,
@@ -218,13 +218,13 @@ export function terrainMatchFactor(
   hostTrees: string[],
   terrain: TerrainInfo
 ): number {
-  if (hostTrees.length === 0) return 1; // saprotrof/parazit — not tree-bound
-  if (!terrain.hasForestNearby) return 0.05; // open field / city — mycorrhizal species need trees
+  if (hostTrees.length === 0) return 1; // saprotrof/parazit - not tree-bound
+  if (!terrain.hasForestNearby) return 0.05; // open field / city - mycorrhizal species need trees
 
   if (terrain.treeGenera.length > 0) {
     const exactGenusMatch = hostTrees.some((t) => terrain.treeGenera.includes(t));
     if (exactGenusMatch) return 1;
-    // ÚHÚL text told us the real genera and none match — strong negative signal.
+    // ÚHÚL text told us the real genera and none match - strong negative signal.
     return 0.1;
   }
 

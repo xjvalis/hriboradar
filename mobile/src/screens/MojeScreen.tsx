@@ -124,9 +124,9 @@ export default function MojeScreen() {
       )}
 
       <Text style={styles.note}>
-        Klepnutím na místo ho nastavíte jako aktuální — Domů a Mapa se přepnou na něj. Zvoneček
+        Klepnutím na místo ho nastavíte jako aktuální - Domů a Mapa se přepnou na něj. Zvoneček
         zapne/vypne upozornění pro dané místo (i na houby, které tam mají začít růst až v příštích dnech).
-        Ikonka se zaškrtnutím zapíše, jestli tam houby fakt rostly — pomáhá to zpřesňovat model.
+        Ikonka se zaškrtnutím zapíše, jestli tam houby fakt rostly - pomáhá to zpřesňovat model.
       </Text>
 
       {observing && <ObservationSheet location={observing} onClose={() => setObserving(null)} />}

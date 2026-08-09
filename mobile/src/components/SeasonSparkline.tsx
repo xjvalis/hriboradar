@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from "react-native";
 import { palette, radius, type } from "../theme";
 
-// Compact "which months does this grow in" strip for atlas cards — 12 small
+// Compact "which months does this grow in" strip for atlas cards - 12 small
 // bars, in-season ones lit up (peak months brighter than shoulder months),
 // with "1"/"12" printed under the end bars so it reads as a year at a
 // glance instead of an abstract barcode.
