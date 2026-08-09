@@ -4,6 +4,9 @@ import type { AppLocation } from "./LocationContext";
 
 export interface SavedLocation extends AppLocation {
   id: string;
+  // Undefined means "on" — older saved entries predate this field and
+  // should default to alerting rather than silently going quiet.
+  alertsEnabled?: boolean;
 }
 
 const STORAGE_KEY = "rostou:savedLocations";
@@ -13,6 +16,7 @@ interface SavedLocationsContextValue {
   loaded: boolean;
   addLocation: (location: AppLocation) => void;
   removeLocation: (id: string) => void;
+  toggleLocationAlerts: (id: string) => void;
 }
 
 const SavedLocationsContext = createContext<SavedLocationsContextValue | null>(null);
@@ -45,11 +49,16 @@ export function SavedLocationsProvider({ children }: { children: ReactNode }) {
             (p) => Math.abs(p.lat - location.lat) < 0.001 && Math.abs(p.lon - location.lon) < 0.001
           );
           if (exists) return prev;
-          return [...prev, { ...location, id: `${Date.now()}` }];
+          return [...prev, { ...location, id: `${Date.now()}`, alertsEnabled: true }];
         });
       },
       removeLocation: (id: string) => {
         setLocations((prev) => prev.filter((p) => p.id !== id));
+      },
+      toggleLocationAlerts: (id: string) => {
+        setLocations((prev) =>
+          prev.map((p) => (p.id === id ? { ...p, alertsEnabled: !(p.alertsEnabled ?? true) } : p))
+        );
       },
     }),
     [locations, loaded]

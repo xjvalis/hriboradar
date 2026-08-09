@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ChevronDown } from "lucide-react-native";
 import { palette, scoreFlavor, space, type } from "../theme";
 import { getForecast, type ForecastResponse } from "../api";
+import { computeDailyOverall } from "../forecastMath";
 import { REGIONS } from "../regions";
 import { useLocation } from "../LocationContext";
+import { useLocationPicker } from "../LocationPickerContext";
 import { IndexCard } from "../components/IndexCard";
 import { SectionHeader } from "../components/SectionHeader";
 import { LocationCard } from "../components/LocationCard";
@@ -11,6 +14,7 @@ import { MushroomCard } from "../components/MushroomCard";
 import { WeatherSummary } from "../components/WeatherSummary";
 import { CardSkeleton } from "../components/LoadingSkeleton";
 import { LoadingScreen } from "../components/LoadingScreen";
+import { PaperBackground } from "../components/PaperBackground";
 
 interface RegionResult {
   region: (typeof REGIONS)[number];
@@ -39,6 +43,7 @@ function buildExplanation(data: ForecastResponse, top: ReturnType<typeof topSpec
 
 export default function HomeScreen() {
   const { location } = useLocation();
+  const { openPicker } = useLocationPicker();
   const [data, setData] = useState<ForecastResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [regionResults, setRegionResults] = useState<RegionResult[]>([]);
@@ -77,9 +82,10 @@ export default function HomeScreen() {
   useEffect(loadRegions, []);
 
   const top = data ? topSpeciesOf(data) : [];
-  const indexValue = top.length
-    ? Math.round(top.slice(0, 5).reduce((s, x) => s + x.today.probability_pct, 0) / Math.min(5, top.length))
-    : 0;
+  // Same weighted-top-3 formula as Předpověď's daily cards (forecastMath.ts,
+  // mirroring api/grid.ts's overallScore()) — using a different average here
+  // would show a different number for the same day/location on each screen.
+  const indexValue = data ? computeDailyOverall(data).find((d) => d.date === data.today)?.overall ?? 0 : 0;
   const todayWeather = data?.weather?.find((w) => w.date === data.today);
   const daysSinceRainToday = top[0]?.today.factors.days_since_rain ?? null;
 
@@ -93,7 +99,6 @@ export default function HomeScreen() {
   return (
     <ScrollView
       style={styles.screen}
-      contentContainerStyle={styles.content}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
@@ -107,62 +112,68 @@ export default function HomeScreen() {
         />
       }
     >
-      <Text style={styles.eyebrow}>dnes v okolí · {location.label}</Text>
-      <Text style={styles.headline}>Houby venku</Text>
+      <PaperBackground style={styles.content}>
+        <Pressable style={styles.eyebrowRow} onPress={openPicker} hitSlop={6}>
+          <Text style={styles.eyebrow}>dnes v okolí · </Text>
+          <Text style={[styles.eyebrow, styles.eyebrowLocation]}>{location.label}</Text>
+          <ChevronDown size={13} strokeWidth={2.2} color={palette.secondary} style={{ marginLeft: 1 }} />
+        </Pressable>
+        <Text style={styles.headline}>Houby venku</Text>
 
-      {error && (
-        <Text style={styles.error}>
-          Nepodařilo se načíst předpověď: {error}
-          {"\n"}Běží `npm run dev:api` v kořeni repa?
-        </Text>
-      )}
+        {error && (
+          <Text style={styles.error}>
+            Nepodařilo se načíst předpověď: {error}
+            {"\n"}Běží `npm run dev:api` v kořeni repa?
+          </Text>
+        )}
 
-      {data && (
-        <View style={{ marginTop: space.base }}>
-          <IndexCard value={indexValue} explanation={buildExplanation(data, top, indexValue)} />
+        {data && (
+          <View style={{ marginTop: space.base }}>
+            <IndexCard value={indexValue} explanation={buildExplanation(data, top, indexValue)} />
+          </View>
+        )}
+
+        <SectionHeader title="Kam dnes?" />
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.sm }}>
+          {regionResults.length === 0
+            ? [0, 1, 2].map((i) => <View key={i} style={{ width: 220 }}><CardSkeleton /></View>)
+            : regionResults.map((r) => (
+                <LocationCard
+                  key={r.region.id}
+                  name={r.region.name}
+                  region={r.region.area}
+                  topSpecies={r.topSpecies}
+                  probabilityPct={r.probabilityPct}
+                />
+              ))}
+        </ScrollView>
+
+        <SectionHeader title="Co roste dnes" />
+        <View style={{ gap: space.sm }}>
+          {top.length === 0
+            ? [0, 1, 2].map((i) => <CardSkeleton key={i} />)
+            : top.slice(0, 6).map(({ sp, today }) => (
+                <MushroomCard
+                  key={sp.id}
+                  id={sp.id}
+                  nameCz={sp.name_cz}
+                  nameLatin={sp.name_latin}
+                  probabilityPct={today.probability_pct}
+                />
+              ))}
         </View>
-      )}
 
-      <SectionHeader title="Kam dnes?" />
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.sm }}>
-        {regionResults.length === 0
-          ? [0, 1, 2].map((i) => <View key={i} style={{ width: 220 }}><CardSkeleton /></View>)
-          : regionResults.map((r) => (
-              <LocationCard
-                key={r.region.id}
-                name={r.region.name}
-                region={r.region.area}
-                topSpecies={r.topSpecies}
-                probabilityPct={r.probabilityPct}
-              />
-            ))}
-      </ScrollView>
-
-      <SectionHeader title="Co roste dnes" />
-      <View style={{ gap: space.sm }}>
-        {top.length === 0
-          ? [0, 1, 2].map((i) => <CardSkeleton key={i} />)
-          : top.slice(0, 6).map(({ sp, today }) => (
-              <MushroomCard
-                key={sp.id}
-                id={sp.id}
-                nameCz={sp.name_cz}
-                nameLatin={sp.name_latin}
-                probabilityPct={today.probability_pct}
-              />
-            ))}
-      </View>
-
-      {todayWeather && (
-        <>
-          <SectionHeader title="Podmínky" />
-          <WeatherSummary
-            tempC={data?.current?.tempC ?? todayWeather.tempC}
-            soilMoisturePct={todayWeather.soilMoisturePct}
-            daysSinceRain={daysSinceRainToday}
-          />
-        </>
-      )}
+        {todayWeather && (
+          <>
+            <SectionHeader title="Podmínky" />
+            <WeatherSummary
+              tempC={data?.current?.tempC ?? todayWeather.tempC}
+              soilMoisturePct={todayWeather.soilMoisturePct}
+              daysSinceRain={daysSinceRainToday}
+            />
+          </>
+        )}
+      </PaperBackground>
     </ScrollView>
   );
 }
@@ -170,7 +181,9 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   content: { paddingHorizontal: space.lg, paddingTop: space.base, paddingBottom: space.xxl },
+  eyebrowRow: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start" },
   eyebrow: { ...type.eyebrow, color: palette.secondary },
+  eyebrowLocation: { textDecorationLine: "underline", textDecorationStyle: "dotted", color: palette.primary },
   headline: { ...type.displayXl, color: palette.ink, marginTop: 2 },
   error: { ...type.bodySmall, color: palette.danger, marginTop: space.base },
 });

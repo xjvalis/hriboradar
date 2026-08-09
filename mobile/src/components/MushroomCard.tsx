@@ -2,7 +2,9 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { palette, space, type } from "../theme";
 import { Card } from "./Card";
 import { ProbabilityBadge } from "./ProbabilityBadge";
+import { SeasonSparkline } from "./SeasonSparkline";
 import { MushroomThumb } from "../photos";
+import { SPECIES_BY_ID } from "../speciesInfo";
 import { useSpeciesDetail } from "../SpeciesDetailContext";
 
 export function MushroomCard({
@@ -19,6 +21,7 @@ export function MushroomCard({
   edibility?: string;
 }) {
   const { openSpecies } = useSpeciesDetail();
+  const info = SPECIES_BY_ID[id];
   return (
     <Pressable onPress={() => openSpecies(id)}>
       <Card style={styles.card}>
@@ -27,6 +30,7 @@ export function MushroomCard({
           <Text style={styles.name}>{nameCz}</Text>
           <Text style={styles.latin}>{nameLatin}</Text>
           {edibility ? <Text style={styles.edibility}>{edibility}</Text> : null}
+          {info && <SeasonSparkline seasonMonths={info.season_months} peakMonths={info.season_peak_months} />}
         </View>
         {probabilityPct != null && <ProbabilityBadge pct={probabilityPct} />}
       </Card>

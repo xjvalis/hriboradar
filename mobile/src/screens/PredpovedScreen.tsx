@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { palette, radius, scoreColor, scoreLabel, space, type } from "../theme";
+import { palette, radius, scoreColor, scoreFlavor, scoreLabel, space, type } from "../theme";
 import { getForecast, type ForecastResponse } from "../api";
 import { useLocation } from "../LocationContext";
 import { useSavedLocations } from "../SavedLocationsContext";
 import { computeDailyOverall, findNextOpportunity, weekdayLabel, dayMonthLabel } from "../forecastMath";
 import { PageHeader } from "../components/PageHeader";
+import { PaperBackground } from "../components/PaperBackground";
 import { Chip } from "../components/Chip";
 import { Card } from "../components/Card";
 import { WeatherSummary } from "../components/WeatherSummary";
@@ -57,7 +58,8 @@ export default function PredpovedScreen() {
     : [];
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.screen}>
+      <PaperBackground style={styles.content}>
       <PageHeader
         eyebrow="7 dní dopředu"
         title="Předpověď"
@@ -100,7 +102,7 @@ export default function PredpovedScreen() {
           {opportunity.type === "now" ? (
             <>
               <Text style={styles.headlineEyebrow}>Teď</Text>
-              <Text style={styles.headlineTitle}>Teď jsou slušné podmínky na houby</Text>
+              <Text style={styles.headlineTitle}>{scoreFlavor(opportunity.value)}</Text>
             </>
           ) : opportunity.type === "upcoming" ? (
             <>
@@ -186,6 +188,7 @@ export default function PredpovedScreen() {
       <Text style={styles.disclaimer}>
         Předpověď na 7 dní dopředu je odhad podle vývoje počasí — čím dál v budoucnu, tím méně jistý.
       </Text>
+      </PaperBackground>
     </ScrollView>
   );
 }

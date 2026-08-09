@@ -16,30 +16,16 @@ const ITEMS: { name: ScreenName; Icon: typeof Home; label: string }[] = [
   { name: "Nastavení", Icon: Settings, label: "Nastavení" },
 ];
 
-// Individual mushrooms cut out of the user-supplied reference sheet
-// (mobile/assets/background.png), each on its own transparent PNG —
-// a feathered single-image fade read as "an image with a blur filter on
-// it"; these are placed one at a time like field-guide clippings, so
-// every mushroom is whole (never cropped mid-illustration) and there's no
-// image edge for the eye to find at all, faded or not.
-const SPRITES = {
-  amanita: require("../../assets/sprites/amanita.png"),
-  chanterelle: require("../../assets/sprites/chanterelle.png"),
-  porcini: require("../../assets/sprites/porcini_pair.png"),
-  morel: require("../../assets/sprites/morel_small.png"),
-  single: require("../../assets/sprites/single_grass.png"),
-};
-
-// Hand-placed scatter within the drawer's lower art area (roughly
-// drawerWidth x remaining-flex-height) — sized/positioned to fill the
-// space without overlapping the nav list above.
-const SCATTER: { key: keyof typeof SPRITES; left: number; top: number; height: number; aspect: number }[] = [
-  { key: "amanita", left: 8, top: 4, height: 92, aspect: 111 / 239 },
-  { key: "chanterelle", left: 150, top: 0, height: 78, aspect: 260 / 234 },
-  { key: "morel", left: 205, top: 110, height: 96, aspect: 201 / 260 },
-  { key: "porcini", left: 6, top: 150, height: 100, aspect: 198 / 260 },
-  { key: "single", left: 175, top: 225, height: 88, aspect: 204 / 225 },
-];
+// One piece cut straight from the user's reference sheet (mobile/assets/
+// background.png) rather than several hand-placed cutouts — every prior
+// attempt at compositing individual sprites kept producing overlaps or
+// edge artifacts. This is a single rectangular region auto-selected so
+// no mushroom's linework touches its boundary (nothing is ever mid-cut),
+// with its flat paper background chroma-keyed to transparent so it blends
+// straight into the drawer's own surface color instead of showing a
+// mismatched panel underneath.
+const MUSHROOM_SHEET = require("../../assets/mushroom-sheet.png");
+const MUSHROOM_SHEET_ASPECT = 878 / 1019; // width / height
 
 export function DrawerMenu({
   visible,
@@ -55,6 +41,11 @@ export function DrawerMenu({
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const drawerWidth = Math.min(300, width * 0.8);
+  // Computed explicitly rather than via the `aspectRatio` style — that
+  // style didn't constrain height on web here and the image rendered at
+  // its full natural size instead of scaling down with its width.
+  const artWidth = drawerWidth * 0.9;
+  const artHeight = artWidth / MUSHROOM_SHEET_ASPECT;
   const translateX = useRef(new Animated.Value(-drawerWidth)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
 
@@ -106,14 +97,11 @@ export function DrawerMenu({
         </View>
 
         <View style={styles.art}>
-          {SCATTER.map(({ key, left, top, height, aspect }) => (
-            <Image
-              key={key}
-              source={SPRITES[key]}
-              resizeMode="contain"
-              style={{ position: "absolute", left, top, height, width: height * aspect, opacity: 0.55 }}
-            />
-          ))}
+          <Image
+            source={MUSHROOM_SHEET}
+            resizeMode="contain"
+            style={{ width: artWidth, height: artHeight, opacity: 0.45 }}
+          />
         </View>
       </Animated.View>
     </View>
@@ -180,5 +168,8 @@ const styles = StyleSheet.create({
     flex: 1,
     width: "100%",
     overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    paddingBottom: space.md,
   },
 });

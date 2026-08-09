@@ -33,7 +33,7 @@ export function computeDailyOverall(detail: ForecastResponse): DayOverall[] {
 }
 
 export type NextOpportunity =
-  | { type: "now" }
+  | { type: "now"; value: number }
   | { type: "upcoming"; date: string; daysAhead: number }
   | { type: "none" };
 
@@ -43,7 +43,7 @@ export type NextOpportunity =
 export function findNextOpportunity(daily: DayOverall[], todayStr: string): NextOpportunity {
   const todayIdx = daily.findIndex((d) => d.date === todayStr);
   if (todayIdx === -1) return { type: "none" };
-  if (scoreTier(daily[todayIdx].overall) !== "poor") return { type: "now" };
+  if (scoreTier(daily[todayIdx].overall) !== "poor") return { type: "now", value: daily[todayIdx].overall };
   for (let i = todayIdx + 1; i < daily.length; i++) {
     if (scoreTier(daily[i].overall) !== "poor") {
       return { type: "upcoming", date: daily[i].date, daysAhead: i - todayIdx };

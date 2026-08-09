@@ -1,18 +1,21 @@
-import { ScrollView, StyleSheet, Text, View } from "react-native";
-import { MapPin } from "lucide-react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { AlertTriangle, Bell, BellOff, MapPin } from "lucide-react-native";
 import { palette, radius, space, type } from "../theme";
 import { MushroomThumb } from "../photos";
 import { SPECIES_BY_ID, groupLabel, monthsToLabel, siteFidelityTip } from "../speciesInfo";
 import { useSpeciesDetail } from "../SpeciesDetailContext";
+import { useNotifications } from "../NotificationContext";
 import { BottomSheet } from "./BottomSheet";
 
 export function SpeciesDetailSheet() {
   const { selectedSpeciesId, closeSpecies } = useSpeciesDetail();
+  const { watchedSpecies, toggleWatchedSpecies } = useNotifications();
   const info = selectedSpeciesId ? SPECIES_BY_ID[selectedSpeciesId] : null;
 
   if (!info) return null;
 
   const fidelityTip = siteFidelityTip(info);
+  const isWatched = watchedSpecies.includes(info.id);
 
   return (
     <BottomSheet onClose={closeSpecies} maxHeight="80%">
@@ -28,13 +31,39 @@ export function SpeciesDetailSheet() {
           </Text>
         </View>
 
-        <View style={[styles.edibilityBadge, info.edibility.startsWith("jedlá po") && styles.edibilityWarn]}>
-          <Text
-            style={[styles.edibilityText, info.edibility.startsWith("jedlá po") && styles.edibilityWarnText]}
+        <View style={styles.badgeRow}>
+          <View style={[styles.edibilityBadge, info.edibility.startsWith("jedlá po") && styles.edibilityWarn]}>
+            <Text
+              style={[styles.edibilityText, info.edibility.startsWith("jedlá po") && styles.edibilityWarnText]}
+            >
+              {info.edibility}
+            </Text>
+          </View>
+          <Pressable
+            onPress={() => toggleWatchedSpecies(info.id)}
+            style={[styles.watchBtn, isWatched && styles.watchBtnActive]}
+            hitSlop={6}
           >
-            {info.edibility}
-          </Text>
+            {isWatched ? (
+              <Bell size={14} strokeWidth={2} color={palette.white} />
+            ) : (
+              <BellOff size={14} strokeWidth={1.8} color={palette.inkSoft} />
+            )}
+            <Text style={[styles.watchBtnText, isWatched && styles.watchBtnTextActive]}>
+              {isWatched ? "Sledováno" : "Upozornit na tento druh"}
+            </Text>
+          </Pressable>
         </View>
+
+        {info.safety_note && (
+          <View style={styles.safetyBox}>
+            <AlertTriangle size={17} strokeWidth={1.8} color={palette.danger} style={{ marginTop: 1 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.safetyTitle}>Nebezpečí záměny</Text>
+              <Text style={styles.safetyText}>{info.safety_note}</Text>
+            </View>
+          </View>
+        )}
 
         <Text style={styles.sectionLabel}>Kde roste</Text>
         <Text style={styles.body}>{info.habitat}</Text>
@@ -65,8 +94,10 @@ export function SpeciesDetailSheet() {
 
         <Text style={styles.sectionLabel}>Jak sbírat</Text>
         <Text style={styles.bodyFaint}>
-          Vykruťte nebo opatrně vytrhněte, neřežte — houba se množí výtrusy z klobouku, pahýl nožičky
-          v zemi jejímu šíření nijak nepomůže a jen zbytečně hnije.
+          Řezat i vytrhávat je v pořádku — třicetiletá švýcarská studie (Egli a kol., 2006, La Chanéaz) mezi
+          oběma způsoby nenašla žádný rozdíl v budoucích výnosech. Výtrusy vznikají na klobouku, ne v pahýlu
+          nožičky. Lesu skutečně škodí spíš sešlapávání mechu a hrabanky kolem — chodit šetrně má větší
+          význam než jak přesně houbu odeberete.
         </Text>
 
         <Text style={styles.sectionLabel}>O modelu</Text>
@@ -90,15 +121,28 @@ const styles = StyleSheet.create({
   name: { ...type.headingLg, color: palette.ink },
   latin: { ...type.bodySmall, fontStyle: "italic", color: palette.inkFaint, marginTop: 2 },
   close: { ...type.bodySmall, color: palette.inkFaint },
+  badgeRow: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: space.sm, marginTop: space.md },
   edibilityBadge: {
-    alignSelf: "flex-start",
-    marginTop: space.md,
     backgroundColor: palette.success + "22",
     borderRadius: radius.sm,
     paddingHorizontal: space.sm,
     paddingVertical: 4,
   },
   edibilityWarn: { backgroundColor: palette.accent + "22" },
+  watchBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    borderWidth: 1,
+    borderColor: palette.line,
+    borderRadius: radius.pill,
+    paddingHorizontal: space.sm,
+    paddingVertical: 4,
+    backgroundColor: palette.surface,
+  },
+  watchBtnActive: { backgroundColor: palette.primary, borderColor: palette.primary },
+  watchBtnText: { ...type.caption, color: palette.inkSoft },
+  watchBtnTextActive: { color: palette.white },
   edibilityText: { ...type.headingSm, color: palette.success },
   edibilityWarnText: { color: palette.accent },
   sectionLabel: { ...type.label, color: palette.inkFaint, marginTop: space.lg, marginBottom: space.xs },
@@ -113,4 +157,16 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm,
   },
   tipText: { ...type.bodySmall, color: palette.primaryDeep, flex: 1, lineHeight: 18 },
+  safetyBox: {
+    flexDirection: "row",
+    gap: space.sm,
+    marginTop: space.md,
+    padding: space.sm,
+    backgroundColor: palette.danger + "14",
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: palette.danger + "33",
+  },
+  safetyTitle: { ...type.headingSm, color: palette.danger },
+  safetyText: { ...type.bodySmall, color: palette.ink, marginTop: 2, lineHeight: 18 },
 });

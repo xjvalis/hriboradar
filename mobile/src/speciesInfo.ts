@@ -20,6 +20,7 @@ export interface SpeciesInfo {
   edibility: string;
   model_confidence: string;
   confidence_note: string;
+  safety_note?: string;
 }
 
 export const SPECIES_BY_ID: Record<string, SpeciesInfo> = Object.fromEntries(
@@ -78,6 +79,11 @@ export const MONTH_NAMES_FULL_CZ = [
 // Kotrč (parasitic on old pines) gets the same tip for the same underlying
 // reason (it returns to the same root system year after year), so this is
 // keyed off id there rather than group.
+// Checked 2026-08-06: mycelium persisting and re-fruiting at the same spot
+// for years/decades as long as the host tree stays healthy is well
+// documented (waldwissen.net; general foraging literature on porcini/
+// chanterelle patches) — hedged as "worth trying again," not a guarantee,
+// since even known productive patches don't reliably fruit every year.
 export function siteFidelityTip(info: SpeciesInfo): string | null {
   if (info.group.includes("mykorhizní")) {
     return "Žije roky ve svazku s konkrétním stromem — pokud tu houbu najdete, vyplatí se místo uložit a zkusit ho příští sezónu znovu.";

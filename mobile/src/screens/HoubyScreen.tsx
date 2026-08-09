@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { FlatList, StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 import { palette, space } from "../theme";
 import { SPECIES_BY_ID } from "../speciesInfo";
 import { PageHeader } from "../components/PageHeader";
+import { PaperBackground } from "../components/PaperBackground";
 import { Chip } from "../components/Chip";
 import { MushroomCard } from "../components/MushroomCard";
 import { SeasonTimeline } from "../components/SeasonTimeline";
@@ -24,20 +25,19 @@ export default function HoubyScreen() {
       {mode === "timeline" ? (
         <SeasonTimeline />
       ) : (
-        <FlatList
-          data={allSpecies}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.list}
-          renderItem={({ item }) => (
-            <MushroomCard
-              id={item.id}
-              nameCz={item.name_cz}
-              nameLatin={item.name_latin}
-              edibility={item.edibility}
-            />
-          )}
-          ItemSeparatorComponent={() => <View style={{ height: space.sm }} />}
-        />
+        <ScrollView>
+          <PaperBackground style={styles.list}>
+            {allSpecies.map((item) => (
+              <MushroomCard
+                key={item.id}
+                id={item.id}
+                nameCz={item.name_cz}
+                nameLatin={item.name_latin}
+                edibility={item.edibility}
+              />
+            ))}
+          </PaperBackground>
+        </ScrollView>
       )}
     </View>
   );
@@ -46,5 +46,5 @@ export default function HoubyScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   toggleRow: { flexDirection: "row", gap: space.sm, paddingHorizontal: space.lg, marginBottom: space.md },
-  list: { paddingHorizontal: space.lg, paddingBottom: space.lg },
+  list: { paddingHorizontal: space.lg, paddingBottom: space.lg, gap: space.sm },
 });

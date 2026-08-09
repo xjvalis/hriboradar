@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { palette, radius, space, type } from "../theme";
 import { SPECIES_BY_ID, MONTH_NAMES_FULL_CZ } from "../speciesInfo";
-import { MushroomThumb } from "../photos";
+import { PaperBackground } from "./PaperBackground";
 import { useSpeciesDetail } from "../SpeciesDetailContext";
 
 const allSpecies = Object.values(SPECIES_BY_ID);
@@ -40,7 +40,8 @@ export function SeasonTimeline() {
   }, []);
 
   return (
-    <ScrollView ref={scrollRef} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false}>
+      <PaperBackground style={styles.content}>
       {MONTH_NAMES_FULL_CZ.map((name, i) => {
         const month = i + 1;
         const peak = allSpecies.filter((sp) => sp.season_peak_months.includes(month));
@@ -70,11 +71,8 @@ export function SeasonTimeline() {
                 {peak.length > 0 && (
                   <View style={styles.peakRow}>
                     {peak.map((sp) => (
-                      <Pressable key={sp.id} style={styles.peakCard} onPress={() => openSpecies(sp.id)}>
-                        <MushroomThumb id={sp.id} name={sp.name_cz} size={56} />
-                        <Text style={styles.peakLabel} numberOfLines={2}>
-                          {sp.name_cz}
-                        </Text>
+                      <Pressable key={sp.id} style={styles.peakChip} onPress={() => openSpecies(sp.id)}>
+                        <Text style={styles.peakChipText}>{sp.name_cz}</Text>
                       </Pressable>
                     ))}
                   </View>
@@ -93,6 +91,7 @@ export function SeasonTimeline() {
           </View>
         );
       })}
+      </PaperBackground>
     </ScrollView>
   );
 }
@@ -111,9 +110,14 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   emptyText: { ...type.bodySmall, color: palette.inkFaint, marginTop: space.sm },
-  peakRow: { flexDirection: "row", flexWrap: "wrap", gap: space.sm, marginTop: space.md },
-  peakCard: { width: 80, alignItems: "center", gap: 4 },
-  peakLabel: { ...type.caption, color: palette.ink, textAlign: "center" },
+  peakRow: { flexDirection: "row", flexWrap: "wrap", gap: space.xs, marginTop: space.md },
+  peakChip: {
+    paddingHorizontal: space.sm,
+    paddingVertical: 6,
+    borderRadius: radius.pill,
+    backgroundColor: palette.primary,
+  },
+  peakChipText: { ...type.caption, fontFamily: "Manrope-Bold", color: palette.white },
   alsoWrap: { flexDirection: "row", flexWrap: "wrap", gap: space.xs, marginTop: space.md },
   alsoChip: {
     paddingHorizontal: space.sm,
