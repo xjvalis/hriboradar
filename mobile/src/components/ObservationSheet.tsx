@@ -52,17 +52,22 @@ export function ObservationSheet({
     if (found === null) return;
     setSubmitting(true);
     setError(null);
-    const ok = await submitFeedback({
-      lat: location.lat,
-      lon: location.lon,
-      targetDate: dateOffset(day === "today" ? 0 : -1),
-      found,
-      speciesIds: found ? selectedSpecies : [],
-      quantityBucket: found ? quantity : null,
-    });
-    setSubmitting(false);
-    if (ok) setDone(true);
-    else setError("Nepodařilo se odeslat zpětnou vazbu - zkuste to prosím znovu.");
+    try {
+      const ok = await submitFeedback({
+        lat: location.lat,
+        lon: location.lon,
+        targetDate: dateOffset(day === "today" ? 0 : -1),
+        found,
+        speciesIds: found ? selectedSpecies : [],
+        quantityBucket: found ? quantity : null,
+      });
+      if (ok) setDone(true);
+      else setError("Nepodařilo se odeslat zpětnou vazbu - zkuste to prosím znovu.");
+    } catch {
+      setError("Nepodařilo se odeslat zpětnou vazbu - zkuste to prosím znovu.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   if (done) {

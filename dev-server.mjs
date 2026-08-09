@@ -52,16 +52,30 @@ async function readJsonBody(nodeReq) {
 function makeRes(nodeRes) {
   return {
     _status: 200,
+    _headers: { "Access-Control-Allow-Origin": "*" },
     status(code) {
       this._status = code;
+      return this;
+    },
+    // Handlers that set their own CORS headers (e.g. api/feedback.ts, which
+    // needs to allow the Authorization header on top of the wildcard origin
+    // every response already gets below) call this before status()/json() -
+    // mirrors the subset of the real VercelResponse/http.ServerResponse API
+    // those handlers actually use.
+    setHeader(name, value) {
+      this._headers[name] = value;
       return this;
     },
     json(body) {
       nodeRes.writeHead(this._status, {
         "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
+        ...this._headers,
       });
       nodeRes.end(JSON.stringify(body));
+    },
+    end(body) {
+      nodeRes.writeHead(this._status, this._headers);
+      nodeRes.end(body);
     },
   };
 }
@@ -71,7 +85,7 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(204, {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
     });
     res.end();
     return;

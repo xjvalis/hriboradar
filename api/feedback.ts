@@ -34,6 +34,20 @@ interface FeedbackBody {
  * user from writing rows under another user's id.
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // Unlike the read-only GET endpoints, this one needs a custom
+  // Authorization header on a POST - that combination triggers a real CORS
+  // preflight in any browser context, and Vercel doesn't add CORS headers
+  // to serverless functions on its own (dev-server.mjs's shared response
+  // wrapper does this for local dev; production has to do it here).
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+  if (req.method === "OPTIONS") {
+    res.status(204).end();
+    return;
+  }
+
   if (req.method !== "POST") {
     res.status(405).json({ error: "Method not allowed" });
     return;

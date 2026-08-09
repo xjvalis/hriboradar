@@ -141,10 +141,18 @@ export async function submitFeedback(input: FeedbackInput): Promise<boolean> {
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
   if (!token) return false;
-  const res = await fetch(`${API_BASE}/api/feedback`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify(input),
-  });
-  return res.ok;
+  // fetch() rejects (not just resolves non-ok) on a network-level failure -
+  // offline, DNS, CORS. Caught here so this always resolves to a boolean
+  // instead of throwing into ObservationSheet's submit(), which would leave
+  // its loading spinner stuck forever with no error shown and no way to retry.
+  try {
+    const res = await fetch(`${API_BASE}/api/feedback`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify(input),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
 }
