@@ -1,5 +1,7 @@
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { supabase } from "./supabase";
+import { useAuth } from "./AuthContext";
 
 export interface AppNotification {
   id: string;
@@ -14,9 +16,35 @@ export interface AppNotification {
   read: boolean;
 }
 
-const NOTIF_KEY = "rostou:notifications";
-const WATCHED_SPECIES_KEY = "rostou:watchedSpecies";
+// Pre-auth on-device state (AsyncStorage) - watched species is a real
+// preference and gets migrated into the account once; the old notification
+// feed itself is just regenerated content, so it's dropped rather than
+// migrated (cheaper than reconciling it against the DB's dedupe constraint).
+const LEGACY_NOTIF_KEY = "rostou:notifications";
+const LEGACY_WATCHED_SPECIES_KEY = "rostou:watchedSpecies";
 const MAX_NOTIFICATIONS = 40;
+
+interface NotificationRow {
+  id: number;
+  dedupe_key: string;
+  kind: AppNotification["kind"];
+  title: string;
+  body: string;
+  created_at: string;
+  read: boolean;
+}
+
+function rowToNotification(row: NotificationRow): AppNotification {
+  return {
+    id: String(row.id),
+    dedupeKey: row.dedupe_key,
+    kind: row.kind,
+    title: row.title,
+    body: row.body,
+    createdAt: row.created_at,
+    read: row.read,
+  };
+}
 
 interface NotificationContextValue {
   notifications: AppNotification[];
@@ -39,68 +67,107 @@ interface NotificationContextValue {
 
 const NotificationContext = createContext<NotificationContextValue | null>(null);
 
+// Notification feed + watched species live in Supabase, scoped per user via
+// RLS - same reasoning as SavedLocationsContext: these are account
+// preferences, not device state, so they shouldn't leak between accounts
+// signed into the same phone or fail to follow a user to a new one.
 export function NotificationProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [watchedSpecies, setWatchedSpecies] = useState<string[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
-  // Guards against the persistence effects firing with the empty initial
-  // state before AsyncStorage has finished loading, which would otherwise
-  // silently wipe out whatever was previously saved.
-  const dedupeKeys = useRef<Set<string>>(new Set());
 
   useEffect(() => {
-    (async () => {
-      try {
-        const [rawNotif, rawSpecies] = await Promise.all([
-          AsyncStorage.getItem(NOTIF_KEY),
-          AsyncStorage.getItem(WATCHED_SPECIES_KEY),
-        ]);
-        if (rawNotif) {
-          const parsed: AppNotification[] = JSON.parse(rawNotif);
-          setNotifications(parsed);
-          dedupeKeys.current = new Set(parsed.map((n) => n.dedupeKey));
+    if (!user) {
+      setNotifications([]);
+      setWatchedSpecies([]);
+      setLoaded(false);
+      return;
+    }
+    let cancelled = false;
+    setLoaded(false);
+
+    async function load() {
+      const legacySpeciesRaw = await AsyncStorage.getItem(LEGACY_WATCHED_SPECIES_KEY).catch(() => null);
+      if (legacySpeciesRaw) {
+        try {
+          const legacyIds: string[] = JSON.parse(legacySpeciesRaw);
+          if (legacyIds.length > 0) {
+            await supabase
+              .from("rostou_watched_species")
+              .upsert(
+                legacyIds.map((species_id) => ({ species_id })),
+                { onConflict: "user_id,species_id", ignoreDuplicates: true }
+              );
+          }
+        } catch {
+          // malformed legacy data - drop it rather than block loading real preferences
         }
-        if (rawSpecies) setWatchedSpecies(JSON.parse(rawSpecies));
-      } catch {
-        // fresh install / corrupt storage - just start empty
-      } finally {
-        setLoaded(true);
+        await AsyncStorage.removeItem(LEGACY_WATCHED_SPECIES_KEY).catch(() => {});
       }
-    })();
-  }, []);
+      await AsyncStorage.removeItem(LEGACY_NOTIF_KEY).catch(() => {});
 
-  useEffect(() => {
-    if (!loaded) return;
-    AsyncStorage.setItem(NOTIF_KEY, JSON.stringify(notifications)).catch(() => {});
-  }, [notifications, loaded]);
+      const [{ data: notifRows }, { data: speciesRows }] = await Promise.all([
+        supabase
+          .from("rostou_notifications")
+          .select("id, dedupe_key, kind, title, body, created_at, read")
+          .order("created_at", { ascending: false })
+          .limit(MAX_NOTIFICATIONS),
+        supabase.from("rostou_watched_species").select("species_id"),
+      ]);
+      if (cancelled) return;
+      setNotifications((notifRows ?? []).map(rowToNotification));
+      setWatchedSpecies((speciesRows ?? []).map((r) => r.species_id));
+      setLoaded(true);
+    }
 
-  useEffect(() => {
-    if (!loaded) return;
-    AsyncStorage.setItem(WATCHED_SPECIES_KEY, JSON.stringify(watchedSpecies)).catch(() => {});
-  }, [watchedSpecies, loaded]);
+    load().catch(() => {
+      if (!cancelled) setLoaded(true);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   function addNotification(n: { dedupeKey: string; kind: AppNotification["kind"]; title: string; body: string }) {
-    if (dedupeKeys.current.has(n.dedupeKey)) return;
-    dedupeKeys.current.add(n.dedupeKey);
-    setNotifications((prev) =>
-      [
-        { id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, createdAt: new Date().toISOString(), read: false, ...n },
-        ...prev,
-      ].slice(0, MAX_NOTIFICATIONS)
-    );
+    if (!user) return;
+    supabase
+      .from("rostou_notifications")
+      .upsert(
+        { dedupe_key: n.dedupeKey, kind: n.kind, title: n.title, body: n.body },
+        { onConflict: "user_id,dedupe_key", ignoreDuplicates: true }
+      )
+      .select("id, dedupe_key, kind, title, body, created_at, read")
+      .then(({ data }) => {
+        // ignoreDuplicates means an already-seen dedupeKey comes back empty -
+        // that's the normal "nothing new to show" case, not a failure.
+        if (!data || data.length === 0) return;
+        setNotifications((prev) => [rowToNotification(data[0]), ...prev].slice(0, MAX_NOTIFICATIONS));
+      });
   }
 
   function markRead(id: string) {
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+    supabase.from("rostou_notifications").update({ read: true }).eq("id", id).then(() => {});
   }
 
   function markAllRead() {
+    if (!user) return;
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    supabase.from("rostou_notifications").update({ read: true }).eq("read", false).then(() => {});
   }
 
   function toggleWatchedSpecies(id: string) {
-    setWatchedSpecies((prev) => (prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]));
+    if (!user) return;
+    const isWatched = watchedSpecies.includes(id);
+    setWatchedSpecies((prev) => (isWatched ? prev.filter((s) => s !== id) : [...prev, id]));
+    if (isWatched) {
+      supabase.from("rostou_watched_species").delete().eq("species_id", id).then(() => {});
+    } else {
+      supabase.from("rostou_watched_species").insert({ species_id: id }).then(() => {});
+    }
   }
 
   const unreadCount = notifications.filter((n) => !n.read).length;

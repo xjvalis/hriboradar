@@ -121,30 +121,30 @@ export async function searchLocations(query: string): Promise<GeocodeResult[]> {
   return data.results;
 }
 
-export interface ObservationInput {
+export interface FeedbackInput {
   lat: number;
   lon: number;
-  date: string;
+  targetDate: string; // YYYY-MM-DD, today or yesterday only
   found: boolean;
-  speciesIds?: string[];
-  note?: string;
+  speciesIds: string[]; // species explicitly marked as found; [] when found is false
+  quantityBucket: "few" | "basket" | "lots" | null;
 }
 
-// Writes straight to Supabase instead of through a Vercel API route - the
-// old /api/observations serverless function tried to append to a local
-// JSONL file, which doesn't work on Vercel's read-only/ephemeral
-// filesystem (every submission there 500'd). Row Level Security on
-// rostou_observations (see supabase/rostou_schema.sql) scopes each insert
-// to the signed-in user automatically via auth.uid(), so there's no
-// user_id to pass here - an unauthenticated caller simply can't insert.
-export async function submitObservation(input: ObservationInput): Promise<boolean> {
-  const { error } = await supabase.from("rostou_observations").insert({
-    lat: input.lat,
-    lon: input.lon,
-    date: input.date,
-    found: input.found,
-    species_ids: input.speciesIds ?? [],
-    note: input.note ?? null,
+// Goes through /api/feedback rather than inserting into Supabase directly -
+// the server recomputes what the model actually predicted for that
+// location/date/species from historical weather instead of trusting
+// whatever the client sends, which is what lets the calibration loop treat
+// this data as trustworthy (see api/feedback.ts). The Supabase access token
+// tells the endpoint which signed-in user this is; without a session there's
+// nothing to attach the feedback to.
+export async function submitFeedback(input: FeedbackInput): Promise<boolean> {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  if (!token) return false;
+  const res = await fetch(`${API_BASE}/api/feedback`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify(input),
   });
-  return !error;
+  return res.ok;
 }

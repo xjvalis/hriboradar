@@ -2,6 +2,13 @@ import type { DayWeather } from "./weather";
 import { daysSinceRain } from "./weather";
 import { terrainMatchFactor, type TerrainInfo } from "./terrain";
 
+// Stamped on every feedback row and calibration-stats bucket (see
+// api/feedback.ts, api/cron/recalibrate.ts) so a future change to the
+// scoring formula below starts its own calibration cohort instead of
+// silently mixing with data the old formula produced. Bump this whenever
+// scoreSpeciesDay's math changes in a way that shifts probabilities.
+export const MODEL_VERSION = "1.0.0";
+
 export interface Species {
   id: string;
   name_cz: string;

@@ -5,14 +5,28 @@ import { palette, radius, space, type } from "../theme";
 import { BottomSheet } from "./BottomSheet";
 import { Chip } from "./Chip";
 import { PrimaryButton } from "./PrimaryButton";
-import { submitObservation } from "../api";
+import { submitFeedback } from "../api";
 import { SPECIES_BY_ID } from "../speciesInfo";
 import type { SavedLocation } from "../SavedLocationsContext";
 
+type QuantityBucket = "few" | "basket" | "lots";
+
+const QUANTITY_OPTIONS: { value: QuantityBucket; label: string }[] = [
+  { value: "few", label: "Pár kousků" },
+  { value: "basket", label: "Košík" },
+  { value: "lots", label: "Hodně" },
+];
+
+function dateOffset(days: number): string {
+  return new Date(Date.now() + days * 86400000).toISOString().slice(0, 10);
+}
+
 // Ground truth the scoring model has no other way to get: did mushrooms
-// actually turn up where the app said they might? Anonymous for now (no
-// login yet) - just enough to start accumulating real observations
-// alongside the weather-driven predictions.
+// actually turn up where the app said they might? This is what closes the
+// feedback loop - the server recomputes what was predicted for this exact
+// location/date/species (see api/feedback.ts) and feeds it into the
+// calibration job, which only ever nudges future forecasts once enough
+// observations have piled up (never from a single click).
 export function ObservationSheet({
   location,
   onClose,
@@ -20,10 +34,13 @@ export function ObservationSheet({
   location: SavedLocation;
   onClose: () => void;
 }) {
+  const [day, setDay] = useState<"today" | "yesterday">("today");
   const [found, setFound] = useState<boolean | null>(null);
   const [selectedSpecies, setSelectedSpecies] = useState<string[]>([]);
+  const [quantity, setQuantity] = useState<QuantityBucket | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const allSpecies = Object.values(SPECIES_BY_ID);
 
@@ -34,16 +51,18 @@ export function ObservationSheet({
   async function submit() {
     if (found === null) return;
     setSubmitting(true);
-    const today = new Date().toISOString().slice(0, 10);
-    const ok = await submitObservation({
+    setError(null);
+    const ok = await submitFeedback({
       lat: location.lat,
       lon: location.lon,
-      date: today,
+      targetDate: dateOffset(day === "today" ? 0 : -1),
       found,
       speciesIds: found ? selectedSpecies : [],
+      quantityBucket: found ? quantity : null,
     });
     setSubmitting(false);
     if (ok) setDone(true);
+    else setError("Nepodařilo se odeslat zpětnou vazbu - zkuste to prosím znovu.");
   }
 
   if (done) {
@@ -67,7 +86,13 @@ export function ObservationSheet({
     <BottomSheet onClose={onClose} maxHeight="85%">
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.title}>{location.label}</Text>
-        <Text style={styles.subtitle}>Byly tam dnes houby?</Text>
+
+        <View style={styles.dayRow}>
+          <Chip label="Dnes" active={day === "today"} onPress={() => setDay("today")} />
+          <Chip label="Včera" active={day === "yesterday"} onPress={() => setDay("yesterday")} />
+        </View>
+
+        <Text style={styles.subtitle}>Byly tam {day === "today" ? "dnes" : "včera"} houby?</Text>
 
         <View style={styles.choiceRow}>
           <Pressable
@@ -99,8 +124,22 @@ export function ObservationSheet({
                 />
               ))}
             </View>
+
+            <Text style={styles.sectionLabel}>Kolik přibližně (nepovinné)</Text>
+            <View style={styles.chipWrap}>
+              {QUANTITY_OPTIONS.map((opt) => (
+                <Chip
+                  key={opt.value}
+                  label={opt.label}
+                  active={quantity === opt.value}
+                  onPress={() => setQuantity((prev) => (prev === opt.value ? null : opt.value))}
+                />
+              ))}
+            </View>
           </>
         )}
+
+        {error && <Text style={styles.error}>{error}</Text>}
 
         <View style={{ marginTop: space.lg }}>
           <PrimaryButton label="Odeslat pozorování" onPress={submit} disabled={found === null} loading={submitting} />
@@ -113,7 +152,8 @@ export function ObservationSheet({
 const styles = StyleSheet.create({
   content: { padding: space.lg, paddingTop: 0, paddingBottom: space.xl },
   title: { ...type.headingLg, color: palette.ink, marginTop: space.sm },
-  subtitle: { ...type.body, color: palette.inkSoft, marginTop: 2, marginBottom: space.md },
+  dayRow: { flexDirection: "row", gap: space.sm, marginTop: space.sm },
+  subtitle: { ...type.body, color: palette.inkSoft, marginTop: space.sm, marginBottom: space.md },
   choiceRow: { flexDirection: "row", gap: space.sm },
   choice: {
     flex: 1,
@@ -131,6 +171,7 @@ const styles = StyleSheet.create({
   choiceTextGood: { color: palette.success, fontFamily: "Manrope-SemiBold" },
   choiceTextBad: { color: palette.danger, fontFamily: "Manrope-SemiBold" },
   sectionLabel: { ...type.label, color: palette.inkFaint, marginTop: space.lg, marginBottom: space.sm },
+  error: { ...type.bodySmall, color: palette.danger, marginTop: space.md },
   chipWrap: { flexDirection: "row", flexWrap: "wrap", gap: space.sm },
   doneWrap: { padding: space.lg, paddingTop: space.sm, alignItems: "center" },
   doneTitle: { ...type.headingLg, color: palette.ink, textAlign: "center" },

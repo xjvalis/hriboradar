@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/recalibrate",
+      "schedule": "0 3 * * *"
+    }
+  ]
+}

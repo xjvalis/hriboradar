@@ -11,6 +11,8 @@ const routes = {
   "/api/forecast": (await import("./api/forecast.ts")).default,
   "/api/grid": (await import("./api/grid.ts")).default,
   "/api/geocode": (await import("./api/geocode.ts")).default,
+  "/api/feedback": (await import("./api/feedback.ts")).default,
+  "/api/cron/recalibrate": (await import("./api/cron/recalibrate.ts")).default,
 };
 
 const PORT = 3001;
@@ -107,7 +109,7 @@ const server = http.createServer(async (req, res) => {
   const query = Object.fromEntries(url.searchParams);
   try {
     const body = await readJsonBody(req);
-    await handler({ query, body, method: req.method }, makeRes(res));
+    await handler({ query, body, method: req.method, headers: req.headers }, makeRes(res));
   } catch (err) {
     res.writeHead(500, { "Access-Control-Allow-Origin": "*" });
     res.end(JSON.stringify({ error: String(err) }));

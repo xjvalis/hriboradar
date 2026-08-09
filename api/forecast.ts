@@ -1,7 +1,8 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { fetchWeather, fetchCurrentConditions } from "./lib/weather";
-import { scoreSpeciesDay, type Species } from "./lib/scoring";
+import { scoreSpeciesDay, MODEL_VERSION, type Species } from "./lib/scoring";
 import { fetchTerrain } from "./lib/terrain";
+import { applyCalibratedProbability } from "./lib/calibration";
 import speciesData from "./data/species.json";
 
 /**
@@ -52,18 +53,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const todayIndex = days.findIndex((d) => d.date === todayStr);
     const outputStart = Math.max(0, todayIndex - 1);
 
-    const result = species.map((sp) => ({
-      id: sp.id,
-      name_cz: sp.name_cz,
-      name_latin: sp.name_latin,
-      edibility: sp.edibility,
-      model_confidence: sp.model_confidence,
-      days: days
-        .slice(outputStart)
-        .map((_, offset) =>
-          scoreSpeciesDay(days, outputStart + offset, sp, terrain)
+    // probability_pct gets nudged by the calibration layer (see
+    // api/lib/calibration.ts) once enough real "did you find it" feedback
+    // exists for that species/probability range - falls back to the raw
+    // score untouched otherwise, which is always true until feedback starts
+    // accumulating. `factors` stays the raw, uncalibrated sub-scores; those
+    // are diagnostic, not what's shown to the user.
+    const result = await Promise.all(
+      species.map(async (sp) => ({
+        id: sp.id,
+        name_cz: sp.name_cz,
+        name_latin: sp.name_latin,
+        edibility: sp.edibility,
+        model_confidence: sp.model_confidence,
+        days: await Promise.all(
+          days.slice(outputStart).map(async (_, offset) => {
+            const raw = scoreSpeciesDay(days, outputStart + offset, sp, terrain);
+            const probability_pct = await applyCalibratedProbability(raw.probability_pct, sp.id);
+            return { ...raw, probability_pct };
+          })
         ),
-    }));
+      }))
+    );
 
     // Real day-level weather (not derived from the normalized 0-1 scoring
     // factors) - the UI needs actual °C / soil-moisture-% / rain-mm, not a
@@ -79,6 +90,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       location: { lat, lon },
       generated_at: new Date().toISOString(),
       today: todayStr,
+      model_version: MODEL_VERSION,
       terrain,
       current,
       weather,
