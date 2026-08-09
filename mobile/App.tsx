@@ -5,11 +5,17 @@ import { StyleSheet } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { palette } from "./src/theme";
 import { LoadingScreen } from "./src/components/LoadingScreen";
-import { PaperBackground } from "./src/components/PaperBackground";
 import { TopBar, type ScreenName } from "./src/components/TopBar";
 import { DrawerMenu } from "./src/components/DrawerMenu";
 import { LocationProvider } from "./src/LocationContext";
 import { SavedLocationsProvider } from "./src/SavedLocationsContext";
+import { AuthProvider, useAuth } from "./src/AuthContext";
+import LoginScreen from "./src/screens/LoginScreen";
+import { NotificationProvider } from "./src/NotificationContext";
+import { useNotificationGenerator } from "./src/useNotificationGenerator";
+import { NotificationsSheet } from "./src/components/NotificationsSheet";
+import { LocationPickerProvider } from "./src/LocationPickerContext";
+import { LocationPickerSheet } from "./src/components/LocationPickerSheet";
 import { SpeciesDetailProvider } from "./src/SpeciesDetailContext";
 import { SpeciesDetailSheet } from "./src/components/SpeciesDetailSheet";
 import HomeScreen from "./src/screens/HomeScreen";
@@ -41,13 +47,26 @@ function AppShell() {
 
   const [active, setActive] = useState<ScreenName>("Domů");
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const { user, loading: authLoading } = useAuth();
+  useNotificationGenerator();
 
-  if (!fontsLoaded) {
+  if (!fontsLoaded || authLoading) {
     return (
       <SafeAreaView style={styles.screen}>
-        <PaperBackground>
-          <LoadingScreen />
-        </PaperBackground>
+        <LoadingScreen />
+      </SafeAreaView>
+    );
+  }
+
+  // Gate everything behind login — nothing past this point renders for an
+  // unauthenticated visitor. LoginScreen itself needs fonts loaded too
+  // (Fraunces/Manrope), which is why this check comes after the fonts
+  // branch above, not before it.
+  if (!user) {
+    return (
+      <SafeAreaView style={styles.screen} edges={["top", "left", "right"]}>
+        <StatusBar style="dark" />
+        <LoginScreen />
       </SafeAreaView>
     );
   }
@@ -57,20 +76,20 @@ function AppShell() {
   return (
     <SafeAreaView style={styles.screen} edges={["top", "left", "right"]}>
       <StatusBar style="dark" />
-      <PaperBackground>
-        <TopBar onMenuPress={() => setDrawerOpen(true)} />
-        <ActiveScreen />
-        <SpeciesDetailSheet />
-        <DrawerMenu
-          visible={drawerOpen}
-          active={active}
-          onNavigate={(screen) => {
-            setActive(screen);
-            setDrawerOpen(false);
-          }}
-          onClose={() => setDrawerOpen(false)}
-        />
-      </PaperBackground>
+      <TopBar onMenuPress={() => setDrawerOpen(true)} />
+      <ActiveScreen />
+      <SpeciesDetailSheet />
+      <NotificationsSheet />
+      <LocationPickerSheet />
+      <DrawerMenu
+        visible={drawerOpen}
+        active={active}
+        onNavigate={(screen) => {
+          setActive(screen);
+          setDrawerOpen(false);
+        }}
+        onClose={() => setDrawerOpen(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -78,13 +97,19 @@ function AppShell() {
 export default function App() {
   return (
     <SafeAreaProvider>
-      <LocationProvider>
-        <SavedLocationsProvider>
-          <SpeciesDetailProvider>
-            <AppShell />
-          </SpeciesDetailProvider>
-        </SavedLocationsProvider>
-      </LocationProvider>
+      <AuthProvider>
+        <LocationProvider>
+          <SavedLocationsProvider>
+            <NotificationProvider>
+              <LocationPickerProvider>
+                <SpeciesDetailProvider>
+                  <AppShell />
+                </SpeciesDetailProvider>
+              </LocationPickerProvider>
+            </NotificationProvider>
+          </SavedLocationsProvider>
+        </LocationProvider>
+      </AuthProvider>
     </SafeAreaProvider>
   );
 }

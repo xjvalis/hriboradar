@@ -2,12 +2,21 @@ import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { palette, radius, space, type } from "../theme";
 import { PageHeader } from "../components/PageHeader";
+import { PaperBackground } from "../components/PaperBackground";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { LocationSearchInput } from "../components/LocationSearchInput";
+import { Chip } from "../components/Chip";
 import { useLocation, PRESET_LOCATIONS } from "../LocationContext";
+import { useNotifications } from "../NotificationContext";
+import { useAuth } from "../AuthContext";
+import { SPECIES_BY_ID } from "../speciesInfo";
+
+const ALL_SPECIES = Object.values(SPECIES_BY_ID).sort((a, b) => a.name_cz.localeCompare(b.name_cz, "cs"));
 
 export default function SettingsScreen() {
   const { location, setLocation } = useLocation();
+  const { watchedSpecies, toggleWatchedSpecies } = useNotifications();
+  const { user, signOut } = useAuth();
   const [lat, setLat] = useState(String(location.lat));
   const [lon, setLon] = useState(String(location.lon));
   const [label, setLabel] = useState("Vlastní poloha");
@@ -20,7 +29,8 @@ export default function SettingsScreen() {
   }
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.screen}>
+      <PaperBackground style={styles.content}>
       <PageHeader eyebrow="appka počítá pro" title="Nastavení" />
 
       <Text style={styles.sectionTitle}>Aktuální poloha</Text>
@@ -89,6 +99,35 @@ export default function SettingsScreen() {
         Appka zatím nepoužívá GPS zařízení — poloha se zadává ručně. Vhodné pro
         testování z libovolného místa, i pro plánování výletu předem.
       </Text>
+
+      <Text style={styles.sectionTitle}>Upozornění</Text>
+      <Text style={styles.hint}>
+        Upozornění pro jednotlivá uložená místa se zapínají zvonečkem přímo v sekci Moje — tady jen
+        vybíráte, které druhy chcete sledovat.
+      </Text>
+      <Text style={[styles.hint, { marginTop: space.md }]}>
+        Sledované druhy — upozorníme, když jim začíná nebo vrcholí sezóna. Jde zapnout i přímo v detailu
+        houby.
+      </Text>
+      <View style={styles.presetRow}>
+        {ALL_SPECIES.map((sp) => (
+          <Chip
+            key={sp.id}
+            label={sp.name_cz}
+            active={watchedSpecies.includes(sp.id)}
+            onPress={() => toggleWatchedSpecies(sp.id)}
+          />
+        ))}
+      </View>
+
+      <Text style={styles.sectionTitle}>Účet</Text>
+      <View style={styles.currentCard}>
+        <Text style={styles.currentLabel}>{user?.email ?? "Přihlášeno"}</Text>
+        <Text style={styles.signOutLink} onPress={signOut}>
+          Odhlásit se
+        </Text>
+      </View>
+      </PaperBackground>
     </ScrollView>
   );
 }
@@ -107,6 +146,7 @@ const styles = StyleSheet.create({
   },
   currentLabel: { ...type.headingSm, color: palette.ink },
   currentCoords: { ...type.bodySmall, color: palette.inkFaint, marginTop: 2 },
+  signOutLink: { ...type.bodySmall, color: palette.danger, marginTop: space.sm },
   presetRow: { flexDirection: "row", flexWrap: "wrap", gap: space.sm },
   preset: {
     borderWidth: 1,

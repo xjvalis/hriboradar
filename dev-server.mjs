@@ -11,7 +11,6 @@ const routes = {
   "/api/forecast": (await import("./api/forecast.ts")).default,
   "/api/grid": (await import("./api/grid.ts")).default,
   "/api/geocode": (await import("./api/geocode.ts")).default,
-  "/api/observations": (await import("./api/observations.ts")).default,
 };
 
 const PORT = 3001;

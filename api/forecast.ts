@@ -85,8 +85,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       species: result,
     });
   } catch (err) {
-    res
-      .status(500)
-      .json({ error: "Nepodařilo se spočítat předpověď.", detail: String(err) });
+    // Logged server-side for debugging, not sent to the client — a raw
+    // exception string can leak internal paths/stack details (OWASP API
+    // security: verbose error responses), and isn't actionable for the
+    // app anyway beyond "something failed."
+    console.error("forecast handler error:", err);
+    res.status(500).json({ error: "Nepodařilo se spočítat předpověď." });
   }
 }
