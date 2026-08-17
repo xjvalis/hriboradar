@@ -4,37 +4,19 @@
 // the repo is connected on vercel.com.
 import http from "node:http";
 import { URL } from "node:url";
-import { buildGridMapHtml } from "./mobile/src/leafletHtml.ts";
 
 const routes = {
   "/api/predict": (await import("./api/predict.ts")).default,
   "/api/forecast": (await import("./api/forecast.ts")).default,
   "/api/grid": (await import("./api/grid.ts")).default,
+  "/api/map": (await import("./api/map.ts")).default,
+  "/api/map-pin": (await import("./api/map-pin.ts")).default,
   "/api/geocode": (await import("./api/geocode.ts")).default,
   "/api/feedback": (await import("./api/feedback.ts")).default,
   "/api/cron/recalibrate": (await import("./api/cron/recalibrate.ts")).default,
 };
 
 const PORT = 3001;
-
-// Serves the same Leaflet page previously passed to react-native-webview via
-// the `source={{ html }}` prop - inline HTML of this size (Leaflet itself
-// plus every grid point) turned out to silently fail on a real iPhone,
-// almost certainly a react-native-webview/RN-bridge limit on that prop, not
-// an error WebView ever reports. Loading it as a normal fetched page (like
-// any other website) sidesteps whatever that limit is entirely, since the
-// content never has to cross the bridge as a single JS string.
-async function getGridData() {
-  return new Promise((resolve, reject) => {
-    const captureRes = {
-      status() {
-        return this;
-      },
-      json: resolve,
-    };
-    Promise.resolve(routes["/api/grid"]({ query: {} }, captureRes)).catch(reject);
-  });
-}
 
 async function readJsonBody(nodeReq) {
   if (nodeReq.method !== "POST") return undefined;
@@ -92,26 +74,6 @@ const server = http.createServer(async (req, res) => {
   }
 
   const url = new URL(req.url, `http://localhost:${PORT}`);
-
-  if (url.pathname === "/map") {
-    try {
-      const grid = await getGridData();
-      const lat = url.searchParams.get("lat");
-      const lon = url.searchParams.get("lon");
-      const html = buildGridMapHtml({
-        points: grid.points,
-        speciesList: grid.speciesList,
-        userLat: lat ? Number(lat) : undefined,
-        userLon: lon ? Number(lon) : undefined,
-      });
-      res.writeHead(200, { "Content-Type": "text/html", "Access-Control-Allow-Origin": "*" });
-      res.end(html);
-    } catch (err) {
-      res.writeHead(500, { "Content-Type": "text/plain" });
-      res.end(String(err));
-    }
-    return;
-  }
 
   const handler = routes[url.pathname];
   if (!handler) {

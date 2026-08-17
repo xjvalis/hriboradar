@@ -25,16 +25,16 @@ export default function MapScreen() {
       .catch((e) => setGridError(String(e.message ?? e)));
   }, []);
 
-  // Loaded as a real fetched page (dev-server.mjs's /map route), not passed
-  // through react-native-webview's `source={{ html }}` prop - that prop
-  // silently failed to render on a real iPhone once the page got large
-  // (Leaflet + every grid point), almost certainly an RN-bridge size limit
-  // rather than anything WebView itself reports as an error. A normal HTTP
-  // load sidesteps that entirely. Keyed on location only, not mode -
-  // switching species pushes a postMessage into the already-loaded page
-  // instead of reloading it (see the mode effect below).
+  // Loaded as a real fetched page (api/map.ts), not passed through
+  // react-native-webview's `source={{ html }}` prop - that prop silently
+  // failed to render on a real iPhone once the page got large (Leaflet +
+  // every grid point), almost certainly an RN-bridge size limit rather than
+  // anything WebView itself reports as an error. A normal HTTP load
+  // sidesteps that entirely. Keyed on location only, not mode - switching
+  // species pushes a postMessage into the already-loaded page instead of
+  // reloading it (see the mode effect below).
   const mapUri = useMemo(
-    () => `${API_BASE}/map?lat=${location.lat}&lon=${location.lon}`,
+    () => `${API_BASE}/api/map?lat=${location.lat}&lon=${location.lon}`,
     [location.lat, location.lon]
   );
 

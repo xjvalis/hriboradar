@@ -4,6 +4,7 @@ import { Eye, EyeOff } from "lucide-react-native";
 import * as AppleAuthentication from "expo-apple-authentication";
 import { palette, radius, space, type } from "../theme";
 import { PrimaryButton } from "../components/PrimaryButton";
+import { GoogleSignInButton } from "../components/GoogleSignInButton";
 import { PaperBackground } from "../components/PaperBackground";
 import { MorelLogo } from "../components/MorelLogo";
 import { useAuth } from "../AuthContext";
@@ -201,7 +202,7 @@ export default function LoginScreen() {
             </View>
 
             <View style={styles.socialCol}>
-              <PrimaryButton label="Pokračovat přes Google" onPress={submitGoogle} variant="secondary" disabled={busy} />
+              <GoogleSignInButton label="Pokračovat přes Google" onPress={submitGoogle} disabled={busy} />
               {Platform.OS === "ios" && (
                 <AppleAuthentication.AppleAuthenticationButton
                   buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}

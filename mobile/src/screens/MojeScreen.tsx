@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Bell, BellOff, ClipboardCheck, Sprout, Trash2 } from "lucide-react-native";
 import { palette, radius, space, type } from "../theme";
 import { PageHeader } from "../components/PageHeader";
 import { PaperBackground } from "../components/PaperBackground";
 import { EmptyState } from "../components/EmptyState";
 import { LocationSearchInput } from "../components/LocationSearchInput";
-import { PrimaryButton } from "../components/PrimaryButton";
+import { LocationMapPicker } from "../components/LocationMapPicker";
 import { ObservationSheet } from "../components/ObservationSheet";
 import { useSavedLocations, type SavedLocation } from "../SavedLocationsContext";
 import { useLocation } from "../LocationContext";
@@ -21,21 +21,7 @@ export default function MojeScreen() {
   const { locations, addLocation, removeLocation, toggleLocationAlerts } = useSavedLocations();
   const { setLocation } = useLocation();
   const [observing, setObserving] = useState<SavedLocation | null>(null);
-  const [manualOpen, setManualOpen] = useState(false);
-  const [manualLabel, setManualLabel] = useState("");
-  const [manualLat, setManualLat] = useState("");
-  const [manualLon, setManualLon] = useState("");
-
-  function addManual() {
-    const lat = parseFloat(manualLat.replace(",", "."));
-    const lon = parseFloat(manualLon.replace(",", "."));
-    if (Number.isNaN(lat) || Number.isNaN(lon)) return;
-    addLocation({ lat, lon, label: manualLabel.trim() || "Vlastní místo" });
-    setManualLabel("");
-    setManualLat("");
-    setManualLon("");
-    setManualOpen(false);
-  }
+  const [pickingOnMap, setPickingOnMap] = useState(false);
 
   return (
     <ScrollView style={styles.screen}>
@@ -49,41 +35,9 @@ export default function MojeScreen() {
       <Text style={styles.sectionTitle}>Přidat místo</Text>
       <View style={styles.padded}>
         <LocationSearchInput onSelect={addLocation} />
-        <Pressable onPress={() => setManualOpen((v) => !v)} hitSlop={6} style={styles.manualToggle}>
-          <Text style={styles.manualToggleText}>
-            {manualOpen ? "Skrýt ruční zadání" : "+ Zadat souřadnice ručně (chalupa, oblíbený lesík…)"}
-          </Text>
+        <Pressable onPress={() => setPickingOnMap(true)} hitSlop={6} style={styles.manualToggle}>
+          <Text style={styles.manualToggleText}>+ Najít na mapě (chalupa, oblíbený lesík…)</Text>
         </Pressable>
-        {manualOpen && (
-          <View style={styles.manualForm}>
-            <TextInput
-              style={styles.input}
-              value={manualLabel}
-              onChangeText={setManualLabel}
-              placeholder="Název místa (např. Chalupa)"
-              placeholderTextColor={palette.inkFaint}
-            />
-            <View style={styles.manualRow}>
-              <TextInput
-                style={[styles.input, { flex: 1 }]}
-                value={manualLat}
-                onChangeText={setManualLat}
-                placeholder="Zeměpisná šířka"
-                placeholderTextColor={palette.inkFaint}
-                keyboardType="numbers-and-punctuation"
-              />
-              <TextInput
-                style={[styles.input, { flex: 1 }]}
-                value={manualLon}
-                onChangeText={setManualLon}
-                placeholder="Zeměpisná délka"
-                placeholderTextColor={palette.inkFaint}
-                keyboardType="numbers-and-punctuation"
-              />
-            </View>
-            <PrimaryButton label="Přidat místo" onPress={addManual} />
-          </View>
-        )}
       </View>
 
       {locations.length === 0 ? (
@@ -130,6 +84,15 @@ export default function MojeScreen() {
       </Text>
 
       {observing && <ObservationSheet location={observing} onClose={() => setObserving(null)} />}
+      {pickingOnMap && (
+        <LocationMapPicker
+          onConfirm={(loc) => {
+            addLocation(loc);
+            setPickingOnMap(false);
+          }}
+          onClose={() => setPickingOnMap(false)}
+        />
+      )}
       </PaperBackground>
     </ScrollView>
   );
@@ -162,17 +125,4 @@ const styles = StyleSheet.create({
   note: { ...type.caption, color: palette.inkFaint, marginTop: space.xl, paddingHorizontal: space.lg, lineHeight: 16 },
   manualToggle: { marginTop: space.sm, alignSelf: "flex-start" },
   manualToggleText: { ...type.bodySmall, color: palette.primary },
-  manualForm: { gap: space.sm, marginTop: space.md },
-  manualRow: { flexDirection: "row", gap: space.sm },
-  input: {
-    backgroundColor: palette.surface,
-    borderWidth: 1,
-    borderColor: palette.line,
-    borderRadius: radius.md,
-    paddingHorizontal: space.md,
-    paddingVertical: space.sm + 2,
-    fontFamily: "Manrope-Regular",
-    fontSize: 14,
-    color: palette.ink,
-  },
 });

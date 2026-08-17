@@ -1,3 +1,9 @@
+// Duplicated from mobile/src/leafletHtml.ts - same reasoning as species.json's two
+// copies (see supabase/rostou_schema.sql history / api/data/species.json): Expo
+// cannot import files from outside mobile/, so the server (api/*.ts, and
+// dev-server.mjs for local dev) needs its own copy to render /api/map and
+// /api/map-pin as real HTML responses. Keep both copies in sync by hand.
+
 // Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML
 // string, rendered via <iframe srcDoc> on web and react-native-webview on
 // native. react-native-maps doesn't run in the web preview, so this is the
