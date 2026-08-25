@@ -20,21 +20,24 @@ export default function MapScreen() {
   const isFirstMode = useRef(true);
 
   useEffect(() => {
+    console.log("[MapScreen] Mounting, API_BASE =", API_BASE);
     getGrid()
-      .then(setGrid)
-      .catch((e) => setGridError(String(e.message ?? e)));
+      .then((g) => {
+        console.log("[MapScreen] Grid loaded:", g.points.length, "points,", g.speciesList.length, "species");
+        setGrid(g);
+      })
+      .catch((e) => {
+        console.error("[MapScreen] Grid fetch error:", e);
+        setGridError(String(e.message ?? e));
+      });
   }, []);
 
-  // Loaded as a real fetched page (api/map.ts), not passed through
-  // react-native-webview's `source={{ html }}` prop - that prop silently
-  // failed to render on a real iPhone once the page got large (Leaflet +
-  // every grid point), almost certainly an RN-bridge size limit rather than
-  // anything WebView itself reports as an error. A normal HTTP load
-  // sidesteps that entirely. Keyed on location only, not mode - switching
-  // species pushes a postMessage into the already-loaded page instead of
-  // reloading it (see the mode effect below).
   const mapUri = useMemo(
-    () => `${API_BASE}/api/map?lat=${location.lat}&lon=${location.lon}`,
+    () => {
+      const uri = `${API_BASE}/api/map?lat=${location.lat}&lon=${location.lon}`;
+      console.log("[MapScreen] mapUri updated:", uri);
+      return uri;
+    },
     [location.lat, location.lon]
   );
 
@@ -76,6 +79,8 @@ export default function MapScreen() {
             Mapu se nepodařilo načíst: {gridError ?? webviewError}
             {"\n"}Je telefon na stejné Wi-Fi jako server?
           </Text>
+        ) : !grid ? (
+          <Text style={styles.loading}>Načítám data z API…</Text>
         ) : (
           <WebView
             ref={webviewRef}
@@ -88,10 +93,6 @@ export default function MapScreen() {
                 <Text style={styles.loading}>Počítám mřížku pro celou republiku…</Text>
               </View>
             )}
-            // Logged (not just set into state) so it shows up in the Metro
-            // terminal streamed from the phone - lets us see exactly which
-            // WebView lifecycle stage is reached on a real device without
-            // needing a screenshot back from whoever's testing it.
             onLoadStart={() => console.log("[Mapa WebView] loadStart", mapUri)}
             onLoadEnd={(e) => console.log("[Mapa WebView] loadEnd", JSON.stringify(e.nativeEvent))}
             onLoadProgress={(e) => console.log("[Mapa WebView] loadProgress", e.nativeEvent.progress)}
@@ -108,14 +109,15 @@ export default function MapScreen() {
               try {
                 const msg = JSON.parse(e.nativeEvent.data);
                 if (msg.type === "locationSelected") setSelected(msg);
-                // Both come from inside the loaded page itself (see
-                // lib/leafletHtml.ts), not from the WebView's own
-                // onError/onHttpError - those only catch the page failing to
-                // load at all, not a JS crash or blocked tile requests once
-                // it's loaded, which is what was showing as a silent blank
-                // map with no error either RN callback would ever see.
-                else if (msg.type === "jsError") setWebviewError(`Chyba na stránce mapy: ${msg.message}`);
-                else if (msg.type === "tileError") setWebviewError("Nepodařilo se stáhnout mapové dlaždice - má telefon přístup k internetu (ne jen k lokální Wi-Fi)?");
+                else if (msg.type === "jsError") {
+                  console.error("[Mapa WebView] JS error:", msg.message);
+                  setWebviewError(`Chyba na stránce mapy: ${msg.message}`);
+                } else if (msg.type === "tileError") {
+                  console.error("[Mapa WebView] Tile error");
+                  setWebviewError("Nepodařilo se stáhnout mapové dlaždice - má telefon přístup k internetu?");
+                } else if (msg.type === "ready") {
+                  console.log("[Mapa WebView] Page ready!");
+                }
               } catch {
                 // not our message
               }
