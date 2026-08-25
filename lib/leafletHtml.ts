@@ -4,7 +4,7 @@
 // dev-server.mjs for local dev) needs its own copy to render /api/map and
 // /api/map-pin as real HTML responses. Keep both copies in sync by hand.
 
-// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,
+// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,
 // hiking trails, and terrain, not just roads) as an HTML string, rendered
 // via <iframe srcDoc> on web and react-native-webview on native.
 // react-native-maps doesn't run in the web preview, so this is the one
@@ -247,6 +247,13 @@ export function buildGridMapHtml(opts: {
       0% { transform: scale(0.5); opacity: 0.6; }
       100% { transform: scale(2.4); opacity: 0; }
     }
+    /* Override Leaflet's default tooltip chrome (white box, generic
+       sans-serif, thin gray border) so the hotspot popup reads as part of
+       the app, not as browser furniture - same cream/ink pairing and pill
+       shape as .legend above, not a mismatched system dialog. */
+    .app-tooltip { background: #F7F2E7; color: #24261D; border: 1px solid #DBCFA9; border-radius: 8px;
+      padding: 5px 10px; font: 600 12px -apple-system, sans-serif; box-shadow: 0 2px 8px rgba(36,38,29,0.18); }
+    .app-tooltip::before { border-top-color: #DBCFA9; }
   </style>
 </head>
 <body>
@@ -623,6 +630,17 @@ export function buildGridMapHtml(opts: {
         }
       }
 
+      // Same wording tiers as theme.ts's scoreTier/scoreLabel on the native
+      // side (55/28 breakpoints) - a raw "60.00000001%" (interpolate()'s
+      // floating-point weighted average, never rounded) read as a bug, not
+      // a feature, and a bare number doesn't say anything a first-time
+      // user immediately understands anyway.
+      function tierLabel(score) {
+        if (score >= 55) return 'Vysoká šance na nález';
+        if (score >= 28) return 'Slušná šance na nález';
+        return 'Nízká šance na nález';
+      }
+
       // A handful of pulsing markers at the best-scoring forests, on top of
       // whichever fill mode is active - the fill answers "where's decent
       // vs not," this answers "no really, look HERE first" without making
@@ -649,8 +667,10 @@ export function buildGridMapHtml(opts: {
           // below) - a pulsing dot with no way to find out what it actually
           // is was the whole complaint this replaced; tapping now opens the
           // real detail sheet for that exact forest.
-          var label = mode.type === 'overall' ? 'Šance na nález' : (speciesNames[mode.id] || '');
-          marker.bindTooltip(label + ': ' + entry.score + '%', { direction: 'top', offset: [0, -8] });
+          var text = mode.type === 'overall'
+            ? tierLabel(entry.score)
+            : (speciesNames[mode.id] || '') + ' — ' + tierLabel(entry.score);
+          marker.bindTooltip(text, { direction: 'top', offset: [0, -8], className: 'app-tooltip' });
           marker.on('click', function () {
             reportLocation(entry.poly.centroid[0], entry.poly.centroid[1]);
           });
