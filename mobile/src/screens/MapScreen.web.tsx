@@ -65,6 +65,7 @@ export default function MapScreen() {
       initialMode: mode,
       initialView: initialViewRef.current ?? undefined,
       apiBase: API_BASE,
+      mapApiKey: process.env.EXPO_PUBLIC_MAPY_CZ_API_KEY ?? "",
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [grid, location.lat, location.lon]);

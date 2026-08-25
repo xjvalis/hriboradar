@@ -46,6 +46,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     userLon: Number.isFinite(lon) ? lon : undefined,
     initialMode,
     initialView,
+    mapApiKey: process.env.MAPY_CZ_API_KEY ?? "",
   });
 
   // This page embeds the current grid/species data inline and changes

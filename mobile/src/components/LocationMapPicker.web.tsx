@@ -26,7 +26,13 @@ export function LocationMapPicker({
   const [label, setLabel] = useState("");
 
   const html = useMemo(
-    () => buildPinPickerHtml({ lat: appLocation.lat, lon: appLocation.lon, zoom: 12 }),
+    () =>
+      buildPinPickerHtml({
+        lat: appLocation.lat,
+        lon: appLocation.lon,
+        zoom: 12,
+        mapApiKey: process.env.EXPO_PUBLIC_MAPY_CZ_API_KEY ?? "",
+      }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );

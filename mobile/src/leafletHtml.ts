@@ -1,7 +1,8 @@
-// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML
-// string, rendered via <iframe srcDoc> on web and react-native-webview on
-// native. react-native-maps doesn't run in the web preview, so this is the
-// one approach that looks identical in both places.
+// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,
+// hiking trails, and terrain, not just roads) as an HTML string, rendered
+// via <iframe srcDoc> on web and react-native-webview on native.
+// react-native-maps doesn't run in the web preview, so this is the one
+// approach that looks identical in both places.
 //
 // The grid page is built ONCE per (grid data, user location) and never
 // rebuilt just to switch what's being visualized - switching between
@@ -38,8 +39,39 @@ const CZ_BOUNDS: [[number, number], [number, number]] = [
   [51.1, 18.9],
 ];
 
-export function buildPinPickerHtml(opts: { lat: number; lon: number; zoom?: number }) {
-  const { lat, lon, zoom = 13 } = opts;
+// Mapy.com's outdoor/aerial tile styles + the logo+copyright attribution
+// their terms require (developer.mapy.com/cs/rest-api/atributovani/ -
+// logo >=30px tall over the map, clickable to mapy.com, plus a copyright
+// link to api.mapy.com/copyright - a plain text attribution string isn't
+// enough for this provider, unlike the CARTO tiles this replaced). Shared
+// between both map pages rather than duplicated inline.
+const MAP_MAX_ZOOM = 16; // "see trail names and forest boundaries" ceiling -
+// deliberately well short of building-level zoom, which this app has no use
+// for and would otherwise let anyone zoom into (Mapy.com bills per tile,
+// and finer zooms mean exponentially more tiles for the same area).
+
+function mapyTileUrl(mapApiKey: string, mapset: "outdoor" | "aerial") {
+  return `https://api.mapy.com/v1/maptiles/${mapset}/256/{z}/{x}/{y}?apikey=${mapApiKey}&lang=cs`;
+}
+
+// Mapy.com's attribution terms require the logo at >=30px tall "on a
+// visible spot over the map" - too big for Leaflet's default bottom-right
+// text-attribution strip (built for a one-line credit, not a logo), so
+// this renders as a small dedicated bar instead, and Leaflet's own
+// attribution control is turned off (attributionControl: false) to avoid
+// showing two overlapping credit strips.
+const MAPY_ATTRIBUTION_HTML_JS = `
+      var mapyAttributionHtml =
+        '<div style="display:flex;align-items:center;gap:6px">' +
+          '<a href="https://mapy.com/" target="_blank" rel="noopener">' +
+            '<img src="https://api.mapy.com/img/api/logo.svg" alt="Mapy.com" style="height:30px;display:block" />' +
+          '</a>' +
+          '<span style="font-size:10px;color:#54563E">&copy; <a href="https://api.mapy.com/copyright" target="_blank" rel="noopener" style="color:#54563E">Seznam.cz a.s. a další</a></span>' +
+        '</div>';
+`;
+
+export function buildPinPickerHtml(opts: { lat: number; lon: number; zoom?: number; mapApiKey: string }) {
+  const { lat, lon, zoom = 13, mapApiKey } = opts;
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -49,10 +81,13 @@ export function buildPinPickerHtml(opts: { lat: number; lon: number; zoom?: numb
   <style>
     html, body, #map { height: 100%; margin: 0; padding: 0; background: #F1ECDC; }
     .leaflet-marker-icon.pin { filter: drop-shadow(0 2px 3px rgba(0,0,0,0.35)); }
+    .mapy-attribution { position: absolute; bottom: 6px; right: 6px; z-index: 1000; background: #F7F2E7ee;
+      border-radius: 6px; padding: 2px 6px; }
   </style>
 </head>
 <body>
   <div id="map"></div>
+  <div class="mapy-attribution"></div>
   <script>
     function notifyParent(payload) {
       var msg = JSON.stringify(payload);
@@ -65,14 +100,16 @@ export function buildPinPickerHtml(opts: { lat: number; lon: number; zoom?: numb
   </script>
   <script>${LEAFLET_JS}</script>
   <script>
-    var map = L.map('map', { zoomControl: true }).setView([${lat}, ${lon}], ${zoom});
+    var map = L.map('map', { zoomControl: true, maxZoom: ${MAP_MAX_ZOOM}, attributionControl: false })
+      .setView([${lat}, ${lon}], Math.min(${zoom}, ${MAP_MAX_ZOOM}));
     [100, 400, 1000].forEach(function (ms) {
       setTimeout(function () { map.invalidateSize(); }, ms);
     });
+    ${MAPY_ATTRIBUTION_HTML_JS}
+    document.querySelector('.mapy-attribution').innerHTML = mapyAttributionHtml;
     var tileErrorReported = false;
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; OpenStreetMap &copy; CARTO',
-      maxZoom: 19
+    L.tileLayer(${JSON.stringify(mapyTileUrl(mapApiKey, "outdoor"))}, {
+      maxZoom: ${MAP_MAX_ZOOM}
     }).on('tileerror', function () {
       if (tileErrorReported) return;
       tileErrorReported = true;
@@ -135,9 +172,18 @@ export function buildGridMapHtml(opts: {
   initialMode?: MapMode;
   initialView?: MapView;
   apiBase?: string;
+  mapApiKey: string;
 }) {
-  const { points, speciesList, userLat, userLon, initialMode = { type: "overall" }, initialView, apiBase = "" } =
-    opts;
+  const {
+    points,
+    speciesList,
+    userLat,
+    userLon,
+    initialMode = { type: "overall" },
+    initialView,
+    apiBase = "",
+    mapApiKey,
+  } = opts;
 
   const userMarkerJs =
     userLat != null && userLon != null
@@ -170,11 +216,18 @@ export function buildGridMapHtml(opts: {
     .legend-bar { height: 9px; border-radius: 5px; }
     .legend-labels { display:flex; justify-content:space-between; font-size: 9.5px; color: #8C8A6E; margin-top: 2px; }
     .legend-caption { margin-top: 6px; font-size: 10px; color: #8C8A6E; }
+    .layer-toggle { position: absolute; top: 10px; right: 10px; z-index: 1000; background: #F7F2E7ee;
+      border: 1px solid #DBCFA9; border-radius: 999px; padding: 6px 12px; font: 600 11px -apple-system, sans-serif;
+      color: #24261D; }
+    .mapy-attribution { position: absolute; bottom: 10px; right: 10px; z-index: 1000; background: #F7F2E7ee;
+      border-radius: 6px; padding: 2px 6px; }
   </style>
 </head>
 <body>
   <div id="map"></div>
   <div class="legend"></div>
+  <div class="layer-toggle"></div>
+  <div class="mapy-attribution"></div>
   <script>
     function notifyParent(payload) {
       var msg = JSON.stringify(payload);
@@ -198,7 +251,7 @@ export function buildGridMapHtml(opts: {
       var mapEl = document.getElementById('map');
       console.log('[Map Init] Container size:', mapEl.clientWidth, 'x', mapEl.clientHeight);
       
-      var map = L.map('map', { zoomControl: true });
+      var map = L.map('map', { zoomControl: true, maxZoom: ${MAP_MAX_ZOOM}, attributionControl: false });
       var initialView = ${initialViewJs};
       function applyInitialView() {
         if (initialView) map.setView([initialView.lat, initialView.lon], initialView.zoom);
@@ -215,15 +268,35 @@ export function buildGridMapHtml(opts: {
         }, ms);
       });
       
+      ${MAPY_ATTRIBUTION_HTML_JS}
+      document.querySelector('.mapy-attribution').innerHTML = mapyAttributionHtml;
       var tileErrorReported = false;
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; OpenStreetMap &copy; CARTO',
-        maxZoom: 19
-      }).on('tileerror', function () {
+      function reportTileError() {
         if (tileErrorReported) return;
         tileErrorReported = true;
         notifyParent({ type: 'tileError' });
-      }).addTo(map);
+      }
+      var outdoorLayer = L.tileLayer(${JSON.stringify(mapyTileUrl(mapApiKey, "outdoor"))}, {
+        maxZoom: ${MAP_MAX_ZOOM}
+      }).on('tileerror', reportTileError);
+      var aerialLayer = L.tileLayer(${JSON.stringify(mapyTileUrl(mapApiKey, "aerial"))}, {
+        maxZoom: ${MAP_MAX_ZOOM}
+      }).on('tileerror', reportTileError);
+
+      var activeBaseLayer = outdoorLayer;
+      activeBaseLayer.addTo(map);
+
+      var toggleEl = document.querySelector('.layer-toggle');
+      function renderToggle() {
+        toggleEl.textContent = activeBaseLayer === outdoorLayer ? 'Satelitní' : 'Turistická';
+      }
+      toggleEl.addEventListener('click', function () {
+        map.removeLayer(activeBaseLayer);
+        activeBaseLayer = activeBaseLayer === outdoorLayer ? aerialLayer : outdoorLayer;
+        activeBaseLayer.addTo(map);
+        renderToggle();
+      });
+      renderToggle();
 
       var gridPoints = ${pointsJs};
       var speciesNames = ${speciesNamesJs};
