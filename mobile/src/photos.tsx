@@ -13,7 +13,12 @@ const PHOTOS: Record<string, ReturnType<typeof require>> = {
   "bedla-vysoka": require("../assets/mushrooms/bedla-vysoka.jpg"),
   "klouzek-slizky": require("../assets/mushrooms/klouzek-slizky.jpg"),
   "klouzek-zrnity": require("../assets/mushrooms/klouzek-zrnity.jpg"),
-  "kotrc-kadeřavy": require("../assets/mushrooms/kotrc-kadeřavy.jpg"),
+  // Filename kept ASCII-only (no diacritic) - Metro's dev asset server
+  // mangles URLs with non-ASCII characters into a broken double-encoded
+  // scandir path, which 404'd this photo specifically at runtime. The
+  // species id itself (with diacritic, "kotrc-kadeřavy") is unaffected -
+  // it's just a JS object key, not a filesystem path.
+  "kotrc-kadeřavy": require("../assets/mushrooms/kotrc-kaderavy.jpg"),
   "kremenac-osikovy": require("../assets/mushrooms/kremenac-osikovy.jpg"),
   "holubinka-nazelenala": require("../assets/mushrooms/holubinka-nazelenala.jpg"),
   "ryzec-smrkovy": require("../assets/mushrooms/ryzec-smrkovy.jpg"),
