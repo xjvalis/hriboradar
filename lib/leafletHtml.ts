@@ -4,7 +4,7 @@
 // dev-server.mjs for local dev) needs its own copy to render /api/map and
 // /api/map-pin as real HTML responses. Keep both copies in sync by hand.
 
-// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,
+// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,
 // hiking trails, and terrain, not just roads) as an HTML string, rendered
 // via <iframe srcDoc> on web and react-native-webview on native.
 // react-native-maps doesn't run in the web preview, so this is the one
@@ -238,6 +238,15 @@ export function buildGridMapHtml(opts: {
       color: #24261D; }
     .mapy-attribution { position: absolute; bottom: 10px; right: 10px; z-index: 1000; background: #F7F2E7ee;
       border-radius: 6px; padding: 2px 6px; }
+    .hotspot { position: relative; }
+    .hotspot-dot { position: absolute; top: 4px; left: 4px; width: 6px; height: 6px; border-radius: 50%;
+      box-shadow: 0 0 0 1.5px #F7F2E7; }
+    .hotspot-ring { position: absolute; top: 0; left: 0; width: 14px; height: 14px; border-radius: 50%;
+      opacity: 0.65; animation: hotspot-pulse 2s ease-out infinite; }
+    @keyframes hotspot-pulse {
+      0% { transform: scale(0.5); opacity: 0.6; }
+      100% { transform: scale(2.4); opacity: 0; }
+    }
   </style>
 </head>
 <body>
@@ -464,6 +473,19 @@ export function buildGridMapHtml(opts: {
         return { score: score, rgba: colorAt(stops, score) };
       }
 
+      function fillPolygonPath(ctx, poly) {
+        ctx.beginPath();
+        var rings = poly.rings;
+        for (var r = 0; r < rings.length; r++) {
+          var ring = rings[r];
+          for (var p = 0; p < ring.length; p++) {
+            var xy = project(ring[p][0], ring[p][1]);
+            if (p === 0) ctx.moveTo(xy[0], xy[1]); else ctx.lineTo(xy[0], xy[1]);
+          }
+          ctx.closePath();
+        }
+      }
+
       // Zoomed-out path: every scored polygon rasterized onto one canvas,
       // then blurred (blurForZoom) - small nearby forests with similar
       // scores melt into one soft regional patch instead of a field of
@@ -478,16 +500,7 @@ export function buildGridMapHtml(opts: {
           var sc = scoreAndColor(poly, accessor, stops);
           if (!sc) continue;
           ctx.fillStyle = 'rgba(' + sc.rgba[0] + ',' + sc.rgba[1] + ',' + sc.rgba[2] + ',' + Math.min(1, sc.rgba[3]) + ')';
-          ctx.beginPath();
-          var rings = poly.rings;
-          for (var r = 0; r < rings.length; r++) {
-            var ring = rings[r];
-            for (var p = 0; p < ring.length; p++) {
-              var xy = project(ring[p][0], ring[p][1]);
-              if (p === 0) ctx.moveTo(xy[0], xy[1]); else ctx.lineTo(xy[0], xy[1]);
-            }
-            ctx.closePath();
-          }
+          fillPolygonPath(ctx, poly);
           ctx.fill('evenodd');
         }
         return canvas;
@@ -593,11 +606,45 @@ export function buildGridMapHtml(opts: {
         }
       }
 
+      // A handful of pulsing markers at the best-scoring forests, on top of
+      // whichever fill mode is active - the fill answers "where's decent
+      // vs not," this answers "no really, look HERE first" without making
+      // anyone compare shades of green. Capped low on purpose: this only
+      // works as a spotlight if it stays rare.
+      var HOTSPOT_COUNT = 6;
+      var hotspotMarkers = [];
+      function renderHotspots(accessor, stops) {
+        hotspotMarkers.forEach(function (m) { map.removeLayer(m); });
+        hotspotMarkers = [];
+        var scored = [];
+        for (var i = 0; i < polyMeta.length; i++) {
+          var sc = scoreAndColor(polyMeta[i], accessor, stops);
+          if (sc) scored.push({ poly: polyMeta[i], sc: sc });
+        }
+        scored.sort(function (a, b) { return b.sc.score - a.sc.score; });
+        var top = scored.slice(0, HOTSPOT_COUNT);
+        top.forEach(function (entry) {
+          var color = 'rgb(' + entry.sc.rgba[0] + ',' + entry.sc.rgba[1] + ',' + entry.sc.rgba[2] + ')';
+          var icon = L.divIcon({
+            className: 'hotspot',
+            html:
+              '<span class="hotspot-ring" style="background:' + color + '"></span>' +
+              '<span class="hotspot-dot" style="background:' + color + '"></span>',
+            iconSize: [14, 14],
+            iconAnchor: [7, 7]
+          });
+          var marker = L.marker(entry.poly.centroid, { icon: icon, interactive: false, keyboard: false });
+          marker.addTo(map);
+          hotspotMarkers.push(marker);
+        });
+      }
+
       function applyMode(mode) {
         currentMode = mode;
         currentAccessor = mode.type === 'overall' ? overallAccessor : speciesAccessor(mode.id);
         currentStops = mode.type === 'overall' ? OVERALL_STOPS : SPECIES_STOPS;
         renderForZoom();
+        renderHotspots(currentAccessor, currentStops);
         updateLegend(mode);
       }
 
