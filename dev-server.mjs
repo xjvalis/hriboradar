@@ -10,6 +10,7 @@ const routes = {
   "/api/grid": (await import("./api/grid.ts")).default,
   "/api/map": (await import("./api/map.ts")).default,
   "/api/map-pin": (await import("./api/map-pin.ts")).default,
+  "/api/forest": (await import("./api/forest.ts")).default,
   "/api/geocode": (await import("./api/geocode.ts")).default,
   "/api/feedback": (await import("./api/feedback.ts")).default,
   "/api/cron/recalibrate": (await import("./api/cron/recalibrate.ts")).default,

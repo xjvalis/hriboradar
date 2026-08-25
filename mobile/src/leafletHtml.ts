@@ -127,8 +127,9 @@ export function buildGridMapHtml(opts: {
   userLat?: number;
   userLon?: number;
   initialMode?: MapMode;
+  apiBase?: string;
 }) {
-  const { points, speciesList, userLat, userLon, initialMode = { type: "overall" } } = opts;
+  const { points, speciesList, userLat, userLon, initialMode = { type: "overall" }, apiBase = "" } = opts;
 
   const userMarkerJs =
     userLat != null && userLon != null
@@ -142,6 +143,7 @@ export function buildGridMapHtml(opts: {
     Object.fromEntries(speciesList.map((sp) => [sp.id, sp.name_cz]))
   );
   const initialModeJs = JSON.stringify(initialMode);
+  const apiBaseJs = JSON.stringify(apiBase);
 
   return `<!DOCTYPE html>
 <html>
@@ -152,7 +154,7 @@ export function buildGridMapHtml(opts: {
   <style>
     html, body, #map { height: 100%; width: 100%; margin: 0; padding: 0; background: #F1ECDC; overflow: hidden; }
     #map { position: absolute; top: 0; left: 0; }
-    .cloud-layer { filter: blur(3px); transition: opacity 420ms ease; }
+    .cloud-layer { transition: opacity 420ms ease, filter 420ms ease; }
     .legend { position: absolute; bottom: 10px; left: 10px; z-index: 1000; background: #F7F2E7ee;
       border: 1px solid #DBCFA9; border-radius: 10px; padding: 8px 10px; font: 11px -apple-system, sans-serif; color: #24261D; max-width: 200px; }
     .legend-title { font-weight: 600; font-size: 10.5px; letter-spacing: 0.4px; text-transform: uppercase; color: #54563E; margin-bottom: 5px; }
@@ -211,10 +213,82 @@ export function buildGridMapHtml(opts: {
 
       var gridPoints = ${pointsJs};
       var speciesNames = ${speciesNamesJs};
+      var API_BASE = ${apiBaseJs};
 
       var FLOOR = 20;
       var CUTOFF_DEG = 0.30;
       var RENDER_W = 340, RENDER_H = 130;
+
+      // Forest mask: the probability field above is a smooth interpolation
+      // between a few hundred grid points, so at low resolution it reads
+      // fine zoomed out but "floods" everything (cities included) once you
+      // zoom in - there's no real geography in it. This clips the field to
+      // real OpenStreetMap forest/wood polygons (fetched once, cached
+      // server-side, see /api/forest) so color only ever appears where
+      // there's actually forest, at a resolution sharp enough to show real
+      // forest-patch boundaries when zoomed into a town.
+      var MASK_W = 1600, MASK_H = 614;
+      var forestMaskCanvas = null;
+      var forestReady = false;
+
+      function project(lat, lon) {
+        var latMin = ${CZ_BOUNDS[0][0]}, latMax = ${CZ_BOUNDS[1][0]};
+        var lonMin = ${CZ_BOUNDS[0][1]}, lonMax = ${CZ_BOUNDS[1][1]};
+        var x = (lon - lonMin) / (lonMax - lonMin) * MASK_W;
+        var y = (latMax - lat) / (latMax - latMin) * MASK_H;
+        return [x, y];
+      }
+
+      function buildForestMask(polygons) {
+        var canvas = document.createElement('canvas');
+        canvas.width = MASK_W; canvas.height = MASK_H;
+        var ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#000';
+        for (var i = 0; i < polygons.length; i++) {
+          var rings = polygons[i];
+          ctx.beginPath();
+          for (var r = 0; r < rings.length; r++) {
+            var ring = rings[r];
+            for (var p = 0; p < ring.length; p++) {
+              var xy = project(ring[p][0], ring[p][1]);
+              if (p === 0) ctx.moveTo(xy[0], xy[1]); else ctx.lineTo(xy[0], xy[1]);
+            }
+            ctx.closePath();
+          }
+          ctx.fill('evenodd');
+        }
+        return canvas;
+      }
+
+      function loadForestMask(cb) {
+        var url = (API_BASE || '') + '/api/forest';
+        var timedOut = false;
+        // The forest dataset is a few MB (real country-wide polygon data) -
+        // cached by the browser/WebView after the first load, but that
+        // first fetch+parse can genuinely take a while on a slow mobile
+        // connection (exactly the kind of spotty signal you get out in an
+        // actual forest). Generous on purpose: a late mask is much better
+        // than silently falling back to the unmasked "everything is green"
+        // rendering this whole feature exists to avoid.
+        var timer = setTimeout(function () {
+          timedOut = true;
+          cb();
+        }, 15000);
+        fetch(url)
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (timedOut) return;
+            clearTimeout(timer);
+            forestMaskCanvas = buildForestMask(data.polygons || []);
+            forestReady = true;
+            cb();
+          })
+          .catch(function () {
+            if (timedOut) return;
+            clearTimeout(timer);
+            cb();
+          });
+      }
 
       var OVERALL_STOPS = [
         [0, 79, 122, 61, 0],
@@ -289,7 +363,21 @@ export function buildGridMapHtml(opts: {
           }
         }
         ctx.putImageData(img, 0, 0);
-        return canvas.toDataURL();
+
+        if (!forestMaskCanvas) {
+          // Forest data unavailable (fetch failed/timed out) - fall back to
+          // the plain unmasked field rather than blocking the map forever.
+          return canvas.toDataURL();
+        }
+
+        var masked = document.createElement('canvas');
+        masked.width = MASK_W; masked.height = MASK_H;
+        var mctx = masked.getContext('2d');
+        mctx.imageSmoothingEnabled = true;
+        mctx.drawImage(canvas, 0, 0, MASK_W, MASK_H);
+        mctx.globalCompositeOperation = 'destination-in';
+        mctx.drawImage(forestMaskCanvas, 0, 0);
+        return masked.toDataURL();
       }
 
       function overallAccessor(p) { return p.overall; }
@@ -333,6 +421,8 @@ export function buildGridMapHtml(opts: {
           opacity: 0
         });
         layer.addTo(map);
+        var layerEl = layer.getElement();
+        if (layerEl) layerEl.style.filter = 'blur(' + blurForZoom(map.getZoom()) + 'px)';
         var old = currentLayer;
         currentLayer = layer;
         setTimeout(function () {
@@ -342,11 +432,31 @@ export function buildGridMapHtml(opts: {
         updateLegend(mode);
       }
 
-      applyMode(${initialModeJs});
+      // Wide-out view reads better softened into regional blobs (the exact
+      // edge of one small forest patch isn't the point at that scale); once
+      // zoomed in, the forest-mask edges should read crisp - that contrast
+      // is what makes it feel like it "resolves into focus" as you zoom.
+      function blurForZoom(z) {
+        if (z <= 8) return 3.5;
+        if (z <= 10) return 1.8;
+        if (z <= 12) return 0.6;
+        return 0;
+      }
+      map.on('zoomend', function () {
+        if (!currentLayer) return;
+        var el = currentLayer.getElement();
+        if (el) el.style.filter = 'blur(' + blurForZoom(map.getZoom()) + 'px)';
+      });
 
       ${userMarkerJs}
 
-      notifyParent({ type: 'ready' });
+      // First paint waits for the forest mask (fetch has its own timeout,
+      // see loadForestMask) so we never show the old unmasked "everything
+      // is green" flash before it settles in.
+      loadForestMask(function () {
+        applyMode(${initialModeJs});
+        notifyParent({ type: 'ready' });
+      });
 
       function handleIncoming(raw) {
         try {

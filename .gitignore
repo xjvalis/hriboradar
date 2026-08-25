@@ -4,3 +4,5 @@ node_modules/
 .env.local
 *.log
 .DS_Store
+data-prep/forest-raw*.json
+data-prep/test-*.json

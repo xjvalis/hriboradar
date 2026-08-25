@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { palette, radius, space, type } from "../theme";
-import { getGrid, type GridResponse } from "../api";
+import { getGrid, API_BASE, type GridResponse } from "../api";
 import { useLocation } from "../LocationContext";
 import { buildGridMapHtml, type MapMode } from "../leafletHtml";
 import { PageHeader } from "../components/PageHeader";
@@ -47,6 +47,7 @@ export default function MapScreen() {
       userLat: location.lat,
       userLon: location.lon,
       initialMode: mode,
+      apiBase: API_BASE,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [grid, location.lat, location.lon]);
