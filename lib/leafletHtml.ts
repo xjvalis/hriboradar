@@ -4,7 +4,7 @@
 // dev-server.mjs for local dev) needs its own copy to render /api/map and
 // /api/map-pin as real HTML responses. Keep both copies in sync by hand.
 
-// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,
+// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,
 // hiking trails, and terrain, not just roads) as an HTML string, rendered
 // via <iframe srcDoc> on web and react-native-webview on native.
 // react-native-maps doesn't run in the web preview, so this is the one
@@ -18,12 +18,16 @@
 // WebView on every chip tap would reset pan/zoom and reload every map
 // tile, which is both slow and disorienting mid-interaction.
 //
-// Rendering: per-pixel inverse-distance-weighted interpolation from the
-// real grid points, rasterized to an offscreen <canvas>, dropped on the
-// map as a georeferenced image overlay (+ light CSS blur for organic
-// softness). A short cutoff radius keeps influence local, so real gaps
-// between regions stay gaps (disconnected islands) instead of the whole
-// country reading as one continuous wash.
+// Rendering: each real forest polygon (from OpenStreetMap, see /api/forest)
+// gets scored on its own (IDW-interpolated from the real grid points, at
+// the polygon's centroid) and filled with ONE flat color - a choropleth,
+// like a fire-risk or election map, not a diffuse cloud. A blurry gradient
+// blob never had a real edge to point at ("go here, not there"); a colored
+// forest does. Two render paths depending on zoom: zoomed out, every
+// scored polygon is rasterized onto one canvas and lightly blurred so
+// nearby small forests read as one soft regional patch instead of visual
+// noise; zoomed in (>= VECTOR_ZOOM_THRESHOLD), each forest in view becomes
+// its own crisp Leaflet vector shape with a real, sharp boundary.
 import { LEAFLET_CSS, LEAFLET_JS } from "./leafletAssets";
 
 export interface GridPoint {
@@ -318,17 +322,15 @@ export function buildGridMapHtml(opts: {
 
       var FLOOR = 20;
       var CUTOFF_DEG = 0.30;
-      var RENDER_W = 340, RENDER_H = 130;
+      var MASK_W = 1600, MASK_H = 614; // raster resolution for the zoomed-out path
+      var VECTOR_ZOOM_THRESHOLD = 12; // >= this: precise per-forest shapes; below: merged raster
 
       // Leaflet displays everything in Web Mercator, where meridians are
-      // evenly spaced but parallels are not - a raster built by sampling
-      // latitude linearly (which is what this used to do, and still looks
-      // fine zoomed out on a whole-country wash with no real geography to
-      // compare against) drifts from the real basemap by a few km once you
-      // zoom into a neighborhood and compare against something with a real
-      // edge, like a forest boundary. These convert between latitude and
-      // the map's actual projected Y so the raster's rows/columns line up
-      // with where Leaflet will actually place the image.
+      // evenly spaced but parallels are not - sampling latitude linearly
+      // drifts from the real basemap by a few km once you compare against
+      // something with a real edge, like a forest boundary. These convert
+      // between latitude and the map's actual projected Y so the raster's
+      // rows/columns line up with where Leaflet will actually place it.
       function mercY(latDeg) {
         var rad = (latDeg * Math.PI) / 180;
         return Math.log(Math.tan(Math.PI / 4 + rad / 2));
@@ -336,19 +338,6 @@ export function buildGridMapHtml(opts: {
       function mercYToLat(y) {
         return (2 * Math.atan(Math.exp(y)) - Math.PI / 2) * (180 / Math.PI);
       }
-
-      // Forest mask: the probability field above is a smooth interpolation
-      // between a few hundred grid points, so at low resolution it reads
-      // fine zoomed out but "floods" everything (cities included) once you
-      // zoom in - there's no real geography in it. This clips the field to
-      // real OpenStreetMap forest/wood polygons (fetched once, cached
-      // server-side, see /api/forest) so color only ever appears where
-      // there's actually forest, at a resolution sharp enough to show real
-      // forest-patch boundaries when zoomed into a town.
-      var MASK_W = 1600, MASK_H = 614;
-      var forestMaskCanvas = null;
-      var forestReady = false;
-
       var MERC_Y_MIN = mercY(${CZ_BOUNDS[0][0]}), MERC_Y_MAX = mercY(${CZ_BOUNDS[1][0]});
 
       function project(lat, lon) {
@@ -358,37 +347,44 @@ export function buildGridMapHtml(opts: {
         return [x, y];
       }
 
-      function buildForestMask(polygons) {
-        var canvas = document.createElement('canvas');
-        canvas.width = MASK_W; canvas.height = MASK_H;
-        var ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#000';
-        for (var i = 0; i < polygons.length; i++) {
-          var rings = polygons[i];
-          ctx.beginPath();
-          for (var r = 0; r < rings.length; r++) {
-            var ring = rings[r];
-            for (var p = 0; p < ring.length; p++) {
-              var xy = project(ring[p][0], ring[p][1]);
-              if (p === 0) ctx.moveTo(xy[0], xy[1]); else ctx.lineTo(xy[0], xy[1]);
-            }
-            ctx.closePath();
+      // Real OpenStreetMap forest/wood polygons (fetched once, cached
+      // server-side, see /api/forest) - centroid + bounding box precomputed
+      // once per polygon so scoring and viewport culling stay cheap on
+      // every mode switch / pan / zoom afterward.
+      var polyMeta = null;
+      var forestReady = false;
+
+      function preparePolygons(polygons) {
+        return polygons.map(function (rings) {
+          var outer = rings[0];
+          var sumLat = 0, sumLon = 0;
+          var minLat = Infinity, maxLat = -Infinity, minLon = Infinity, maxLon = -Infinity;
+          for (var i = 0; i < outer.length; i++) {
+            var lat = outer[i][0], lon = outer[i][1];
+            sumLat += lat; sumLon += lon;
+            if (lat < minLat) minLat = lat;
+            if (lat > maxLat) maxLat = lat;
+            if (lon < minLon) minLon = lon;
+            if (lon > maxLon) maxLon = lon;
           }
-          ctx.fill('evenodd');
-        }
-        return canvas;
+          return {
+            rings: rings,
+            centroid: [sumLat / outer.length, sumLon / outer.length],
+            bbox: [minLat, minLon, maxLat, maxLon]
+          };
+        });
       }
 
-      function loadForestMask(cb) {
+      function loadForestData(cb) {
         var url = (API_BASE || '') + '/api/forest';
         var timedOut = false;
         // The forest dataset is a few MB (real country-wide polygon data) -
         // cached by the browser/WebView after the first load, but that
         // first fetch+parse can genuinely take a while on a slow mobile
         // connection (exactly the kind of spotty signal you get out in an
-        // actual forest). Generous on purpose: a late mask is much better
-        // than silently falling back to the unmasked "everything is green"
-        // rendering this whole feature exists to avoid.
+        // actual forest). Generous on purpose: this data isn't optional
+        // scenery anymore, it IS the map now - without it there's nothing
+        // to color at all.
         var timer = setTimeout(function () {
           timedOut = true;
           cb();
@@ -398,7 +394,7 @@ export function buildGridMapHtml(opts: {
           .then(function (data) {
             if (timedOut) return;
             clearTimeout(timer);
-            forestMaskCanvas = buildForestMask(data.polygons || []);
+            polyMeta = preparePolygons(data.polygons || []);
             forestReady = true;
             cb();
           })
@@ -459,43 +455,73 @@ export function buildGridMapHtml(opts: {
         return wsum > 0 ? ssum / wsum : 0;
       }
 
-      function buildFieldDataUrl(accessor, stops) {
+      // One score+color per forest polygon (not per pixel) - a polygon
+      // either qualifies (real fill color) or doesn't (skipped entirely,
+      // same FLOOR cutoff the old smooth field used).
+      function scoreAndColor(poly, accessor, stops) {
+        var score = interpolate(accessor, poly.centroid[0], poly.centroid[1]);
+        if (score < FLOOR) return null;
+        return { score: score, rgba: colorAt(stops, score) };
+      }
+
+      // Zoomed-out path: every scored polygon rasterized onto one canvas,
+      // then blurred (blurForZoom) - small nearby forests with similar
+      // scores melt into one soft regional patch instead of a field of
+      // tiny, hard-edged confetti, while still being real forest shapes
+      // underneath (not a fabricated blob).
+      function buildScoredRaster(accessor, stops) {
         var canvas = document.createElement('canvas');
-        canvas.width = RENDER_W; canvas.height = RENDER_H;
+        canvas.width = MASK_W; canvas.height = MASK_H;
         var ctx = canvas.getContext('2d');
-        var img = ctx.createImageData(RENDER_W, RENDER_H);
-        var lonMin = ${CZ_BOUNDS[0][1]}, lonMax = ${CZ_BOUNDS[1][1]};
-        for (var y = 0; y < RENDER_H; y++) {
-          var lat = mercYToLat(MERC_Y_MAX - (y / (RENDER_H - 1)) * (MERC_Y_MAX - MERC_Y_MIN));
-          for (var x = 0; x < RENDER_W; x++) {
-            var lon = lonMin + (x / (RENDER_W - 1)) * (lonMax - lonMin);
-            var score = interpolate(accessor, lat, lon);
-            var idx = (y * RENDER_W + x) * 4;
-            if (score < FLOOR) {
-              img.data[idx + 3] = 0;
-            } else {
-              var rgba = colorAt(stops, score);
-              img.data[idx] = rgba[0]; img.data[idx + 1] = rgba[1]; img.data[idx + 2] = rgba[2];
-              img.data[idx + 3] = Math.round(Math.min(1, rgba[3]) * 255);
+        for (var i = 0; i < polyMeta.length; i++) {
+          var poly = polyMeta[i];
+          var sc = scoreAndColor(poly, accessor, stops);
+          if (!sc) continue;
+          ctx.fillStyle = 'rgba(' + sc.rgba[0] + ',' + sc.rgba[1] + ',' + sc.rgba[2] + ',' + Math.min(1, sc.rgba[3]) + ')';
+          ctx.beginPath();
+          var rings = poly.rings;
+          for (var r = 0; r < rings.length; r++) {
+            var ring = rings[r];
+            for (var p = 0; p < ring.length; p++) {
+              var xy = project(ring[p][0], ring[p][1]);
+              if (p === 0) ctx.moveTo(xy[0], xy[1]); else ctx.lineTo(xy[0], xy[1]);
             }
+            ctx.closePath();
           }
+          ctx.fill('evenodd');
         }
-        ctx.putImageData(img, 0, 0);
+        return canvas;
+      }
 
-        if (!forestMaskCanvas) {
-          // Forest data unavailable (fetch failed/timed out) - fall back to
-          // the plain unmasked field rather than blocking the map forever.
-          return canvas.toDataURL();
+      // Zoomed-in path: real Leaflet vector shapes, one per forest, with a
+      // genuine sharp boundary - viewport-culled (via each polygon's
+      // precomputed bbox) so cost stays tied to what's on screen, not the
+      // full ~36k-polygon dataset, and rebuilt on pan so panning into a new
+      // area picks up its forests instead of staying blank.
+      var vectorRenderer = L.canvas();
+      var vectorLayerGroup = null;
+      function rebuildVectorLayer(accessor, stops) {
+        var old = vectorLayerGroup;
+        vectorLayerGroup = L.layerGroup();
+        var b = map.getBounds();
+        var minLat = b.getSouth(), maxLat = b.getNorth(), minLon = b.getWest(), maxLon = b.getEast();
+        for (var i = 0; i < polyMeta.length; i++) {
+          var poly = polyMeta[i];
+          var bbox = poly.bbox; // [minLat, minLon, maxLat, maxLon]
+          if (bbox[2] < minLat || bbox[0] > maxLat || bbox[3] < minLon || bbox[1] > maxLon) continue;
+          var sc = scoreAndColor(poly, accessor, stops);
+          if (!sc) continue;
+          var color = 'rgb(' + sc.rgba[0] + ',' + sc.rgba[1] + ',' + sc.rgba[2] + ')';
+          L.polygon(poly.rings, {
+            renderer: vectorRenderer,
+            stroke: false,
+            fillColor: color,
+            fillOpacity: Math.min(1, sc.rgba[3]),
+            interactive: false
+          }).addTo(vectorLayerGroup);
         }
-
-        var masked = document.createElement('canvas');
-        masked.width = MASK_W; masked.height = MASK_H;
-        var mctx = masked.getContext('2d');
-        mctx.imageSmoothingEnabled = true;
-        mctx.drawImage(canvas, 0, 0, MASK_W, MASK_H);
-        mctx.globalCompositeOperation = 'destination-in';
-        mctx.drawImage(forestMaskCanvas, 0, 0);
-        return masked.toDataURL();
+        vectorLayerGroup.addTo(map);
+        if (old) map.removeLayer(old);
       }
 
       function overallAccessor(p) { return p.overall; }
@@ -528,50 +554,70 @@ export function buildGridMapHtml(opts: {
         }
       }
 
-      var currentLayer = null;
-      function applyMode(mode) {
-        var accessor = mode.type === 'overall' ? overallAccessor : speciesAccessor(mode.id);
-        var stops = mode.type === 'overall' ? OVERALL_STOPS : SPECIES_STOPS;
-        var url = buildFieldDataUrl(accessor, stops);
-        var layer = L.imageOverlay(url, ${JSON.stringify(CZ_BOUNDS)}, {
-          className: 'cloud-layer',
-          interactive: false,
-          opacity: 0
-        });
-        layer.addTo(map);
-        var layerEl = layer.getElement();
-        if (layerEl) layerEl.style.filter = 'blur(' + blurForZoom(map.getZoom()) + 'px)';
-        var old = currentLayer;
-        currentLayer = layer;
-        setTimeout(function () {
-          layer.setOpacity(1);
-          if (old) setTimeout(function () { map.removeLayer(old); }, 440);
-        }, 20);
-        updateLegend(mode);
-      }
-
-      // Wide-out view reads better softened into regional blobs (the exact
-      // edge of one small forest patch isn't the point at that scale); once
-      // zoomed in, the forest-mask edges should read crisp - that contrast
-      // is what makes it feel like it "resolves into focus" as you zoom.
+      // Wide-out view reads better softened into regional patches (the
+      // exact edge of one small forest isn't the point at that scale);
+      // zoomed in, real forest edges should read crisp - that contrast is
+      // what makes it feel like it "resolves into focus" as you zoom.
       function blurForZoom(z) {
         if (z <= 8) return 3.5;
         if (z <= 10) return 1.8;
-        if (z <= 12) return 0.6;
-        return 0;
+        return 0.6;
       }
-      map.on('zoomend', function () {
-        if (!currentLayer) return;
-        var el = currentLayer.getElement();
-        if (el) el.style.filter = 'blur(' + blurForZoom(map.getZoom()) + 'px)';
+
+      var currentRasterLayer = null;
+      var currentAccessor = null, currentStops = null, currentMode = null;
+
+      function renderForZoom() {
+        if (!polyMeta) return;
+        var z = map.getZoom();
+        if (z >= VECTOR_ZOOM_THRESHOLD) {
+          if (currentRasterLayer) { map.removeLayer(currentRasterLayer); currentRasterLayer = null; }
+          rebuildVectorLayer(currentAccessor, currentStops);
+        } else {
+          if (vectorLayerGroup) { map.removeLayer(vectorLayerGroup); vectorLayerGroup = null; }
+          var url = buildScoredRaster(currentAccessor, currentStops).toDataURL();
+          var layer = L.imageOverlay(url, ${JSON.stringify(CZ_BOUNDS)}, {
+            className: 'cloud-layer',
+            interactive: false,
+            opacity: 0
+          });
+          layer.addTo(map);
+          var layerEl = layer.getElement();
+          if (layerEl) layerEl.style.filter = 'blur(' + blurForZoom(z) + 'px)';
+          var old = currentRasterLayer;
+          currentRasterLayer = layer;
+          setTimeout(function () {
+            layer.setOpacity(1);
+            if (old) setTimeout(function () { map.removeLayer(old); }, 440);
+          }, 20);
+        }
+      }
+
+      function applyMode(mode) {
+        currentMode = mode;
+        currentAccessor = mode.type === 'overall' ? overallAccessor : speciesAccessor(mode.id);
+        currentStops = mode.type === 'overall' ? OVERALL_STOPS : SPECIES_STOPS;
+        renderForZoom();
+        updateLegend(mode);
+      }
+
+      map.on('zoomend', renderForZoom);
+      // Raster mode already covers the whole country in one image, so only
+      // vector mode needs to react to panning - it's viewport-culled by
+      // design, so moving into a new area means loading that area's
+      // forests, not just re-showing what was already there.
+      map.on('moveend', function () {
+        if (map.getZoom() >= VECTOR_ZOOM_THRESHOLD && vectorLayerGroup && currentMode) {
+          rebuildVectorLayer(currentAccessor, currentStops);
+        }
       });
 
       ${userMarkerJs}
 
-      // First paint waits for the forest mask (fetch has its own timeout,
-      // see loadForestMask) so we never show the old unmasked "everything
-      // is green" flash before it settles in.
-      loadForestMask(function () {
+      // First paint waits for the real forest data (fetch has its own
+      // timeout, see loadForestData) so there's never a flash of the old
+      // unmasked "everything is green" rendering before it settles in.
+      loadForestData(function () {
         applyMode(${initialModeJs});
         notifyParent({ type: 'ready' });
       });
