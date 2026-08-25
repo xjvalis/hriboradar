@@ -57,16 +57,23 @@ export function LocationMapPicker({
 
         <View style={styles.mapCard}>
           {webviewError ? (
-            <Text style={styles.error}>
-              Mapu se nepodařilo načíst: {webviewError}
-              {"\n"}Je telefon na stejné Wi-Fi jako server?
-            </Text>
+            <View style={styles.centerOverlay}>
+              <Text style={styles.error}>
+                Mapu se nepodařilo načíst: {webviewError}
+                {"\n"}Je telefon na stejné Wi-Fi jako server?
+              </Text>
+            </View>
           ) : (
             <WebView
               ref={webviewRef}
               originWhitelist={["*"]}
               source={{ uri: pickerUri }}
-              style={{ flex: 1 }}
+              // See MapScreen.tsx - borderRadius/overflow belong on the
+              // WebView itself, not a wrapping View with overflow:hidden,
+              // or the WebView's native layer can fail to render at all.
+              // mapCard no longer centers its children (see centerOverlay),
+              // so this WebView gets RN's default cross-axis stretch.
+              style={{ flex: 1, borderRadius: radius.md, overflow: "hidden" }}
               startInLoadingState
               renderLoading={() => (
                 <View style={styles.loadingWrap}>
@@ -109,14 +116,11 @@ const styles = StyleSheet.create({
   subtitle: { ...type.bodySmall, color: palette.inkSoft, marginBottom: space.xs },
   mapCard: {
     height: 280,
-    borderRadius: radius.md,
     borderWidth: 1,
     borderColor: palette.line,
-    overflow: "hidden",
-    alignItems: "center",
-    justifyContent: "center",
     marginTop: space.xs,
   },
+  centerOverlay: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center" },
   loadingWrap: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center", backgroundColor: palette.bg },
   loading: { ...type.bodySmall, color: palette.inkFaint },
   error: { ...type.bodySmall, color: palette.danger, textAlign: "center", paddingHorizontal: space.lg },

@@ -20,12 +20,8 @@ export default function MapScreen() {
   const isFirstMode = useRef(true);
 
   useEffect(() => {
-    console.log("[MapScreen] Mounting, API_BASE =", API_BASE);
     getGrid()
-      .then((g) => {
-        console.log("[MapScreen] Grid loaded:", g.points.length, "points,", g.speciesList.length, "species");
-        setGrid(g);
-      })
+      .then(setGrid)
       .catch((e) => {
         console.error("[MapScreen] Grid fetch error:", e);
         setGridError(String(e.message ?? e));
@@ -33,11 +29,7 @@ export default function MapScreen() {
   }, []);
 
   const mapUri = useMemo(
-    () => {
-      const uri = `${API_BASE}/api/map?lat=${location.lat}&lon=${location.lon}`;
-      console.log("[MapScreen] mapUri updated:", uri);
-      return uri;
-    },
+    () => `${API_BASE}/api/map?lat=${location.lat}&lon=${location.lon}`,
     [location.lat, location.lon]
   );
 
@@ -75,48 +67,46 @@ export default function MapScreen() {
 
       <View style={styles.mapCard}>
         {gridError || webviewError ? (
-          <Text style={styles.error}>
-            Mapu se nepodařilo načíst: {gridError ?? webviewError}
-            {"\n"}Je telefon na stejné Wi-Fi jako server?
-          </Text>
+          <View style={styles.centerOverlay}>
+            <Text style={styles.error}>
+              Mapu se nepodařilo načíst: {gridError ?? webviewError}
+              {"\n"}Je telefon na stejné Wi-Fi jako server?
+            </Text>
+          </View>
         ) : !grid ? (
-          <Text style={styles.loading}>Načítám data z API…</Text>
+          <View style={styles.centerOverlay}>
+            <Text style={styles.loading}>Načítám data z API…</Text>
+          </View>
         ) : (
           <WebView
             ref={webviewRef}
             originWhitelist={["*"]}
             source={{ uri: mapUri }}
-            style={{ flex: 1 }}
+            // borderRadius/overflow live here, on the WebView itself, not on
+            // a wrapping View - on iOS, clipping a WebView via an ancestor's
+            // overflow:hidden+borderRadius can make its native layer fail to
+            // composite at all (not just fail to round its corners).
+            //
+            // mapCard no longer uses alignItems/justifyContent (that's what
+            // centerOverlay is for now) so this WebView gets RN's default
+            // cross-axis behavior, alignItems: "stretch", with no ambiguity.
+            style={{ flex: 1, borderRadius: radius.lg, overflow: "hidden" }}
             startInLoadingState
             renderLoading={() => (
               <View style={styles.loadingWrap}>
                 <Text style={styles.loading}>Počítám mřížku pro celou republiku…</Text>
               </View>
             )}
-            onLoadStart={() => console.log("[Mapa WebView] loadStart", mapUri)}
-            onLoadEnd={(e) => console.log("[Mapa WebView] loadEnd", JSON.stringify(e.nativeEvent))}
-            onLoadProgress={(e) => console.log("[Mapa WebView] loadProgress", e.nativeEvent.progress)}
-            onError={(e) => {
-              console.log("[Mapa WebView] onError", JSON.stringify(e.nativeEvent));
-              setWebviewError(e.nativeEvent.description);
-            }}
-            onHttpError={(e) => {
-              console.log("[Mapa WebView] onHttpError", JSON.stringify(e.nativeEvent));
-              setWebviewError(`HTTP ${e.nativeEvent.statusCode}`);
-            }}
+            onError={(e) => setWebviewError(e.nativeEvent.description)}
+            onHttpError={(e) => setWebviewError(`HTTP ${e.nativeEvent.statusCode}`)}
             onMessage={(e) => {
-              console.log("[Mapa WebView] onMessage raw:", e.nativeEvent.data);
               try {
                 const msg = JSON.parse(e.nativeEvent.data);
                 if (msg.type === "locationSelected") setSelected(msg);
                 else if (msg.type === "jsError") {
-                  console.error("[Mapa WebView] JS error:", msg.message);
                   setWebviewError(`Chyba na stránce mapy: ${msg.message}`);
                 } else if (msg.type === "tileError") {
-                  console.error("[Mapa WebView] Tile error");
                   setWebviewError("Nepodařilo se stáhnout mapové dlaždice - má telefon přístup k internetu?");
-                } else if (msg.type === "ready") {
-                  console.log("[Mapa WebView] Page ready!");
                 }
               } catch {
                 // not our message
@@ -137,13 +127,15 @@ const styles = StyleSheet.create({
     flex: 1,
     marginHorizontal: space.lg,
     marginBottom: space.lg,
-    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: palette.line,
-    overflow: "hidden",
-    alignItems: "center",
-    justifyContent: "center",
+    // No alignItems/justifyContent here on purpose - this View's only child
+    // when a map is shown is the WebView, and centering (via
+    // alignItems: "center") collapses a flex:1 child with no intrinsic
+    // width to zero cross-axis width. The loading/error states use their
+    // own centerOverlay/loadingWrap instead.
   },
+  centerOverlay: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center" },
   loading: { ...type.bodySmall, color: palette.inkFaint },
   loadingWrap: {
     ...StyleSheet.absoluteFillObject,

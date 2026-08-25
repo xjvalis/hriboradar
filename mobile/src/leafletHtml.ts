@@ -1,3 +1,22 @@
+// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML
+// string, rendered via <iframe srcDoc> on web and react-native-webview on
+// native. react-native-maps doesn't run in the web preview, so this is the
+// one approach that looks identical in both places.
+//
+// The grid page is built ONCE per (grid data, user location) and never
+// rebuilt just to switch what's being visualized - switching between
+// "všechny houby" and a single species sends a postMessage into the
+// already-loaded page (see applyMode/handleIncoming below), which repaints
+// the overlay in place and crossfades it. Rebuilding the whole iframe/
+// WebView on every chip tap would reset pan/zoom and reload every map
+// tile, which is both slow and disorienting mid-interaction.
+//
+// Rendering: per-pixel inverse-distance-weighted interpolation from the
+// real grid points, rasterized to an offscreen <canvas>, dropped on the
+// map as a georeferenced image overlay (+ light CSS blur for organic
+// softness). A short cutoff radius keeps influence local, so real gaps
+// between regions stay gaps (disconnected islands) instead of the whole
+// country reading as one continuous wash.
 import { LEAFLET_CSS, LEAFLET_JS } from "./leafletAssets";
 
 export interface GridPoint {
