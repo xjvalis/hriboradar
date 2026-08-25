@@ -1,4 +1,4 @@
-import czBorder from "../data/cz_border.json";
+import czBorder from "../api/data/cz_border.json";
 
 const RING = czBorder.coordinates as number[][]; // [lon, lat] pairs, as GeoJSON stores them
 

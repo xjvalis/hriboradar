@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
-import { fetchWeather } from "./lib/weather";
-import { fetchTerrain } from "./lib/terrain";
-import { scoreSpeciesDay, MODEL_VERSION, type Species } from "./lib/scoring";
+import { fetchWeather } from "../lib/weather";
+import { fetchTerrain } from "../lib/terrain";
+import { scoreSpeciesDay, MODEL_VERSION, type Species } from "../lib/scoring";
 import speciesData from "./data/species.json";
 
 // Species the model already considered negligible that day carry no

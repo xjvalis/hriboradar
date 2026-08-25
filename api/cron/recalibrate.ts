@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
-import { MODEL_VERSION } from "../lib/scoring";
+import { MODEL_VERSION } from "../../lib/scoring";
 
 // Pseudo-observations pulling a sparse species+bucket toward the
 // species-agnostic rate for that same bucket (Beta-Binomial shrinkage) - at
@@ -23,7 +23,7 @@ function bucketOf(pct: number): number {
 /**
  * POST /api/cron/recalibrate - nightly job (see vercel.json) that turns raw
  * rostou_feedback rows into the per-(species, probability decile,
- * model_version) calibration_stats api/lib/calibration.ts reads at
+ * model_version) calibration_stats lib/calibration.ts reads at
  * forecast-serving time.
  *
  * Runs with the service_role key deliberately - it's the only piece of this

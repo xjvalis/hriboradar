@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { computeGrid } from "./lib/grid";
+import { computeGrid } from "../lib/grid";
 
 /**
  * GET /api/grid
@@ -13,7 +13,7 @@ import { computeGrid } from "./lib/grid";
  * without a refetch - the expensive part is the two external fetches per
  * point, which happen once regardless of how many species we score from
  * them. Also used server-side by /api/map (same grid, rendered as an HTML
- * page instead of JSON) - see api/lib/grid.ts.
+ * page instead of JSON) - see lib/grid.ts.
  */
 export default async function handler(_req: VercelRequest, res: VercelResponse) {
   const data = await computeGrid();

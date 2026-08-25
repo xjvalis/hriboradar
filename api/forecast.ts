@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { fetchWeather, fetchCurrentConditions } from "./lib/weather";
-import { scoreSpeciesDay, MODEL_VERSION, type Species } from "./lib/scoring";
-import { fetchTerrain } from "./lib/terrain";
-import { applyCalibratedProbability } from "./lib/calibration";
+import { fetchWeather, fetchCurrentConditions } from "../lib/weather";
+import { scoreSpeciesDay, MODEL_VERSION, type Species } from "../lib/scoring";
+import { fetchTerrain } from "../lib/terrain";
+import { applyCalibratedProbability } from "../lib/calibration";
 import speciesData from "./data/species.json";
 
 /**
@@ -54,7 +54,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const outputStart = Math.max(0, todayIndex - 1);
 
     // probability_pct gets nudged by the calibration layer (see
-    // api/lib/calibration.ts) once enough real "did you find it" feedback
+    // lib/calibration.ts) once enough real "did you find it" feedback
     // exists for that species/probability range - falls back to the raw
     // score untouched otherwise, which is always true until feedback starts
     // accumulating. `factors` stays the raw, uncalibrated sub-scores; those

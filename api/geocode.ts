@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { cached } from "./lib/cache";
+import { cached } from "../lib/cache";
 
 /**
  * GET /api/geocode?q=<text>

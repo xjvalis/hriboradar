@@ -2,7 +2,7 @@ import { fetchWeather } from "./weather";
 import { fetchTerrain } from "./terrain";
 import { scoreSpeciesDay, type Species } from "./scoring";
 import { isInsideCzechia } from "./geo";
-import speciesData from "../data/species.json";
+import speciesData from "../api/data/species.json";
 
 // Shared by api/grid.ts (JSON, for the app's own map screen) and api/map.ts
 // (HTML, for the WebView-rendered map page) - both need the exact same

@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { buildPinPickerHtml } from "./lib/leafletHtml";
+import { buildPinPickerHtml } from "../lib/leafletHtml";
 
 /**
  * GET /api/map-pin?lat=&lon=&zoom=

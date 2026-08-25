@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { computeGrid } from "./lib/grid";
-import { buildGridMapHtml } from "./lib/leafletHtml";
+import { computeGrid } from "../lib/grid";
+import { buildGridMapHtml } from "../lib/leafletHtml";
 
 /**
  * GET /api/map?lat=&lon=
