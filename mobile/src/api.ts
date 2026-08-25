@@ -33,7 +33,12 @@ function resolveApiBase(): string {
   // as a real fallback, just no longer statically typed.
   const hostUri = Constants.expoConfig?.hostUri ?? (Constants.expoGoConfig as { hostUri?: string } | undefined)?.hostUri;
   const host = hostUri?.split(":")[0];
-  return host ? `http://${host}:3001` : "http://localhost:3001";
+  if (host) return `http://${host}:3001`;
+  
+  // Fallback: if no hostUri available (offline, or build-time issue), 
+  // use production as last resort so app doesn't crash with blank screens
+  console.warn("[API] No dev hostUri found, falling back to production API");
+  return PRODUCTION_API_BASE;
 }
 
 export const API_BASE = resolveApiBase();
