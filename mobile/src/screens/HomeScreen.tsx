@@ -52,7 +52,7 @@ export default function HomeScreen() {
   function loadMain() {
     setData(null);
     setError(null);
-    getForecast(location.lat, location.lon)
+    return getForecast(location.lat, location.lon)
       .then(setData)
       .catch((e) => setError(String(e.message ?? e)));
   }
@@ -60,7 +60,7 @@ export default function HomeScreen() {
   function loadRegions() {
     // The 8 "Kam dnes?" regions are fixed, real places - independent of
     // whatever location the user is currently looking at.
-    Promise.all(
+    return Promise.all(
       REGIONS.map((region) =>
         getForecast(region.lat, region.lon)
           .then((res) => {
@@ -78,8 +78,8 @@ export default function HomeScreen() {
   }
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(loadMain, [location.lat, location.lon]);
-  useEffect(loadRegions, []);
+  useEffect(() => void loadMain(), [location.lat, location.lon]);
+  useEffect(() => void loadRegions(), []);
 
   const top = data ? topSpeciesOf(data) : [];
   // Same weighted-top-3 formula as Předpověď's daily cards (forecastMath.ts,
@@ -104,9 +104,7 @@ export default function HomeScreen() {
           refreshing={refreshing}
           onRefresh={() => {
             setRefreshing(true);
-            loadMain();
-            loadRegions();
-            setTimeout(() => setRefreshing(false), 800);
+            Promise.all([loadMain(), loadRegions()]).finally(() => setRefreshing(false));
           }}
           tintColor={palette.primary}
         />

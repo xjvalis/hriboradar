@@ -79,10 +79,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
       return;
     }
-    supabase.auth.getSession().then(({ data }) => {
-      setUser(data.session?.user ?? null);
-      setLoading(false);
-    });
+    // Falls through to "no session" (the login screen) on failure rather
+    // than leaving loading stuck true forever - a rejected promise here
+    // (bad network, corrupted secure storage on startup) would otherwise
+    // strand the app on the loading screen permanently with no recovery
+    // short of reinstalling.
+    supabase.auth
+      .getSession()
+      .then(({ data }) => setUser(data.session?.user ?? null))
+      .catch(() => setUser(null))
+      .finally(() => setLoading(false));
     const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "PASSWORD_RECOVERY") setPasswordRecovery(true);
       setUser(session?.user ?? null);

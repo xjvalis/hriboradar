@@ -6,7 +6,6 @@ import http from "node:http";
 import { URL } from "node:url";
 
 const routes = {
-  "/api/predict": (await import("./api/predict.ts")).default,
   "/api/forecast": (await import("./api/forecast.ts")).default,
   "/api/grid": (await import("./api/grid.ts")).default,
   "/api/map": (await import("./api/map.ts")).default,
