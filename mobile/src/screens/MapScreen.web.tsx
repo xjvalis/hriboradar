@@ -4,15 +4,24 @@ import { palette, radius, space, type } from "../theme";
 import { getGrid, API_BASE, type GridResponse } from "../api";
 import { useLocation } from "../LocationContext";
 import { buildGridMapHtml, type MapMode } from "../leafletHtml";
+import { useAppNavigation } from "../AppNavigationContext";
 import { PageHeader } from "../components/PageHeader";
 import { Chip } from "../components/Chip";
 import { LocationSheet, type SelectedLocation } from "../components/LocationSheet";
 
 export default function MapScreen() {
   const { location } = useLocation();
+  const { consumeMapSpeciesRequest } = useAppNavigation();
   const [grid, setGrid] = useState<GridResponse | null>(null);
   const [gridError, setGridError] = useState<string | null>(null);
-  const [mode, setMode] = useState<MapMode>({ type: "overall" });
+  // Mirrors MapScreen.tsx's lazy init for a pending "Ukázat na mapě"
+  // request (see AppNavigationContext) - no URL/postMessage trick needed
+  // here since the web build passes initialMode straight into
+  // buildGridMapHtml below, not through a fetched page.
+  const [mode, setMode] = useState<MapMode>(() => {
+    const pending = consumeMapSpeciesRequest();
+    return pending ? { type: "species", id: pending } : { type: "overall" };
+  });
   const [selected, setSelected] = useState<SelectedLocation | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const isFirstMode = useRef(true);
@@ -93,7 +102,7 @@ export default function MapScreen() {
           <Text style={styles.loading}>Počítám mřížku pro celou republiku…</Text>
         )}
       </View>
-      {selected && <LocationSheet selected={selected} onClose={() => setSelected(null)} />}
+      {selected && <LocationSheet selected={selected} mode={mode} onClose={() => setSelected(null)} />}
     </View>
   );
 }

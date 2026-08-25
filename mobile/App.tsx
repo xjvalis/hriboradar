@@ -7,6 +7,7 @@ import { palette } from "./src/theme";
 import { LoadingScreen } from "./src/components/LoadingScreen";
 import { TopBar, type ScreenName } from "./src/components/TopBar";
 import { DrawerMenu } from "./src/components/DrawerMenu";
+import { AppNavigationProvider, useAppNavigation } from "./src/AppNavigationContext";
 import { LocationProvider } from "./src/LocationContext";
 import { SavedLocationsProvider } from "./src/SavedLocationsContext";
 import { AuthProvider, useAuth } from "./src/AuthContext";
@@ -46,7 +47,7 @@ function AppShell() {
     "Manrope-ExtraBold": require("./assets/fonts/Manrope-ExtraBold.ttf"),
   });
 
-  const [active, setActive] = useState<ScreenName>("Domů");
+  const { active, setActive } = useAppNavigation();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const { user, loading: authLoading, passwordRecovery } = useAuth();
   useNotificationGenerator();
@@ -116,7 +117,9 @@ export default function App() {
             <NotificationProvider>
               <LocationPickerProvider>
                 <SpeciesDetailProvider>
-                  <AppShell />
+                  <AppNavigationProvider>
+                    <AppShell />
+                  </AppNavigationProvider>
                 </SpeciesDetailProvider>
               </LocationPickerProvider>
             </NotificationProvider>

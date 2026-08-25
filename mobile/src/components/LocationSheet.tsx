@@ -6,6 +6,7 @@ import { ProbabilityBadge } from "./ProbabilityBadge";
 import { BottomSheet } from "./BottomSheet";
 import { getForecast, type ForecastResponse } from "../api";
 import { useSpeciesDetail } from "../SpeciesDetailContext";
+import type { MapMode } from "../leafletHtml";
 
 export interface SelectedLocation {
   lat: number;
@@ -17,9 +18,11 @@ export interface SelectedLocation {
 
 export function LocationSheet({
   selected,
+  mode,
   onClose,
 }: {
   selected: SelectedLocation;
+  mode?: MapMode;
   onClose: () => void;
 }) {
   const [detail, setDetail] = useState<ForecastResponse | null>(null);
@@ -47,6 +50,16 @@ export function LocationSheet({
   const first = topSpecies[0]?.today;
   const todayWeather = detail?.weather?.find((w) => w.date === detail.today);
 
+  // When the map's chip filter is set to a single species (not "Všechny
+  // houby"), that's the reason the user is looking at this exact spot - the
+  // ranked "Co tu roste" list alone doesn't say anything about it if it
+  // didn't happen to place in the top 3.
+  const filteredSpecies =
+    mode?.type === "species"
+      ? detail?.species.find((sp) => sp.id === mode.id)
+      : undefined;
+  const filteredToday = filteredSpecies?.days.find((d) => d.date === detail?.today);
+
   return (
     <BottomSheet onClose={onClose}>
       <View style={styles.content}>
@@ -65,6 +78,16 @@ export function LocationSheet({
           </View>
           <Text style={[styles.status, { color }]}>{scoreLabel(pct)}</Text>
         </View>
+
+        {filteredSpecies && filteredToday && (
+          <Pressable style={styles.filteredRow} onPress={() => openSpecies(filteredSpecies.id)}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.filteredEyebrow}>Vybraný filtr</Text>
+              <Text style={styles.filteredName}>{filteredSpecies.name_cz}</Text>
+            </View>
+            <ProbabilityBadge pct={filteredToday.probability_pct} size="md" />
+          </Pressable>
+        )}
 
         <Text style={styles.listTitle}>Co tu roste</Text>
         {topSpecies.length > 0 ? (
@@ -119,6 +142,18 @@ const styles = StyleSheet.create({
   score: { ...type.displayLg, fontSize: 32, lineHeight: 32 },
   scoreMax: { ...type.body, color: palette.inkFaint, marginLeft: 4, marginBottom: 2 },
   status: { ...type.bodySmall, marginTop: 2 },
+  filteredRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: space.md,
+    padding: space.sm,
+    backgroundColor: palette.primary + "14",
+    borderWidth: 1,
+    borderColor: palette.primary + "33",
+    borderRadius: radius.md,
+  },
+  filteredEyebrow: { ...type.label, color: palette.primaryDeep },
+  filteredName: { ...type.headingSm, color: palette.ink, marginTop: 2 },
   listTitle: { ...type.label, color: palette.inkFaint, marginTop: space.md, marginBottom: space.xs },
   speciesRow: {
     flexDirection: "row",

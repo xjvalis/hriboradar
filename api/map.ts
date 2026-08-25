@@ -20,13 +20,23 @@ import { buildGridMapHtml } from "../lib/leafletHtml";
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const lat = req.query.lat != null ? Number(req.query.lat) : undefined;
   const lon = req.query.lon != null ? Number(req.query.lon) : undefined;
+  const speciesParam = typeof req.query.species === "string" ? req.query.species : undefined;
 
   const grid = await computeGrid();
+  // Only trusted as an *initial* mode if it's a species the grid actually
+  // has - an unrecognized id here would otherwise leave the map's mode
+  // pointed at a species with no data (silently blank), rather than just
+  // falling back to "overall".
+  const initialMode =
+    speciesParam && grid.speciesList.some((sp) => sp.id === speciesParam)
+      ? ({ type: "species", id: speciesParam } as const)
+      : undefined;
   const html = buildGridMapHtml({
     points: grid.points,
     speciesList: grid.speciesList,
     userLat: Number.isFinite(lat) ? lat : undefined,
     userLon: Number.isFinite(lon) ? lon : undefined,
+    initialMode,
   });
 
   // This page embeds the current grid/species data inline and changes

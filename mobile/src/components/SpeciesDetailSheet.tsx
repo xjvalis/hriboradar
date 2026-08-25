@@ -1,15 +1,17 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { AlertTriangle, Bell, BellOff, MapPin } from "lucide-react-native";
+import { AlertTriangle, Bell, BellOff, Map, MapPin } from "lucide-react-native";
 import { palette, radius, space, type } from "../theme";
 import { MushroomThumb } from "../photos";
 import { SPECIES_BY_ID, groupLabel, monthsToLabel, siteFidelityTip } from "../speciesInfo";
 import { useSpeciesDetail } from "../SpeciesDetailContext";
 import { useNotifications } from "../NotificationContext";
+import { useAppNavigation } from "../AppNavigationContext";
 import { BottomSheet } from "./BottomSheet";
 
 export function SpeciesDetailSheet() {
   const { selectedSpeciesId, closeSpecies } = useSpeciesDetail();
   const { watchedSpecies, toggleWatchedSpecies } = useNotifications();
+  const { goToMapWithSpecies } = useAppNavigation();
   const info = selectedSpeciesId ? SPECIES_BY_ID[selectedSpeciesId] : null;
 
   if (!info) return null;
@@ -32,6 +34,17 @@ export function SpeciesDetailSheet() {
         </View>
 
         <View style={styles.badgeRow}>
+          <Pressable
+            onPress={() => {
+              goToMapWithSpecies(info.id);
+              closeSpecies();
+            }}
+            style={styles.mapBtn}
+            hitSlop={6}
+          >
+            <Map size={14} strokeWidth={1.8} color={palette.white} />
+            <Text style={styles.mapBtnText}>Ukázat na mapě</Text>
+          </Pressable>
           <View style={[styles.edibilityBadge, info.edibility.startsWith("jedlá po") && styles.edibilityWarn]}>
             <Text
               style={[styles.edibilityText, info.edibility.startsWith("jedlá po") && styles.edibilityWarnText]}
@@ -141,6 +154,16 @@ const styles = StyleSheet.create({
     backgroundColor: palette.surface,
   },
   watchBtnActive: { backgroundColor: palette.primary, borderColor: palette.primary },
+  mapBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    borderRadius: radius.pill,
+    paddingHorizontal: space.sm,
+    paddingVertical: 4,
+    backgroundColor: palette.primary,
+  },
+  mapBtnText: { ...type.caption, color: palette.white },
   watchBtnText: { ...type.caption, color: palette.inkSoft },
   watchBtnTextActive: { color: palette.white },
   edibilityText: { ...type.headingSm, color: palette.success },

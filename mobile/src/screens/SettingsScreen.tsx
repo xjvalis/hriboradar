@@ -1,5 +1,5 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { ChevronRight } from "lucide-react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ChevronRight, LogOut, Trash2 } from "lucide-react-native";
 import { palette, radius, space, type } from "../theme";
 import { PageHeader } from "../components/PageHeader";
 import { PaperBackground } from "../components/PaperBackground";
@@ -16,7 +16,25 @@ export default function SettingsScreen() {
   const { location } = useLocation();
   const { openPicker } = useLocationPicker();
   const { watchedSpecies, toggleWatchedSpecies } = useNotifications();
-  const { user, signOut } = useAuth();
+  const { user, signOut, deleteAccount } = useAuth();
+
+  function confirmDeleteAccount() {
+    Alert.alert(
+      "Smazat účet?",
+      "Nevratně smažete účet a všechna uložená data - místa, upozornění i historii nálezů. Tuhle akci nejde vzít zpět.",
+      [
+        { text: "Zrušit", style: "cancel" },
+        {
+          text: "Smazat účet",
+          style: "destructive",
+          onPress: async () => {
+            const { error } = await deleteAccount();
+            if (error) Alert.alert("Nepodařilo se smazat účet", error);
+          },
+        },
+      ]
+    );
+  }
 
   return (
     <ScrollView style={styles.screen}>
@@ -62,9 +80,16 @@ export default function SettingsScreen() {
       <Text style={styles.sectionTitle}>Účet</Text>
       <View style={styles.currentCard}>
         <Text style={styles.currentLabel}>{user?.email ?? "Přihlášeno"}</Text>
-        <Text style={styles.signOutLink} onPress={signOut}>
-          Odhlásit se
-        </Text>
+      </View>
+      <View style={styles.accountActions}>
+        <Pressable style={styles.signOutBtn} onPress={signOut} hitSlop={4}>
+          <LogOut size={16} strokeWidth={1.8} color={palette.ink} />
+          <Text style={styles.signOutBtnText}>Odhlásit se</Text>
+        </Pressable>
+        <Pressable style={styles.deleteAccountBtn} onPress={confirmDeleteAccount} hitSlop={4}>
+          <Trash2 size={16} strokeWidth={1.8} color={palette.danger} />
+          <Text style={styles.deleteAccountBtnText}>Smazat účet</Text>
+        </Pressable>
       </View>
       </PaperBackground>
     </ScrollView>
@@ -87,6 +112,32 @@ const styles = StyleSheet.create({
   },
   currentLabel: { ...type.headingSm, color: palette.ink },
   currentCoords: { ...type.bodySmall, color: palette.inkFaint, marginTop: 2 },
-  signOutLink: { ...type.bodySmall, color: palette.danger, marginTop: space.sm },
   presetRow: { flexDirection: "row", flexWrap: "wrap", gap: space.sm },
+  accountActions: { flexDirection: "row", gap: space.sm, marginTop: space.sm },
+  signOutBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: space.xs,
+    backgroundColor: palette.surface,
+    borderWidth: 1,
+    borderColor: palette.line,
+    borderRadius: radius.md,
+    paddingVertical: space.sm + 2,
+  },
+  signOutBtnText: { ...type.bodySmall, color: palette.ink, fontFamily: "Manrope-SemiBold" },
+  deleteAccountBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: space.xs,
+    backgroundColor: palette.danger + "14",
+    borderWidth: 1,
+    borderColor: palette.danger + "33",
+    borderRadius: radius.md,
+    paddingVertical: space.sm + 2,
+  },
+  deleteAccountBtnText: { ...type.bodySmall, color: palette.danger, fontFamily: "Manrope-SemiBold" },
 });

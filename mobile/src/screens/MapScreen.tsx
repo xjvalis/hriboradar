@@ -5,16 +5,31 @@ import { palette, radius, space, type } from "../theme";
 import { getGrid, API_BASE, type GridResponse } from "../api";
 import { useLocation } from "../LocationContext";
 import { type MapMode } from "../leafletHtml";
+import { useAppNavigation } from "../AppNavigationContext";
 import { PageHeader } from "../components/PageHeader";
 import { Chip } from "../components/Chip";
 import { LocationSheet, type SelectedLocation } from "../components/LocationSheet";
 
 export default function MapScreen() {
   const { location } = useLocation();
+  const { consumeMapSpeciesRequest } = useAppNavigation();
   const [grid, setGrid] = useState<GridResponse | null>(null);
   const [gridError, setGridError] = useState<string | null>(null);
   const [webviewError, setWebviewError] = useState<string | null>(null);
-  const [mode, setMode] = useState<MapMode>({ type: "overall" });
+  // MapScreen fully remounts each time the user navigates here (App.tsx
+  // swaps screens, it doesn't keep them mounted offscreen), so a lazy
+  // initializer is enough to pick up a pending "Ukázat na mapě" request -
+  // no effect/race needed. Captured once into a ref too, so the initial
+  // species can be baked into mapUri below (see why in that comment)
+  // without mapUri also depending on `mode`, which changes on every chip
+  // tap and would otherwise reload the whole WebView each time.
+  const initialSpeciesRef = useRef<string | null>(null);
+  const [mode, setMode] = useState<MapMode>(() => {
+    const pending = consumeMapSpeciesRequest();
+    if (!pending) return { type: "overall" };
+    initialSpeciesRef.current = pending;
+    return { type: "species", id: pending };
+  });
   const [selected, setSelected] = useState<SelectedLocation | null>(null);
   const webviewRef = useRef<WebView>(null);
   const isFirstMode = useRef(true);
@@ -28,10 +43,19 @@ export default function MapScreen() {
       });
   }, []);
 
-  const mapUri = useMemo(
-    () => `${API_BASE}/api/map?lat=${location.lat}&lon=${location.lon}`,
-    [location.lat, location.lon]
-  );
+  // /api/map always renders in "overall" mode server-side (it has no way
+  // to know about client-only navigation state) - a species chip tapped
+  // after the page loads reaches it fine via postMessage below, but an
+  // *initial* species mode needs to be baked into the URL itself. Posting
+  // it via postMessage instead would race the WebView's own page-load: if
+  // the message arrives before the page's listener is registered, it's
+  // just dropped, and the map silently opens in the wrong mode.
+  const mapUri = useMemo(() => {
+    const base = `${API_BASE}/api/map?lat=${location.lat}&lon=${location.lon}`;
+    return initialSpeciesRef.current
+      ? `${base}&species=${encodeURIComponent(initialSpeciesRef.current)}`
+      : base;
+  }, [location.lat, location.lon]);
 
   useEffect(() => {
     if (isFirstMode.current) {
@@ -115,7 +139,7 @@ export default function MapScreen() {
           />
         )}
       </View>
-      {selected && <LocationSheet selected={selected} onClose={() => setSelected(null)} />}
+      {selected && <LocationSheet selected={selected} mode={mode} onClose={() => setSelected(null)} />}
     </View>
   );
 }

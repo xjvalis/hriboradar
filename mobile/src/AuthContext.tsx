@@ -5,6 +5,7 @@ import * as AuthSession from "expo-auth-session";
 import * as AppleAuthentication from "expo-apple-authentication";
 import type { User } from "@supabase/supabase-js";
 import { supabase, isSupabaseConfigured } from "./supabase";
+import { API_BASE } from "./api";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -34,6 +35,7 @@ interface AuthContextValue {
   requestPasswordReset: (email: string) => Promise<AuthResult>;
   setNewPassword: (newPassword: string) => Promise<AuthResult>;
   signOut: () => Promise<void>;
+  deleteAccount: () => Promise<AuthResult>;
 }
 
 const NOT_CONFIGURED_ERROR = "Přihlášení zatím není nastavené - zkuste to prosím později.";
@@ -198,6 +200,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
   }
 
+  // Deletes the account server-side (needs the service_role key, see
+  // api/account-delete.ts) then clears the local session - on delete
+  // cascade in rostou_schema.sql takes every saved location/feedback/
+  // notification row with it, there's nothing left to clean up here.
+  async function deleteAccount(): Promise<AuthResult> {
+    if (!isSupabaseConfigured) return { error: NOT_CONFIGURED_ERROR };
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) return { error: "Neplatné přihlášení." };
+    try {
+      const res = await fetch(`${API_BASE}/api/account-delete`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        return { error: body?.error ?? "Smazání účtu se nezdařilo." };
+      }
+    } catch {
+      return { error: "Smazání účtu se nezdařilo - zkontrolujte připojení k internetu." };
+    }
+    setPasswordRecovery(false);
+    await supabase.auth.signOut();
+    return { error: null };
+  }
+
   return (
     <AuthContext.Provider
       value={{
@@ -212,6 +240,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         requestPasswordReset,
         setNewPassword,
         signOut,
+        deleteAccount,
       }}
     >
       {children}

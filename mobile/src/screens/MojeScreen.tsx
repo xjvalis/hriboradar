@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { Bell, BellOff, ClipboardCheck, Sprout, Trash2 } from "lucide-react-native";
+import { Bell, BellOff, Sprout, Trash2 } from "lucide-react-native";
 import { palette, radius, space, type } from "../theme";
 import { PageHeader } from "../components/PageHeader";
 import { PaperBackground } from "../components/PaperBackground";
 import { EmptyState } from "../components/EmptyState";
+import { MushroomQuestionIcon } from "../components/MushroomQuestionIcon";
 import { LocationSearchInput } from "../components/LocationSearchInput";
 import { LocationMapPicker } from "../components/LocationMapPicker";
 import { ObservationSheet } from "../components/ObservationSheet";
@@ -58,18 +59,18 @@ export default function MojeScreen() {
                     {loc.lat.toFixed(4)}, {loc.lon.toFixed(4)}
                   </Text>
                 </Pressable>
-                <Pressable onPress={() => toggleLocationAlerts(loc.id)} hitSlop={8} style={styles.deleteBtn}>
+                <Pressable onPress={() => toggleLocationAlerts(loc.id)} hitSlop={6} style={styles.iconBtn}>
                   {alertsOn ? (
-                    <Bell size={17} strokeWidth={1.8} color={palette.primary} />
+                    <Bell size={19} strokeWidth={1.8} color={palette.primary} />
                   ) : (
-                    <BellOff size={17} strokeWidth={1.8} color={palette.inkFaint} />
+                    <BellOff size={19} strokeWidth={1.8} color={palette.inkFaint} />
                   )}
                 </Pressable>
-                <Pressable onPress={() => setObserving(loc)} hitSlop={8} style={styles.deleteBtn}>
-                  <ClipboardCheck size={17} strokeWidth={1.8} color={palette.secondary} />
+                <Pressable onPress={() => setObserving(loc)} hitSlop={6} style={styles.iconBtn}>
+                  <MushroomQuestionIcon size={19} color={palette.secondary} />
                 </Pressable>
-                <Pressable onPress={() => removeLocation(loc.id)} hitSlop={8} style={styles.deleteBtn}>
-                  <Trash2 size={17} strokeWidth={1.8} color={palette.inkFaint} />
+                <Pressable onPress={() => removeLocation(loc.id)} hitSlop={6} style={styles.iconBtn}>
+                  <Trash2 size={19} strokeWidth={1.8} color={palette.inkFaint} />
                 </Pressable>
               </View>
             );
@@ -121,7 +122,13 @@ const styles = StyleSheet.create({
   },
   cardLabel: { ...type.headingSm, color: palette.ink },
   cardCoords: { ...type.caption, color: palette.inkFaint, marginTop: 2 },
-  deleteBtn: { padding: space.xs },
+  iconBtn: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.pill,
+  },
   note: { ...type.caption, color: palette.inkFaint, marginTop: space.xl, paddingHorizontal: space.lg, lineHeight: 16 },
   manualToggle: { marginTop: space.sm, alignSelf: "flex-start" },
   manualToggleText: { ...type.bodySmall, color: palette.primary },
