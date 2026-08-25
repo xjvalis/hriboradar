@@ -40,7 +40,10 @@ export function LocationSearchInput({ onSelect }: { onSelect: (result: GeocodeRe
         <View style={styles.results}>
           {results.map((r, i) => (
             <Pressable
-              key={`${r.lat},${r.lon}`}
+              // Nominatim occasionally returns two distinct results (e.g. a
+              // village and its own administrative boundary) at the exact
+              // same coordinate - lat/lon alone isn't a reliable unique key.
+              key={`${i}:${r.lat},${r.lon}`}
               style={[styles.result, i > 0 && styles.resultBorder]}
               onPress={() => {
                 onSelect(r);

@@ -17,7 +17,17 @@ export default function PredpovedScreen() {
   const { location } = useLocation();
   const { locations: saved } = useSavedLocations();
 
-  const trackedLocations = useMemo(() => [location, ...saved], [location, saved]);
+  // Excludes a saved place that's also the current location (e.g. after
+  // tapping it on Moje to "set as current") - without this it appeared
+  // twice, once as "Aktuální" and again under its own name, with the same
+  // coordinates backing both chips and colliding as React keys below.
+  const trackedLocations = useMemo(
+    () => [
+      location,
+      ...saved.filter((s) => Math.abs(s.lat - location.lat) >= 0.001 || Math.abs(s.lon - location.lon) >= 0.001),
+    ],
+    [location, saved]
+  );
   const [activeIndex, setActiveIndex] = useState(0);
   const active = trackedLocations[activeIndex] ?? location;
 

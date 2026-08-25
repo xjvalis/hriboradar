@@ -94,6 +94,14 @@ export default function MapScreen() {
               try {
                 const msg = JSON.parse(e.nativeEvent.data);
                 if (msg.type === "locationSelected") setSelected(msg);
+                // Both come from inside the loaded page itself (see
+                // api/lib/leafletHtml.ts), not from the WebView's own
+                // onError/onHttpError - those only catch the page failing to
+                // load at all, not a JS crash or blocked tile requests once
+                // it's loaded, which is what was showing as a silent blank
+                // map with no error either RN callback would ever see.
+                else if (msg.type === "jsError") setWebviewError(`Chyba na stránce mapy: ${msg.message}`);
+                else if (msg.type === "tileError") setWebviewError("Nepodařilo se stáhnout mapové dlaždice - má telefon přístup k internetu (ne jen k lokální Wi-Fi)?");
               } catch {
                 // not our message
               }

@@ -68,12 +68,30 @@ export function buildPinPickerHtml(opts: { lat: number; lon: number; zoom?: numb
 </head>
 <body>
   <div id="map"></div>
+  <script>
+    // Reports back before Leaflet even loads, so a crash inside the
+    // embedded library itself (not just our own glue code) still reaches
+    // the app instead of leaving a silent blank WebView - see MapScreen.tsx.
+    function notifyParent(payload) {
+      var msg = JSON.stringify(payload);
+      if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(msg);
+      else if (window.parent) window.parent.postMessage(msg, '*');
+    }
+    window.onerror = function (message, source, lineno) {
+      notifyParent({ type: 'jsError', message: String(message) + ' (' + source + ':' + lineno + ')' });
+    };
+  </script>
   <script>${LEAFLET_JS}</script>
   <script>
     var map = L.map('map', { zoomControl: true }).setView([${lat}, ${lon}], ${zoom});
+    var tileErrorReported = false;
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
       attribution: '&copy; OpenStreetMap &copy; CARTO',
       maxZoom: 19
+    }).on('tileerror', function () {
+      if (tileErrorReported) return;
+      tileErrorReported = true;
+      notifyParent({ type: 'tileError' });
     }).addTo(map);
 
     var pinIcon = L.divIcon({
@@ -86,12 +104,6 @@ export function buildPinPickerHtml(opts: { lat: number; lon: number; zoom?: numb
     });
 
     var marker = L.marker([${lat}, ${lon}], { icon: pinIcon, draggable: true }).addTo(map);
-
-    function notifyParent(payload) {
-      var msg = JSON.stringify(payload);
-      if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(msg);
-      else if (window.parent) window.parent.postMessage(msg, '*');
-    }
 
     function movePin(lat, lon) {
       marker.setLatLng([lat, lon]);
@@ -166,13 +178,31 @@ export function buildGridMapHtml(opts: {
 <body>
   <div id="map"></div>
   <div class="legend"></div>
+  <script>
+    // Reports back before Leaflet even loads, so a crash inside the
+    // embedded library itself (not just our own glue code) still reaches
+    // the app instead of leaving a silent blank WebView - see MapScreen.tsx.
+    function notifyParent(payload) {
+      var msg = JSON.stringify(payload);
+      if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(msg);
+      else if (window.parent) window.parent.postMessage(msg, '*');
+    }
+    window.onerror = function (message, source, lineno) {
+      notifyParent({ type: 'jsError', message: String(message) + ' (' + source + ':' + lineno + ')' });
+    };
+  </script>
   <script>${LEAFLET_JS}</script>
   <script>
     var map = L.map('map', { zoomControl: true });
     map.fitBounds(${JSON.stringify(CZ_BOUNDS)});
+    var tileErrorReported = false;
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
       attribution: '&copy; OpenStreetMap &copy; CARTO',
       maxZoom: 19
+    }).on('tileerror', function () {
+      if (tileErrorReported) return;
+      tileErrorReported = true;
+      notifyParent({ type: 'tileError' });
     }).addTo(map);
 
     var gridPoints = ${pointsJs};
@@ -329,11 +359,7 @@ export function buildGridMapHtml(opts: {
 
     ${userMarkerJs}
 
-    function notifyParent(payload) {
-      var msg = JSON.stringify(payload);
-      if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(msg);
-      else if (window.parent) window.parent.postMessage(msg, '*');
-    }
+    notifyParent({ type: 'ready' });
 
     function handleIncoming(raw) {
       try {
