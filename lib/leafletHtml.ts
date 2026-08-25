@@ -4,7 +4,7 @@
 // dev-server.mjs for local dev) needs its own copy to render /api/map and
 // /api/map-pin as real HTML responses. Keep both copies in sync by hand.
 
-// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML
+// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML
 // string, rendered via <iframe srcDoc> on web and react-native-webview on
 // native. react-native-maps doesn't run in the web preview, so this is the
 // one approach that looks identical in both places.
@@ -225,6 +225,23 @@ export function buildGridMapHtml(opts: {
       var CUTOFF_DEG = 0.30;
       var RENDER_W = 340, RENDER_H = 130;
 
+      // Leaflet displays everything in Web Mercator, where meridians are
+      // evenly spaced but parallels are not - a raster built by sampling
+      // latitude linearly (which is what this used to do, and still looks
+      // fine zoomed out on a whole-country wash with no real geography to
+      // compare against) drifts from the real basemap by a few km once you
+      // zoom into a neighborhood and compare against something with a real
+      // edge, like a forest boundary. These convert between latitude and
+      // the map's actual projected Y so the raster's rows/columns line up
+      // with where Leaflet will actually place the image.
+      function mercY(latDeg) {
+        var rad = (latDeg * Math.PI) / 180;
+        return Math.log(Math.tan(Math.PI / 4 + rad / 2));
+      }
+      function mercYToLat(y) {
+        return (2 * Math.atan(Math.exp(y)) - Math.PI / 2) * (180 / Math.PI);
+      }
+
       // Forest mask: the probability field above is a smooth interpolation
       // between a few hundred grid points, so at low resolution it reads
       // fine zoomed out but "floods" everything (cities included) once you
@@ -237,11 +254,12 @@ export function buildGridMapHtml(opts: {
       var forestMaskCanvas = null;
       var forestReady = false;
 
+      var MERC_Y_MIN = mercY(${CZ_BOUNDS[0][0]}), MERC_Y_MAX = mercY(${CZ_BOUNDS[1][0]});
+
       function project(lat, lon) {
-        var latMin = ${CZ_BOUNDS[0][0]}, latMax = ${CZ_BOUNDS[1][0]};
         var lonMin = ${CZ_BOUNDS[0][1]}, lonMax = ${CZ_BOUNDS[1][1]};
         var x = (lon - lonMin) / (lonMax - lonMin) * MASK_W;
-        var y = (latMax - lat) / (latMax - latMin) * MASK_H;
+        var y = (MERC_Y_MAX - mercY(lat)) / (MERC_Y_MAX - MERC_Y_MIN) * MASK_H;
         return [x, y];
       }
 
@@ -351,10 +369,9 @@ export function buildGridMapHtml(opts: {
         canvas.width = RENDER_W; canvas.height = RENDER_H;
         var ctx = canvas.getContext('2d');
         var img = ctx.createImageData(RENDER_W, RENDER_H);
-        var latMin = ${CZ_BOUNDS[0][0]}, latMax = ${CZ_BOUNDS[1][0]};
         var lonMin = ${CZ_BOUNDS[0][1]}, lonMax = ${CZ_BOUNDS[1][1]};
         for (var y = 0; y < RENDER_H; y++) {
-          var lat = latMax - (y / (RENDER_H - 1)) * (latMax - latMin);
+          var lat = mercYToLat(MERC_Y_MAX - (y / (RENDER_H - 1)) * (MERC_Y_MAX - MERC_Y_MIN));
           for (var x = 0; x < RENDER_W; x++) {
             var lon = lonMin + (x / (RENDER_W - 1)) * (lonMax - lonMin);
             var score = interpolate(accessor, lat, lon);

@@ -29,6 +29,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     userLon: Number.isFinite(lon) ? lon : undefined,
   });
 
+  // This page embeds the current grid/species data inline and changes
+  // whenever the app code changes - never let WebView/browser HTTP caching
+  // serve a stale copy of it (bit us hard mid-dev: a WebView held onto an
+  // old build of this exact page for hours with no way to tell from the
+  // outside, since nothing here previously said not to cache it).
   res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.setHeader("Cache-Control", "no-store");
   res.status(200).end(html);
 }

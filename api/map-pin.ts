@@ -21,5 +21,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const html = buildPinPickerHtml({ lat, lon, zoom: Number.isFinite(zoom) ? zoom : undefined });
   res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.setHeader("Cache-Control", "no-store");
   res.status(200).end(html);
 }
