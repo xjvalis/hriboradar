@@ -27,7 +27,11 @@ const PRODUCTION_API_BASE = "https://rostou-delta.vercel.app";
 function resolveApiBase(): string {
   if (!__DEV__) return PRODUCTION_API_BASE;
   if (Platform.OS === "web") return "http://localhost:3001";
-  const hostUri = Constants.expoConfig?.hostUri ?? Constants.expoGoConfig?.hostUri;
+  // expoGoConfig's type dropped hostUri once expo-dev-client entered the
+  // project (its shape differs slightly under a dev client vs pure Expo
+  // Go) - the field still exists at runtime under Expo Go, so this stays
+  // as a real fallback, just no longer statically typed.
+  const hostUri = Constants.expoConfig?.hostUri ?? (Constants.expoGoConfig as { hostUri?: string } | undefined)?.hostUri;
   const host = hostUri?.split(":")[0];
   return host ? `http://${host}:3001` : "http://localhost:3001";
 }
