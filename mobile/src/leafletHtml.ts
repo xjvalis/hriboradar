@@ -210,6 +210,13 @@ export function buildGridMapHtml(opts: {
     html, body, #map { height: 100%; width: 100%; margin: 0; padding: 0; background: #F1ECDC; overflow: hidden; }
     #map { position: absolute; top: 0; left: 0; }
     .cloud-layer { transition: opacity 420ms ease, filter 420ms ease; }
+    /* Mapy.com's outdoor style has its own real greens/browns for forest/
+       terrain - competing directly with the probability overlay's own
+       green-to-red scale, which used to sit on a near-neutral CARTO
+       basemap. Desaturated + tinted toward the app's own background color
+       so labels/trails/contours stay legible but read as a quiet backdrop,
+       not a second, contradictory color signal. */
+    .basemap-outdoor { filter: grayscale(0.85) sepia(0.25) saturate(0.7) brightness(1.1) contrast(0.95); }
     .legend { position: absolute; bottom: 10px; left: 10px; z-index: 1000; background: #F7F2E7ee;
       border: 1px solid #DBCFA9; border-radius: 10px; padding: 8px 10px; font: 11px -apple-system, sans-serif; color: #24261D; max-width: 200px; }
     .legend-title { font-weight: 600; font-size: 10.5px; letter-spacing: 0.4px; text-transform: uppercase; color: #54563E; margin-bottom: 5px; }
@@ -277,7 +284,8 @@ export function buildGridMapHtml(opts: {
         notifyParent({ type: 'tileError' });
       }
       var outdoorLayer = L.tileLayer(${JSON.stringify(mapyTileUrl(mapApiKey, "outdoor"))}, {
-        maxZoom: ${MAP_MAX_ZOOM}
+        maxZoom: ${MAP_MAX_ZOOM},
+        className: 'basemap-outdoor'
       }).on('tileerror', reportTileError);
       var aerialLayer = L.tileLayer(${JSON.stringify(mapyTileUrl(mapApiKey, "aerial"))}, {
         maxZoom: ${MAP_MAX_ZOOM}
