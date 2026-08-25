@@ -3,7 +3,7 @@ import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { palette, radius, space, type } from "../theme";
 import { getGrid, API_BASE, type GridResponse } from "../api";
 import { useLocation } from "../LocationContext";
-import { buildGridMapHtml, type MapMode } from "../leafletHtml";
+import { buildGridMapHtml, type MapMode, type MapView } from "../leafletHtml";
 import { useAppNavigation } from "../AppNavigationContext";
 import { PageHeader } from "../components/PageHeader";
 import { Chip } from "../components/Chip";
@@ -11,7 +11,7 @@ import { LocationSheet, type SelectedLocation } from "../components/LocationShee
 
 export default function MapScreen() {
   const { location } = useLocation();
-  const { consumeMapSpeciesRequest } = useAppNavigation();
+  const { consumeMapSpeciesRequest, consumeMapFocusRequest } = useAppNavigation();
   const [grid, setGrid] = useState<GridResponse | null>(null);
   const [gridError, setGridError] = useState<string | null>(null);
   // Mirrors MapScreen.tsx's lazy init for a pending "Ukázat na mapě"
@@ -22,6 +22,13 @@ export default function MapScreen() {
     const pending = consumeMapSpeciesRequest();
     return pending ? { type: "species", id: pending } : { type: "overall" };
   });
+  // Same one-shot pattern for a "Kam dnes?" region tap - zoom in there
+  // instead of the usual whole-country view. Captured once so it doesn't
+  // re-trigger the html useMemo below every render.
+  const initialViewRef = useRef<MapView | null | undefined>(undefined);
+  if (initialViewRef.current === undefined) {
+    initialViewRef.current = consumeMapFocusRequest();
+  }
   const [selected, setSelected] = useState<SelectedLocation | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const isFirstMode = useRef(true);
@@ -56,6 +63,7 @@ export default function MapScreen() {
       userLat: location.lat,
       userLon: location.lon,
       initialMode: mode,
+      initialView: initialViewRef.current ?? undefined,
       apiBase: API_BASE,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps

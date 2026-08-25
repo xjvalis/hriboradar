@@ -12,7 +12,7 @@ import { LocationSheet, type SelectedLocation } from "../components/LocationShee
 
 export default function MapScreen() {
   const { location } = useLocation();
-  const { consumeMapSpeciesRequest } = useAppNavigation();
+  const { consumeMapSpeciesRequest, consumeMapFocusRequest } = useAppNavigation();
   const [grid, setGrid] = useState<GridResponse | null>(null);
   const [gridError, setGridError] = useState<string | null>(null);
   const [webviewError, setWebviewError] = useState<string | null>(null);
@@ -30,6 +30,13 @@ export default function MapScreen() {
     initialSpeciesRef.current = pending;
     return { type: "species", id: pending };
   });
+  // "Kam dnes?" already points `location` itself at the region (see
+  // HomeScreen.goToRegionOnMap), so lat/lon in mapUri below are already
+  // right - this only needs to carry the extra "and zoom in" instruction.
+  const initialZoomRef = useRef<number | null | undefined>(undefined);
+  if (initialZoomRef.current === undefined) {
+    initialZoomRef.current = consumeMapFocusRequest()?.zoom ?? null;
+  }
   const [selected, setSelected] = useState<SelectedLocation | null>(null);
   const webviewRef = useRef<WebView>(null);
   const isFirstMode = useRef(true);
@@ -51,10 +58,10 @@ export default function MapScreen() {
   // the message arrives before the page's listener is registered, it's
   // just dropped, and the map silently opens in the wrong mode.
   const mapUri = useMemo(() => {
-    const base = `${API_BASE}/api/map?lat=${location.lat}&lon=${location.lon}`;
-    return initialSpeciesRef.current
-      ? `${base}&species=${encodeURIComponent(initialSpeciesRef.current)}`
-      : base;
+    let uri = `${API_BASE}/api/map?lat=${location.lat}&lon=${location.lon}`;
+    if (initialSpeciesRef.current) uri += `&species=${encodeURIComponent(initialSpeciesRef.current)}`;
+    if (initialZoomRef.current) uri += `&fzoom=${initialZoomRef.current}`;
+    return uri;
   }, [location.lat, location.lon]);
 
   useEffect(() => {

@@ -21,6 +21,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const lat = req.query.lat != null ? Number(req.query.lat) : undefined;
   const lon = req.query.lon != null ? Number(req.query.lon) : undefined;
   const speciesParam = typeof req.query.species === "string" ? req.query.species : undefined;
+  const fzoom = req.query.fzoom != null ? Number(req.query.fzoom) : undefined;
 
   const grid = await computeGrid();
   // Only trusted as an *initial* mode if it's a species the grid actually
@@ -31,12 +32,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     speciesParam && grid.speciesList.some((sp) => sp.id === speciesParam)
       ? ({ type: "species", id: speciesParam } as const)
       : undefined;
+  // "Kam dnes?" region taps ask for a zoomed-in initial view (fzoom) at
+  // lat/lon - only meaningful together, and only if lat/lon are real
+  // coordinates (they're otherwise optional, just for the location marker).
+  const initialView =
+    Number.isFinite(lat) && Number.isFinite(lon) && Number.isFinite(fzoom)
+      ? { lat: lat as number, lon: lon as number, zoom: fzoom as number }
+      : undefined;
   const html = buildGridMapHtml({
     points: grid.points,
     speciesList: grid.speciesList,
     userLat: Number.isFinite(lat) ? lat : undefined,
     userLon: Number.isFinite(lon) ? lon : undefined,
     initialMode,
+    initialView,
   });
 
   // This page embeds the current grid/species data inline and changes

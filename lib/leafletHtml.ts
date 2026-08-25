@@ -4,7 +4,7 @@
 // dev-server.mjs for local dev) needs its own copy to render /api/map and
 // /api/map-pin as real HTML responses. Keep both copies in sync by hand.
 
-// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML
+// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML
 // string, rendered via <iframe srcDoc> on web and react-native-webview on
 // native. react-native-maps doesn't run in the web preview, so this is the
 // one approach that looks identical in both places.
@@ -127,15 +127,23 @@ export function buildPinPickerHtml(opts: { lat: number; lon: number; zoom?: numb
 </html>`;
 }
 
+export interface MapView {
+  lat: number;
+  lon: number;
+  zoom: number;
+}
+
 export function buildGridMapHtml(opts: {
   points: GridPoint[];
   speciesList: SpeciesRef[];
   userLat?: number;
   userLon?: number;
   initialMode?: MapMode;
+  initialView?: MapView;
   apiBase?: string;
 }) {
-  const { points, speciesList, userLat, userLon, initialMode = { type: "overall" }, apiBase = "" } = opts;
+  const { points, speciesList, userLat, userLon, initialMode = { type: "overall" }, initialView, apiBase = "" } =
+    opts;
 
   const userMarkerJs =
     userLat != null && userLon != null
@@ -149,6 +157,7 @@ export function buildGridMapHtml(opts: {
     Object.fromEntries(speciesList.map((sp) => [sp.id, sp.name_cz]))
   );
   const initialModeJs = JSON.stringify(initialMode);
+  const initialViewJs = JSON.stringify(initialView ?? null);
   const apiBaseJs = JSON.stringify(apiBase);
 
   return `<!DOCTYPE html>
@@ -196,14 +205,19 @@ export function buildGridMapHtml(opts: {
       console.log('[Map Init] Container size:', mapEl.clientWidth, 'x', mapEl.clientHeight);
       
       var map = L.map('map', { zoomControl: true });
-      map.fitBounds(${JSON.stringify(CZ_BOUNDS)});
-      
+      var initialView = ${initialViewJs};
+      function applyInitialView() {
+        if (initialView) map.setView([initialView.lat, initialView.lon], initialView.zoom);
+        else map.fitBounds(${JSON.stringify(CZ_BOUNDS)});
+      }
+      applyInitialView();
+
       // Aggressive invalidation for native WebView - runs many times to catch size changes
       [10, 50, 100, 200, 400, 800, 1200].forEach(function (ms) {
         setTimeout(function () {
           console.log('[Map Init] invalidateSize at', ms, 'ms');
           map.invalidateSize();
-          map.fitBounds(${JSON.stringify(CZ_BOUNDS)});
+          applyInitialView();
         }, ms);
       });
       

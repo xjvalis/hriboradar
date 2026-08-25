@@ -1,6 +1,12 @@
 import { createContext, useContext, useRef, useState, type ReactNode } from "react";
 import type { ScreenName } from "./components/TopBar";
 
+export interface MapFocusRequest {
+  lat: number;
+  lon: number;
+  zoom: number;
+}
+
 interface AppNavigationValue {
   active: ScreenName;
   setActive: (screen: ScreenName) => void;
@@ -10,6 +16,14 @@ interface AppNavigationValue {
   // state instead: MapScreen reads and clears it on mount/focus.
   goToMapWithSpecies: (speciesId: string) => void;
   consumeMapSpeciesRequest: () => string | null;
+  // Same one-shot pattern, for "Kam dnes?" region cards - the map should
+  // open zoomed to that region, not its usual whole-country view. Separate
+  // from `location` (LocationContext) on purpose: changing `location` also
+  // re-points Domů's forecast at that spot, which region cards do too, but
+  // "zoom in here" is a map-only, one-time instruction that shouldn't stick
+  // around for the next unrelated visit to Mapa.
+  requestMapFocus: (lat: number, lon: number, zoom?: number) => void;
+  consumeMapFocusRequest: () => MapFocusRequest | null;
 }
 
 const AppNavigationContext = createContext<AppNavigationValue | null>(null);
@@ -17,6 +31,7 @@ const AppNavigationContext = createContext<AppNavigationValue | null>(null);
 export function AppNavigationProvider({ children }: { children: ReactNode }) {
   const [active, setActive] = useState<ScreenName>("Domů");
   const pendingSpeciesId = useRef<string | null>(null);
+  const pendingMapFocus = useRef<MapFocusRequest | null>(null);
 
   function goToMapWithSpecies(speciesId: string) {
     pendingSpeciesId.current = speciesId;
@@ -29,8 +44,27 @@ export function AppNavigationProvider({ children }: { children: ReactNode }) {
     return id;
   }
 
+  function requestMapFocus(lat: number, lon: number, zoom = 10) {
+    pendingMapFocus.current = { lat, lon, zoom };
+  }
+
+  function consumeMapFocusRequest(): MapFocusRequest | null {
+    const req = pendingMapFocus.current;
+    pendingMapFocus.current = null;
+    return req;
+  }
+
   return (
-    <AppNavigationContext.Provider value={{ active, setActive, goToMapWithSpecies, consumeMapSpeciesRequest }}>
+    <AppNavigationContext.Provider
+      value={{
+        active,
+        setActive,
+        goToMapWithSpecies,
+        consumeMapSpeciesRequest,
+        requestMapFocus,
+        consumeMapFocusRequest,
+      }}
+    >
       {children}
     </AppNavigationContext.Provider>
   );

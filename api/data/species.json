@@ -559,6 +559,38 @@
       "edibility": "jedlá",
       "model_confidence": "střední",
       "confidence_note": "Saprotrof na hrabance, chladnomilnější než většina ostatních - roste i pozdě na podzim."
+    },
+    {
+      "id": "smrz-obecny",
+      "name_cz": "Smrž obecný",
+      "name_latin": "Morchella esculenta",
+      "group": "saprotrofní",
+      "host_trees": [],
+      "habitat": "světlé listnaté lesy a jejich okraje, staré sady, lužní lesy podél řek, narušená nebo spálená půda",
+      "soil": "vápenatá, výživná",
+      "moisture_need": "střední",
+      "temp_range_c": [
+        8,
+        16
+      ],
+      "days_after_rain": [
+        3,
+        10
+      ],
+      "min_rain_mm": 10,
+      "season_months": [
+        3,
+        4,
+        5
+      ],
+      "season_peak_months": [
+        4
+      ],
+      "gbif_occurrence_count_cz": 180,
+      "edibility": "jedlá po důkladné tepelné úpravě",
+      "model_confidence": "nízká",
+      "confidence_note": "Na rozdíl od ostatních druhů v appce neroste ve vazbě na konkrétní strom ani v hlavní podzimní sezóně - jarní výskyt a vazba na narušenou/vápenatou půdu jsou modelem hůř podchytitelné, odhad je proto orientační.",
+      "safety_note": "Syrový nebo nedovařený způsobuje zažívací potíže - vždy důkladně tepelně upravte. Nezaměňujte s jedovatým ucháčem obecným (Gyromitra esculenta): pravý smrž má na klobouku pravidelné voštinovité jamky a je po podélném přeříznutí od špičky klobouku až po konec nožičky celý dutý; ucháč má mozkovitě zvlněný (ne voštinovitý) klobouk a dužninu uvnitř komůrkovanou, ne dutou. Bez jistoty v určení nesbírejte."
     }
   ]
 }

@@ -2,8 +2,11 @@ import { Image, View, Text, StyleSheet } from "react-native";
 import { palette, fontFamily, radius } from "./theme";
 
 // Metro needs literal require() calls, so this map is spelled out by hand
-// rather than built from a string. All 15 species now have a real
-// (licensed, Wikimedia Commons - CC BY/CC BY-SA/public domain) photo.
+// rather than built from a string. All species have a real (licensed,
+// Wikimedia Commons - CC BY/CC BY-SA/public domain) photo except
+// smrz-obecny (added later, no sourced photo yet) - it falls back to
+// MushroomThumb's letter-avatar below, same as any future new species
+// would until a real photo is added here.
 const PHOTOS: Record<string, ReturnType<typeof require>> = {
   "hrib-smrkovy": require("../assets/mushrooms/hrib-smrkovy.jpg"),
   "hrib-dubovy": require("../assets/mushrooms/hrib-dubovy.jpg"),

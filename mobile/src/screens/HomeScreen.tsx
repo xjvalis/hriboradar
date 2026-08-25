@@ -7,6 +7,7 @@ import { computeDailyOverall } from "../forecastMath";
 import { REGIONS } from "../regions";
 import { useLocation } from "../LocationContext";
 import { useLocationPicker } from "../LocationPickerContext";
+import { useAppNavigation } from "../AppNavigationContext";
 import { IndexCard } from "../components/IndexCard";
 import { SectionHeader } from "../components/SectionHeader";
 import { LocationCard } from "../components/LocationCard";
@@ -42,8 +43,15 @@ function buildExplanation(data: ForecastResponse, top: ReturnType<typeof topSpec
 }
 
 export default function HomeScreen() {
-  const { location } = useLocation();
+  const { location, setLocation } = useLocation();
   const { openPicker } = useLocationPicker();
+  const { setActive, requestMapFocus } = useAppNavigation();
+
+  function goToRegionOnMap(region: (typeof REGIONS)[number]) {
+    setLocation({ lat: region.lat, lon: region.lon, label: region.name });
+    requestMapFocus(region.lat, region.lon);
+    setActive("Mapa");
+  }
   const [data, setData] = useState<ForecastResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [regionResults, setRegionResults] = useState<RegionResult[]>([]);
@@ -142,6 +150,7 @@ export default function HomeScreen() {
                   region={r.region.area}
                   topSpecies={r.topSpecies}
                   probabilityPct={r.probabilityPct}
+                  onPress={() => goToRegionOnMap(r.region)}
                 />
               ))}
         </ScrollView>
