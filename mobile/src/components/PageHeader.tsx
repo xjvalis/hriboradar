@@ -7,7 +7,7 @@ export function PageHeader({
   subtitle,
   right,
 }: {
-  eyebrow: string;
+  eyebrow?: string;
   title: string;
   subtitle?: string;
   right?: React.ReactNode;
@@ -15,7 +15,7 @@ export function PageHeader({
   return (
     <View style={styles.row}>
       <View style={{ flex: 1 }}>
-        <Text style={styles.eyebrow}>{eyebrow}</Text>
+        {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
         <Text style={styles.title}>{title}</Text>
         {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
       </View>

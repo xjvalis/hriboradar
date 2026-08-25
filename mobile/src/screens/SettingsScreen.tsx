@@ -39,7 +39,7 @@ export default function SettingsScreen() {
   return (
     <ScrollView style={styles.screen}>
       <PaperBackground style={styles.content}>
-      <PageHeader eyebrow="appka počítá pro" title="Nastavení" />
+      <PageHeader title="Nastavení" />
 
       <Text style={styles.sectionTitle}>Aktuální poloha</Text>
       {/* Same search/presets/uložená místa picker used everywhere else
