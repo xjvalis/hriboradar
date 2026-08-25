@@ -40,6 +40,12 @@
       "expo-web-browser",
       "expo-secure-store",
       "expo-apple-authentication"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "027262ce-241d-4637-b9fa-87d2a5c7c5d0"
+      }
+    },
+    "owner": "xjvalis"
   }
 }
