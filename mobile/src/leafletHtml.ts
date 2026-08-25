@@ -84,6 +84,17 @@ export function buildPinPickerHtml(opts: { lat: number; lon: number; zoom?: numb
   <script>${LEAFLET_JS}</script>
   <script>
     var map = L.map('map', { zoomControl: true }).setView([${lat}, ${lon}], ${zoom});
+    // A WebView's own native container isn't always laid out to its final
+    // size the instant this script runs - Leaflet measures #map at
+    // construction time and, unlike a plain browser tab, nothing here
+    // triggers a re-measure if that size was wrong (0x0 or a stale value),
+    // so it can silently render nothing forever even though the page loaded
+    // and ran without any error. Forcing a few delayed invalidateSize()
+    // calls (cheap no-ops if the size was already right) is the standard
+    // fix for "Leaflet blank inside an embedded/dynamically-sized view".
+    [100, 400, 1000].forEach(function (ms) {
+      setTimeout(function () { map.invalidateSize(); }, ms);
+    });
     var tileErrorReported = false;
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
       attribution: '&copy; OpenStreetMap &copy; CARTO',
@@ -195,6 +206,16 @@ export function buildGridMapHtml(opts: {
   <script>
     var map = L.map('map', { zoomControl: true });
     map.fitBounds(${JSON.stringify(CZ_BOUNDS)});
+    // See buildPinPickerHtml for why this is needed - a WebView's own
+    // container isn't always laid out to final size when this script runs,
+    // and nothing else here would ever prompt Leaflet to re-measure and
+    // repaint against the real size once it settles.
+    [100, 400, 1000].forEach(function (ms) {
+      setTimeout(function () {
+        map.invalidateSize();
+        map.fitBounds(${JSON.stringify(CZ_BOUNDS)});
+      }, ms);
+    });
     var tileErrorReported = false;
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
       attribution: '&copy; OpenStreetMap &copy; CARTO',

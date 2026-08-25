@@ -88,14 +88,28 @@ export default function MapScreen() {
                 <Text style={styles.loading}>Počítám mřížku pro celou republiku…</Text>
               </View>
             )}
-            onError={(e) => setWebviewError(e.nativeEvent.description)}
-            onHttpError={(e) => setWebviewError(`HTTP ${e.nativeEvent.statusCode}`)}
+            // Logged (not just set into state) so it shows up in the Metro
+            // terminal streamed from the phone - lets us see exactly which
+            // WebView lifecycle stage is reached on a real device without
+            // needing a screenshot back from whoever's testing it.
+            onLoadStart={() => console.log("[Mapa WebView] loadStart", mapUri)}
+            onLoadEnd={(e) => console.log("[Mapa WebView] loadEnd", JSON.stringify(e.nativeEvent))}
+            onLoadProgress={(e) => console.log("[Mapa WebView] loadProgress", e.nativeEvent.progress)}
+            onError={(e) => {
+              console.log("[Mapa WebView] onError", JSON.stringify(e.nativeEvent));
+              setWebviewError(e.nativeEvent.description);
+            }}
+            onHttpError={(e) => {
+              console.log("[Mapa WebView] onHttpError", JSON.stringify(e.nativeEvent));
+              setWebviewError(`HTTP ${e.nativeEvent.statusCode}`);
+            }}
             onMessage={(e) => {
+              console.log("[Mapa WebView] onMessage raw:", e.nativeEvent.data);
               try {
                 const msg = JSON.parse(e.nativeEvent.data);
                 if (msg.type === "locationSelected") setSelected(msg);
                 // Both come from inside the loaded page itself (see
-                // api/lib/leafletHtml.ts), not from the WebView's own
+                // lib/leafletHtml.ts), not from the WebView's own
                 // onError/onHttpError - those only catch the page failing to
                 // load at all, not a JS crash or blocked tile requests once
                 // it's loaded, which is what was showing as a silent blank
