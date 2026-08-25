@@ -4,7 +4,7 @@
 // dev-server.mjs for local dev) needs its own copy to render /api/map and
 // /api/map-pin as real HTML responses. Keep both copies in sync by hand.
 
-// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,
+// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (OpenStreetMap tiles, CARTO light basemap) as an HTML// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,// Real Leaflet map (Mapy.com outdoor/aerial tiles - real forest names,
 // hiking trails, and terrain, not just roads) as an HTML string, rendered
 // via <iframe srcDoc> on web and react-native-webview on native.
 // react-native-maps doesn't run in the web preview, so this is the one
@@ -464,13 +464,23 @@ export function buildGridMapHtml(opts: {
         return wsum > 0 ? ssum / wsum : 0;
       }
 
-      // One score+color per forest polygon (not per pixel) - a polygon
-      // either qualifies (real fill color) or doesn't (skipped entirely,
-      // same FLOOR cutoff the old smooth field used).
-      function scoreAndColor(poly, accessor, stops) {
-        var score = interpolate(accessor, poly.centroid[0], poly.centroid[1]);
-        if (score < FLOOR) return null;
-        return { score: score, rgba: colorAt(stops, score) };
+      // One score+color per forest polygon (not per pixel), computed ONCE
+      // per mode switch and reused by the raster, vector, and hotspot
+      // renderers below (previously each of them called interpolate() -
+      // the expensive part, ~500 grid points per polygon - separately, so
+      // switching a chip or panning while zoomed in did the same ~36k-
+      // polygon scoring pass 2-3x over. A polygon either qualifies (real
+      // fill color) or doesn't (skipped, same FLOOR cutoff the old smooth
+      // field used).
+      function computeScored(accessor, stops) {
+        var out = [];
+        for (var i = 0; i < polyMeta.length; i++) {
+          var poly = polyMeta[i];
+          var score = interpolate(accessor, poly.centroid[0], poly.centroid[1]);
+          if (score < FLOOR) continue;
+          out.push({ poly: poly, score: score, rgba: colorAt(stops, score) });
+        }
+        return out;
       }
 
       function fillPolygonPath(ctx, poly) {
@@ -491,16 +501,14 @@ export function buildGridMapHtml(opts: {
       // scores melt into one soft regional patch instead of a field of
       // tiny, hard-edged confetti, while still being real forest shapes
       // underneath (not a fabricated blob).
-      function buildScoredRaster(accessor, stops) {
+      function buildScoredRaster(scored) {
         var canvas = document.createElement('canvas');
         canvas.width = MASK_W; canvas.height = MASK_H;
         var ctx = canvas.getContext('2d');
-        for (var i = 0; i < polyMeta.length; i++) {
-          var poly = polyMeta[i];
-          var sc = scoreAndColor(poly, accessor, stops);
-          if (!sc) continue;
-          ctx.fillStyle = 'rgba(' + sc.rgba[0] + ',' + sc.rgba[1] + ',' + sc.rgba[2] + ',' + Math.min(1, sc.rgba[3]) + ')';
-          fillPolygonPath(ctx, poly);
+        for (var i = 0; i < scored.length; i++) {
+          var entry = scored[i];
+          ctx.fillStyle = 'rgba(' + entry.rgba[0] + ',' + entry.rgba[1] + ',' + entry.rgba[2] + ',' + Math.min(1, entry.rgba[3]) + ')';
+          fillPolygonPath(ctx, entry.poly);
           ctx.fill('evenodd');
         }
         return canvas;
@@ -513,23 +521,21 @@ export function buildGridMapHtml(opts: {
       // area picks up its forests instead of staying blank.
       var vectorRenderer = L.canvas();
       var vectorLayerGroup = null;
-      function rebuildVectorLayer(accessor, stops) {
+      function rebuildVectorLayer(scored) {
         var old = vectorLayerGroup;
         vectorLayerGroup = L.layerGroup();
         var b = map.getBounds();
         var minLat = b.getSouth(), maxLat = b.getNorth(), minLon = b.getWest(), maxLon = b.getEast();
-        for (var i = 0; i < polyMeta.length; i++) {
-          var poly = polyMeta[i];
-          var bbox = poly.bbox; // [minLat, minLon, maxLat, maxLon]
+        for (var i = 0; i < scored.length; i++) {
+          var entry = scored[i];
+          var bbox = entry.poly.bbox; // [minLat, minLon, maxLat, maxLon]
           if (bbox[2] < minLat || bbox[0] > maxLat || bbox[3] < minLon || bbox[1] > maxLon) continue;
-          var sc = scoreAndColor(poly, accessor, stops);
-          if (!sc) continue;
-          var color = 'rgb(' + sc.rgba[0] + ',' + sc.rgba[1] + ',' + sc.rgba[2] + ')';
-          L.polygon(poly.rings, {
+          var color = 'rgb(' + entry.rgba[0] + ',' + entry.rgba[1] + ',' + entry.rgba[2] + ')';
+          L.polygon(entry.poly.rings, {
             renderer: vectorRenderer,
             stroke: false,
             fillColor: color,
-            fillOpacity: Math.min(1, sc.rgba[3]),
+            fillOpacity: Math.min(1, entry.rgba[3]),
             interactive: false
           }).addTo(vectorLayerGroup);
         }
@@ -578,17 +584,28 @@ export function buildGridMapHtml(opts: {
       }
 
       var currentRasterLayer = null;
-      var currentAccessor = null, currentStops = null, currentMode = null;
+      var currentScored = null, currentMode = null;
 
-      function renderForZoom() {
-        if (!polyMeta) return;
+      function renderForZoom(forceRebuild) {
+        if (!currentScored) return;
         var z = map.getZoom();
         if (z >= VECTOR_ZOOM_THRESHOLD) {
           if (currentRasterLayer) { map.removeLayer(currentRasterLayer); currentRasterLayer = null; }
-          rebuildVectorLayer(currentAccessor, currentStops);
+          rebuildVectorLayer(currentScored);
         } else {
           if (vectorLayerGroup) { map.removeLayer(vectorLayerGroup); vectorLayerGroup = null; }
-          var url = buildScoredRaster(currentAccessor, currentStops).toDataURL();
+          // The raster image itself only depends on currentScored (the
+          // mode), not on zoom - only the blur amount does. Re-rasterizing
+          // ~20k+ polygon fills on every zoomend (pinch-zooming fires this
+          // repeatedly) was the main thing making the map feel laggy on a
+          // real phone; once the current mode's image already exists,
+          // zooming just adjusts its blur in place instead of rebuilding.
+          if (currentRasterLayer && !forceRebuild) {
+            var existingEl = currentRasterLayer.getElement();
+            if (existingEl) existingEl.style.filter = 'blur(' + blurForZoom(z) + 'px)';
+            return;
+          }
+          var url = buildScoredRaster(currentScored).toDataURL();
           var layer = L.imageOverlay(url, ${JSON.stringify(CZ_BOUNDS)}, {
             className: 'cloud-layer',
             interactive: false,
@@ -613,18 +630,12 @@ export function buildGridMapHtml(opts: {
       // works as a spotlight if it stays rare.
       var HOTSPOT_COUNT = 6;
       var hotspotMarkers = [];
-      function renderHotspots(accessor, stops) {
+      function renderHotspots(scored, mode) {
         hotspotMarkers.forEach(function (m) { map.removeLayer(m); });
         hotspotMarkers = [];
-        var scored = [];
-        for (var i = 0; i < polyMeta.length; i++) {
-          var sc = scoreAndColor(polyMeta[i], accessor, stops);
-          if (sc) scored.push({ poly: polyMeta[i], sc: sc });
-        }
-        scored.sort(function (a, b) { return b.sc.score - a.sc.score; });
-        var top = scored.slice(0, HOTSPOT_COUNT);
+        var top = scored.slice().sort(function (a, b) { return b.score - a.score; }).slice(0, HOTSPOT_COUNT);
         top.forEach(function (entry) {
-          var color = 'rgb(' + entry.sc.rgba[0] + ',' + entry.sc.rgba[1] + ',' + entry.sc.rgba[2] + ')';
+          var color = 'rgb(' + entry.rgba[0] + ',' + entry.rgba[1] + ',' + entry.rgba[2] + ')';
           var icon = L.divIcon({
             className: 'hotspot',
             html:
@@ -633,7 +644,16 @@ export function buildGridMapHtml(opts: {
             iconSize: [14, 14],
             iconAnchor: [7, 7]
           });
-          var marker = L.marker(entry.poly.centroid, { icon: icon, interactive: false, keyboard: false });
+          var marker = L.marker(entry.poly.centroid, { icon: icon, keyboard: false });
+          // Same as tapping the map at this spot (see map.on('click', ...)
+          // below) - a pulsing dot with no way to find out what it actually
+          // is was the whole complaint this replaced; tapping now opens the
+          // real detail sheet for that exact forest.
+          var label = mode.type === 'overall' ? 'Šance na nález' : (speciesNames[mode.id] || '');
+          marker.bindTooltip(label + ': ' + entry.score + '%', { direction: 'top', offset: [0, -8] });
+          marker.on('click', function () {
+            reportLocation(entry.poly.centroid[0], entry.poly.centroid[1]);
+          });
           marker.addTo(map);
           hotspotMarkers.push(marker);
         });
@@ -641,21 +661,22 @@ export function buildGridMapHtml(opts: {
 
       function applyMode(mode) {
         currentMode = mode;
-        currentAccessor = mode.type === 'overall' ? overallAccessor : speciesAccessor(mode.id);
-        currentStops = mode.type === 'overall' ? OVERALL_STOPS : SPECIES_STOPS;
-        renderForZoom();
-        renderHotspots(currentAccessor, currentStops);
+        var accessor = mode.type === 'overall' ? overallAccessor : speciesAccessor(mode.id);
+        var stops = mode.type === 'overall' ? OVERALL_STOPS : SPECIES_STOPS;
+        currentScored = computeScored(accessor, stops);
+        renderForZoom(true);
+        renderHotspots(currentScored, mode);
         updateLegend(mode);
       }
 
-      map.on('zoomend', renderForZoom);
+      map.on('zoomend', function () { renderForZoom(false); });
       // Raster mode already covers the whole country in one image, so only
       // vector mode needs to react to panning - it's viewport-culled by
       // design, so moving into a new area means loading that area's
       // forests, not just re-showing what was already there.
       map.on('moveend', function () {
-        if (map.getZoom() >= VECTOR_ZOOM_THRESHOLD && vectorLayerGroup && currentMode) {
-          rebuildVectorLayer(currentAccessor, currentStops);
+        if (map.getZoom() >= VECTOR_ZOOM_THRESHOLD && vectorLayerGroup && currentScored) {
+          rebuildVectorLayer(currentScored);
         }
       });
 
@@ -680,10 +701,10 @@ export function buildGridMapHtml(opts: {
       window.addEventListener('message', function (e) { handleIncoming(e.data); });
       document.addEventListener('message', function (e) { handleIncoming(e.data); });
 
-      map.on('click', function (e) {
+      function reportLocation(lat, lon) {
         var best = null, bestDist = Infinity;
         gridPoints.forEach(function (p) {
-          var d = Math.pow(p.lat - e.latlng.lat, 2) + Math.pow(p.lon - e.latlng.lng, 2);
+          var d = Math.pow(p.lat - lat, 2) + Math.pow(p.lon - lon, 2);
           if (d < bestDist) { bestDist = d; best = p; }
         });
         if (!best) return;
@@ -699,7 +720,8 @@ export function buildGridMapHtml(opts: {
           topSpeciesName: topId != null ? speciesNames[topId] : null,
           topSpeciesId: topId
         });
-      });
+      }
+      map.on('click', function (e) { reportLocation(e.latlng.lat, e.latlng.lng); });
     }
     
     // Wait for DOM to be fully laid out before initializing Leaflet
