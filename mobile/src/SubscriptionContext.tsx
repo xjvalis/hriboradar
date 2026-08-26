@@ -28,13 +28,29 @@ const RC_KEY_IOS = process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY;
 const RC_KEY_ANDROID = process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY;
 const RC_KEY_WEB = process.env.EXPO_PUBLIC_REVENUECAT_WEB_KEY;
 
-// The one entitlement this app sells - configured with this exact
-// identifier in the RevenueCat dashboard, attached to the App Store
-// Connect / Google Play / Web Billing products there. A single boolean
-// gate is enough; there's only one paid tier (see docs/subscriptions.md
-// for why usage/time limits were rejected in favor of a feature-based
-// free/premium split).
-const ENTITLEMENT_ID = "premium";
+// The one entitlement this app sells - RevenueCat dashboard Identifier
+// field (not the "Hřiboradar+" display name, which can have diacritics/
+// symbols the actual API identifier can't). A single boolean gate is
+// enough; there's only one paid tier (see docs/subscriptions.md for why
+// usage/time limits were rejected in favor of a feature-based free/
+// premium split).
+const ENTITLEMENT_ID = "hriboradar";
+
+// The RevenueCat offering's packages were set up with custom identifiers
+// "monthly"/"yearly" rather than picking the predefined monthly/annual
+// package types - so packageType alone (PACKAGE_TYPE.MONTHLY/ANNUAL)
+// isn't a reliable match if the dashboard config ever changes back and
+// forth. Checking both the predefined type AND the custom identifier
+// means this keeps working either way, without needing to know which one
+// is currently configured.
+function findPackage(
+  pkgs: import("react-native-purchases").PurchasesPackage[],
+  period: BillingPeriod
+): import("react-native-purchases").PurchasesPackage | undefined {
+  const wantType = period === "monthly" ? RNPurchases!.PACKAGE_TYPE.MONTHLY : RNPurchases!.PACKAGE_TYPE.ANNUAL;
+  const wantId = period === "monthly" ? "monthly" : "yearly";
+  return pkgs.find((p) => p.packageType === wantType || p.identifier.toLowerCase() === wantId);
+}
 
 export type BillingPeriod = "monthly" | "annual";
 
@@ -115,8 +131,8 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
       .then((o) => {
         if (cancelled) return;
         const pkgs = o.current?.availablePackages ?? [];
-        const monthlyPkg = pkgs.find((p) => p.packageType === RNPurchases!.PACKAGE_TYPE.MONTHLY);
-        const annualPkg = pkgs.find((p) => p.packageType === RNPurchases!.PACKAGE_TYPE.ANNUAL);
+        const monthlyPkg = findPackage(pkgs, "monthly");
+        const annualPkg = findPackage(pkgs, "annual");
         setMonthly(monthlyPkg ? { priceString: monthlyPkg.product.priceString } : null);
         setAnnual(annualPkg ? { priceString: annualPkg.product.priceString } : null);
       })
@@ -141,8 +157,7 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
         try {
           const offerings = await RNPurchases.getOfferings();
           const pkgs = offerings.current?.availablePackages ?? [];
-          const wantType = period === "monthly" ? RNPurchases.PACKAGE_TYPE.MONTHLY : RNPurchases.PACKAGE_TYPE.ANNUAL;
-          const pkg = pkgs.find((p) => p.packageType === wantType);
+          const pkg = findPackage(pkgs, period);
           if (!pkg) return { error: "Tahle varianta předplatného momentálně není k dispozici." };
           const { customerInfo } = await RNPurchases.purchasePackage(pkg);
           setIsPremium(ENTITLEMENT_ID in customerInfo.entitlements.active);
