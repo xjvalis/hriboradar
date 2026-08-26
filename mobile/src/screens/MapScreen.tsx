@@ -6,6 +6,7 @@ import { getGrid, API_BASE, type GridResponse } from "../api";
 import { useLocation } from "../LocationContext";
 import { type MapMode } from "../leafletHtml";
 import { useAppNavigation } from "../AppNavigationContext";
+import { useSavedLocations } from "../SavedLocationsContext";
 import { PageHeader } from "../components/PageHeader";
 import { Chip } from "../components/Chip";
 import { LocationSheet, type SelectedLocation } from "../components/LocationSheet";
@@ -13,6 +14,7 @@ import { LocationSheet, type SelectedLocation } from "../components/LocationShee
 export default function MapScreen() {
   const { location } = useLocation();
   const { consumeMapSpeciesRequest, consumeMapFocusRequest } = useAppNavigation();
+  const { locations: savedLocations } = useSavedLocations();
   const [grid, setGrid] = useState<GridResponse | null>(null);
   const [gridError, setGridError] = useState<string | null>(null);
   const [webviewError, setWebviewError] = useState<string | null>(null);
@@ -38,6 +40,7 @@ export default function MapScreen() {
     initialZoomRef.current = consumeMapFocusRequest()?.zoom ?? null;
   }
   const [selected, setSelected] = useState<SelectedLocation | null>(null);
+  const [mapReady, setMapReady] = useState(false);
   const webviewRef = useRef<WebView>(null);
   const isFirstMode = useRef(true);
 
@@ -64,6 +67,12 @@ export default function MapScreen() {
     return uri;
   }, [location.lat, location.lon]);
 
+  // Same "wait for the page's own ready signal" reasoning as MapScreen.web -
+  // /api/map is a public, unauthenticated endpoint, so it has no way to bake
+  // the signed-in user's saved locations into the initial HTML the way
+  // points/speciesList are; they only arrive after the page loads.
+  useEffect(() => setMapReady(false), [mapUri]);
+
   useEffect(() => {
     if (isFirstMode.current) {
       isFirstMode.current = false;
@@ -71,6 +80,11 @@ export default function MapScreen() {
     }
     webviewRef.current?.postMessage(JSON.stringify({ type: "setMode", mode }));
   }, [mode]);
+
+  useEffect(() => {
+    if (!mapReady) return;
+    webviewRef.current?.postMessage(JSON.stringify({ type: "setSavedLocations", locations: savedLocations }));
+  }, [mapReady, savedLocations]);
 
   return (
     <View style={styles.screen}>
@@ -134,6 +148,7 @@ export default function MapScreen() {
               try {
                 const msg = JSON.parse(e.nativeEvent.data);
                 if (msg.type === "locationSelected") setSelected(msg);
+                else if (msg.type === "ready") setMapReady(true);
                 else if (msg.type === "jsError") {
                   setWebviewError(`Chyba na stránce mapy: ${msg.message}`);
                 } else if (msg.type === "tileError") {

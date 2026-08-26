@@ -18,6 +18,10 @@ export interface SelectedLocation {
   // cached /api/forecast entry instead of each hitting a fresh coordinate.
   gridLat?: number;
   gridLon?: number;
+  // Set only when this location came from tapping a saved-location marker
+  // (see Moje místa on the map) - the user's own name for that spot, shown
+  // instead of the algorithmic nearest-tourist-area guess.
+  savedLabel?: string | null;
   probabilityPct: number | null;
   topSpeciesName: string | null;
   topSpeciesId: string | null;
@@ -90,7 +94,7 @@ export function LocationSheet({
     <BottomSheet onClose={onClose}>
       <View style={styles.content}>
         <View style={styles.headerRow}>
-          <Text style={styles.title}>Vybraná oblast — {area.name}</Text>
+          <Text style={styles.title}>Vybraná oblast — {selected.savedLabel || area.name}</Text>
           <Text onPress={onClose} style={styles.close}>
             Zavřít
           </Text>
@@ -155,7 +159,7 @@ export function LocationSheet({
 
         <View style={{ marginTop: space.base }}>
           <PrimaryButton
-            label={alreadySaved || justSaved ? "Uloženo" : "Uložit lokalitu"}
+            label={alreadySaved || justSaved ? "Uloženo." : 'Uložit do "Mých míst"'}
             disabled={alreadySaved || justSaved}
             onPress={() => {
               addLocation({ lat: selected.lat, lon: selected.lon, label: area.name });

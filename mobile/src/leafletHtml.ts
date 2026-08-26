@@ -708,6 +708,7 @@ export function buildGridMapHtml(opts: {
         try {
           var msg = JSON.parse(raw);
           if (msg.type === 'setMode') applyMode(msg.mode);
+          else if (msg.type === 'setSavedLocations') renderSavedLocations(msg.locations);
         } catch (e) {
           // not our message
         }
@@ -715,7 +716,7 @@ export function buildGridMapHtml(opts: {
       window.addEventListener('message', function (e) { handleIncoming(e.data); });
       document.addEventListener('message', function (e) { handleIncoming(e.data); });
 
-      function reportLocation(lat, lon) {
+      function reportLocation(lat, lon, savedLabel) {
         var best = null, bestDist = Infinity;
         gridPoints.forEach(function (p) {
           var d = Math.pow(p.lat - lat, 2) + Math.pow(p.lon - lon, 2);
@@ -744,10 +745,43 @@ export function buildGridMapHtml(opts: {
           gridLon: best.lon,
           probabilityPct: best.overall,
           topSpeciesName: topId != null ? speciesNames[topId] : null,
-          topSpeciesId: topId
+          topSpeciesId: topId,
+          // Only set when this came from tapping a saved-location marker -
+          // lets the sheet show the user's own name for the spot ("Chalupa")
+          // instead of the algorithmic nearest-tourist-area guess.
+          savedLabel: savedLabel || null
         });
       }
       map.on('click', function (e) { reportLocation(e.latlng.lat, e.latlng.lng); });
+
+      // Pins for the user's own saved locations (Moje místa) - sent in via
+      // postMessage rather than baked into the initial HTML, since the
+      // native WebView loads this page from the public, unauthenticated
+      // /api/map endpoint and has no way to know the signed-in user's list
+      // at render time. Distinct terracotta pin (palette.accent) so it
+      // reads as "yours", not just another hotspot or the basemap's own
+      // POI icons.
+      var savedMarkers = [];
+      function renderSavedLocations(locations) {
+        savedMarkers.forEach(function (m) { map.removeLayer(m); });
+        savedMarkers = [];
+        (locations || []).forEach(function (loc) {
+          var icon = L.divIcon({
+            className: 'saved-pin',
+            html:
+              '<svg width="22" height="30" viewBox="0 0 30 40" xmlns="http://www.w3.org/2000/svg">' +
+              '<path d="M15 0C6.7 0 0 6.7 0 15c0 10.5 15 25 15 25s15-14.5 15-25C30 6.7 23.3 0 15 0z" fill="#B5652E"/>' +
+              '<circle cx="15" cy="15" r="6" fill="#F7F2E7"/></svg>',
+            iconSize: [22, 30],
+            iconAnchor: [11, 30]
+          });
+          var marker = L.marker([loc.lat, loc.lon], { icon: icon, keyboard: false, zIndexOffset: 500 });
+          marker.bindTooltip(loc.label, { direction: 'top', offset: [0, -26], className: 'app-tooltip' });
+          marker.on('click', function () { reportLocation(loc.lat, loc.lon, loc.label); });
+          marker.addTo(map);
+          savedMarkers.push(marker);
+        });
+      }
     }
     
     // Wait for DOM to be fully laid out before initializing Leaflet

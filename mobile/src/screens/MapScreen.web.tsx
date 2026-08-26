@@ -5,6 +5,7 @@ import { getGrid, API_BASE, type GridResponse } from "../api";
 import { useLocation } from "../LocationContext";
 import { buildGridMapHtml, type MapMode, type MapView } from "../leafletHtml";
 import { useAppNavigation } from "../AppNavigationContext";
+import { useSavedLocations } from "../SavedLocationsContext";
 import { PageHeader } from "../components/PageHeader";
 import { Chip } from "../components/Chip";
 import { LocationSheet, type SelectedLocation } from "../components/LocationSheet";
@@ -12,6 +13,7 @@ import { LocationSheet, type SelectedLocation } from "../components/LocationShee
 export default function MapScreen() {
   const { location } = useLocation();
   const { consumeMapSpeciesRequest, consumeMapFocusRequest } = useAppNavigation();
+  const { locations: savedLocations } = useSavedLocations();
   const [grid, setGrid] = useState<GridResponse | null>(null);
   const [gridError, setGridError] = useState<string | null>(null);
   // Mirrors MapScreen.tsx's lazy init for a pending "Ukázat na mapě"
@@ -30,6 +32,7 @@ export default function MapScreen() {
     initialViewRef.current = consumeMapFocusRequest();
   }
   const [selected, setSelected] = useState<SelectedLocation | null>(null);
+  const [mapReady, setMapReady] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const isFirstMode = useRef(true);
 
@@ -44,6 +47,7 @@ export default function MapScreen() {
       try {
         const msg = JSON.parse(e.data);
         if (msg.type === "locationSelected") setSelected(msg);
+        else if (msg.type === "ready") setMapReady(true);
       } catch {
         // not our message
       }
@@ -70,6 +74,15 @@ export default function MapScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [grid, location.lat, location.lon]);
 
+  // A fresh srcDoc means a fresh page - its own "ready" message hasn't
+  // arrived yet, so posting setSavedLocations right away would race the
+  // new page's listener (same hazard the initial species mode sidesteps
+  // by being baked into the URL instead - this page has no such baked-in
+  // path for saved locations, since the native WebView build fetches this
+  // HTML from a public, unauthenticated endpoint that has no idea who's
+  // signed in or what they've saved).
+  useEffect(() => setMapReady(false), [html]);
+
   useEffect(() => {
     if (isFirstMode.current) {
       isFirstMode.current = false;
@@ -77,6 +90,14 @@ export default function MapScreen() {
     }
     iframeRef.current?.contentWindow?.postMessage(JSON.stringify({ type: "setMode", mode }), "*");
   }, [mode]);
+
+  useEffect(() => {
+    if (!mapReady) return;
+    iframeRef.current?.contentWindow?.postMessage(
+      JSON.stringify({ type: "setSavedLocations", locations: savedLocations }),
+      "*"
+    );
+  }, [mapReady, savedLocations]);
 
   return (
     <View style={styles.screen}>
