@@ -6,6 +6,7 @@ import { ProbabilityBadge } from "./ProbabilityBadge";
 import { BottomSheet } from "./BottomSheet";
 import { getForecast, type ForecastResponse } from "../api";
 import { useSpeciesDetail } from "../SpeciesDetailContext";
+import { useSavedLocations } from "../SavedLocationsContext";
 import type { MapMode } from "../leafletHtml";
 import { nearestTouristArea } from "../touristAreas";
 
@@ -33,6 +34,8 @@ export function LocationSheet({
 }) {
   const [detail, setDetail] = useState<ForecastResponse | null>(null);
   const { openSpecies } = useSpeciesDetail();
+  const { locations: savedLocations, addLocation } = useSavedLocations();
+  const [justSaved, setJustSaved] = useState(false);
 
   // Snap to the nearest grid point's coordinates for the forecast fetch
   // (falls back to lat/lon if an older message shape ever lacks these) so
@@ -57,6 +60,12 @@ export function LocationSheet({
   // whole point of tapping the map to begin with.
   const area = useMemo(() => nearestTouristArea(selected.lat, selected.lon), [selected.lat, selected.lon]);
   const mapyUrl = `https://mapy.com/zakladni?x=${selected.lon}&y=${selected.lat}&z=15&source=coor&id=${selected.lon},${selected.lat}`;
+  // Same ~100m dedupe threshold addLocation() itself uses - checked here too
+  // so the button can show "Uloženo" instead of silently doing nothing on a
+  // second tap of the same spot.
+  const alreadySaved = savedLocations.some(
+    (p) => Math.abs(p.lat - selected.lat) < 0.001 && Math.abs(p.lon - selected.lon) < 0.001
+  );
   const topSpecies = detail
     ? [...detail.species]
         .map((sp) => ({ sp, today: sp.days.find((d) => d.date === detail.today) }))
@@ -145,7 +154,14 @@ export function LocationSheet({
         </Pressable>
 
         <View style={{ marginTop: space.base }}>
-          <PrimaryButton label="Uložit lokalitu" disabled />
+          <PrimaryButton
+            label={alreadySaved || justSaved ? "Uloženo" : "Uložit lokalitu"}
+            disabled={alreadySaved || justSaved}
+            onPress={() => {
+              addLocation({ lat: selected.lat, lon: selected.lon, label: area.name });
+              setJustSaved(true);
+            }}
+          />
         </View>
       </View>
     </BottomSheet>
