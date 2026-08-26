@@ -92,7 +92,7 @@ function AppShell() {
   return (
     <SafeAreaView style={styles.screen} edges={["top", "left", "right"]}>
       <StatusBar style="dark" />
-      <TopBar onMenuPress={() => setDrawerOpen(true)} />
+      <TopBar onMenuPress={() => setDrawerOpen(true)} onBrandPress={() => setActive("Domů")} />
       {/* Every screen stays mounted permanently, just hidden - swapping
           `active` used to fully unmount/remount the outgoing/incoming
           screen, which meant Mapa (the heaviest one: a huge inline-HTML

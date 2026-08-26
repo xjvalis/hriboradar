@@ -6,7 +6,7 @@ import { useNotifications } from "../NotificationContext";
 
 export type ScreenName = "Domů" | "Mapa" | "Předpověď" | "Houby" | "Moje" | "Nastavení";
 
-export function TopBar({ onMenuPress }: { onMenuPress: () => void }) {
+export function TopBar({ onMenuPress, onBrandPress }: { onMenuPress: () => void; onBrandPress: () => void }) {
   const { unreadCount, openSheet } = useNotifications();
 
   return (
@@ -14,9 +14,9 @@ export function TopBar({ onMenuPress }: { onMenuPress: () => void }) {
       <Pressable onPress={onMenuPress} hitSlop={8} style={styles.iconBtn}>
         <Menu size={22} strokeWidth={1.8} color={palette.wood} />
       </Pressable>
-      <View style={styles.center}>
+      <Pressable onPress={onBrandPress} hitSlop={8} style={styles.center}>
         <BrandMark size="sm" />
-      </View>
+      </Pressable>
       <Pressable onPress={openSheet} hitSlop={8} style={styles.iconBtn}>
         <Bell size={21} strokeWidth={1.8} color={palette.wood} />
         {unreadCount > 0 && (

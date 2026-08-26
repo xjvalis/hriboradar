@@ -121,7 +121,7 @@ export default function HomeScreen() {
           <Text style={styles.eyebrow}>dnes v okolí</Text>
           <CurrentLocationPill />
         </View>
-        <Text style={styles.headline}>Houby venku</Text>
+        <Text style={styles.headline}>Rostou?</Text>
 
         {error && (
           <Text style={styles.error}>
