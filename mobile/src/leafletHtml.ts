@@ -280,6 +280,19 @@ export function buildGridMapHtml(opts: {
       
       var map = L.map('map', { zoomControl: true, maxZoom: ${MAP_MAX_ZOOM}, attributionControl: false });
       var initialView = ${initialViewJs};
+      // App.tsx keeps every screen mounted permanently, just hidden via
+      // display:none - which means this page can (and normally does) run
+      // its whole init, including this very fitBounds call, while its
+      // container is display:none and therefore 0x0. Leaflet fits a
+      // zero-size box to the "whole world, zoomed all the way out" view,
+      // and nothing afterwards corrects the ZOOM (invalidateSize below
+      // fixes rendering/panning math, not the zoom level it already
+      // committed to). didInitialFit tracks whether a *real*, correctly-
+      // sized fit has happened yet; refreshView (sent once the host app
+      // confirms this screen is actually visible - see reportLocation's
+      // sibling handlers below) redoes it exactly once a real size exists,
+      // without disturbing the user's own pan/zoom on every later visit.
+      var didInitialFit = !!initialView;
       function applyInitialView() {
         if (initialView) map.setView([initialView.lat, initialView.lon], initialView.zoom);
         else map.fitBounds(${JSON.stringify(CZ_BOUNDS)});
@@ -713,7 +726,21 @@ export function buildGridMapHtml(opts: {
           // "Kam dnes?" tap after the map screen was kept mounted and
           // warm from an earlier visit) - initialView only covers the
           // very first page load, baked into the URL/HTML itself.
-          else if (msg.type === 'focusView') map.setView([msg.lat, msg.lon], msg.zoom || 10);
+          else if (msg.type === 'focusView') {
+            map.invalidateSize();
+            map.setView([msg.lat, msg.lon], msg.zoom || 10);
+            didInitialFit = true;
+          }
+          // Sent every time the host app confirms this screen just became
+          // visible - see the didInitialFit comment above for why the very
+          // first one needs to redo the fit, not just invalidateSize.
+          else if (msg.type === 'refreshView') {
+            map.invalidateSize();
+            if (!didInitialFit) {
+              applyInitialView();
+              didInitialFit = true;
+            }
+          }
         } catch (e) {
           // not our message
         }

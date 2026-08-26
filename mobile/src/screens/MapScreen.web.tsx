@@ -96,6 +96,14 @@ export default function MapScreen() {
         JSON.stringify({ type: "focusView", lat: pendingFocus.lat, lon: pendingFocus.lon, zoom: pendingFocus.zoom }),
         "*"
       );
+    } else {
+      // No specific region requested - still tells the page it's actually
+      // visible now, which matters the very first time: this iframe loads
+      // (and fits itself to Czechia) as soon as the app boots, while Mapa
+      // is still hidden behind Domů and its container is 0x0, so that
+      // first fit computes a bogus all-the-way-zoomed-out view. See the
+      // didInitialFit comment in leafletHtml.ts.
+      iframeRef.current?.contentWindow?.postMessage(JSON.stringify({ type: "refreshView" }), "*");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, mapReady]);
