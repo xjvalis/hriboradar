@@ -10,40 +10,48 @@
   .updated { color: #8C8A6E; font-size: 14px; margin-bottom: 32px; }
   h2 { font-size: 18px; margin-top: 32px; }
   a { color: #33482C; }
-  .placeholder { background: #B5652E22; border: 1px solid #B5652E; border-radius: 6px; padding: 8px 12px; font-size: 14px; }
+  code { background: #DBCFA966; padding: 1px 5px; border-radius: 4px; font-size: 0.92em; }
 </style>
 </head>
 <body>
 <h1>Zásady ochrany osobních údajů - Rostou?</h1>
-<p class="updated">Platné od 9. srpna 2026</p>
+<p class="updated">Platné od 26. srpna 2026</p>
 
-<p>Rostou? je aplikace pro odhad, kdy a kde by mohly růst houby, podle počasí, ročního období a typu okolního lesa. Tento dokument popisuje, jaká data aplikace zpracovává.</p>
+<p>Rostou? je aplikace pro odhad, kdy a kde by mohly růst houby, podle počasí, ročního období a typu okolního lesa. Tento dokument popisuje, jaká data aplikace zpracovává, jak a proč.</p>
 
-<h2>Aplikace nevyžaduje registraci ani účet</h2>
-<p>Rostou? nemá přihlašování, uživatelské účty ani profily. Nespojujeme žádná data s konkrétní osobou.</p>
+<h2>Účet</h2>
+<p>Appka vyžaduje přihlášení - e-mailem a heslem, přes Google nebo přes Sign in with Apple. Přes Google/Apple dostaneme jen jméno a e-mail potřebné k vytvoření účtu, nic dalšího. Přihlášení umožňuje, aby vaše uložená místa, sledované druhy a upozornění zůstaly stejné napříč zařízeními, ne jen na jednom telefonu.</p>
+<p>Účet i všechna data k němu jde kdykoli nevratně smazat přímo v appce (Nastavení → Smazat účet), bez nutnosti kohokoli kontaktovat.</p>
 
 <h2>Poloha</h2>
-<p>Aplikace nepoužívá GPS ani polohové služby telefonu. Polohu (obec, souřadnice) zadává uživatel ručně - vyhledáním místa nebo zadáním souřadnic. Tahle poloha se posílá na náš server, aby se k ní stáhlo počasí a informace o okolním lese; server si ji dále neukládá nad rámec krátkodobé mezipaměti (desítky minut až hodiny) kvůli výkonu.</p>
+<p>Appka umí polohu buď zadat ručně (vyhledáním místa, výběrem z uložených míst), nebo použít aktuální GPS polohu telefonu - o přístup k poloze vždy nejdřív požádá systém a appka ho použije jen na vaše vyžádání (tlačítko "Aktuální poloha"), ne na pozadí. Zjištěná poloha (souřadnice) se pošle na náš server, aby se k ní stáhlo počasí a informace o okolním lese; server si souřadnice krátkodobě mezipaměťuje (desítky minut až hodiny) kvůli výkonu, ne trvale.</p>
 
-<h2>Uložená místa a nastavení</h2>
-<p>Místa, která si uživatel uloží (např. oblíbený les nebo chalupu), sledované druhy hub a nastavení upozornění se ukládají pouze lokálně v telefonu (mezipaměť aplikace). Nikam se neodesílají a nemáme k nim přístup.</p>
-
-<h2>Anonymní pozorování</h2>
-<p>Aplikace umožňuje volitelně potvrdit, jestli na uloženém místě houby skutečně rostly. Tahle zpětná vazba (poloha, datum, druhy, ano/ne) se odesílá na server bez jakéhokoli identifikátoru uživatele nebo zařízení - nelze ji zpětně přiřadit ke konkrétní osobě. Používá se výhradně ke zlepšování přesnosti předpovědi.</p>
+<h2>Data spojená s účtem</h2>
+<p>K vašemu účtu (přes interní ID, ne přímo přes e-mail) ukládáme:</p>
+<ul>
+  <li><strong>Uložená místa</strong> - souřadnice a název, který jim dáte, případně jestli u nich chcete upozornění.</li>
+  <li><strong>Sledované druhy hub</strong> - které druhy chcete sledovat kvůli sezónním upozorněním.</li>
+  <li><strong>Upozornění</strong> - historie zpráv, které vám appka zobrazila (a jestli jste je už přečetli).</li>
+  <li><strong>Pozorování</strong> - pokud dobrovolně potvrdíte, že na nějakém místě houby skutečně (ne)rostly (poloha, datum, druhy, poznámka). Používá se ke zlepšování přesnosti předpovědi.</li>
+</ul>
+<p>Tahle data vidíte a spravujete jen vy - appka nikde nezobrazuje data jiných uživatelů, a k souhrnným datům napříč účty (pro budoucí ladění predikčního modelu) appka technicky nemá přístup vůbec.</p>
 
 <h2>Externí služby</h2>
-<p>Pro výpočet předpovědi aplikace posílá dotazy (souřadnice, ne osobní údaje) na tyto externí služby, které se řídí vlastními zásadami:</p>
+<p>Appka posílá dotazy (souřadnice, ne osobní údaje) na tyto externí služby, které se řídí vlastními zásadami ochrany údajů:</p>
 <ul>
+  <li><a href="https://supabase.com/privacy" target="_blank">Supabase</a> - přihlášení a uložená data popsaná výše</li>
   <li><a href="https://open-meteo.com/en/terms" target="_blank">Open-Meteo</a> - počasí</li>
-  <li><a href="https://wiki.osmfoundation.org/wiki/Privacy_Policy" target="_blank">OpenStreetMap / Overpass</a> - typ okolního lesa</li>
-  <li><a href="https://operations.osmfoundation.org/policies/nominatim/" target="_blank">Nominatim (OpenStreetMap)</a> - vyhledávání míst</li>
+  <li><a href="https://wiki.osmfoundation.org/wiki/Privacy_Policy" target="_blank">OpenStreetMap / Overpass / Nominatim</a> - typ okolního lesa, vyhledávání míst</li>
+  <li><a href="https://mapy.com/gdpr" target="_blank">Mapy.com (Seznam.cz)</a> - mapové podklady</li>
+  <li><a href="https://policies.google.com/privacy" target="_blank">Google</a> - jen pokud se přihlásíte přes Google</li>
+  <li><a href="https://www.apple.com/legal/privacy/" target="_blank">Apple</a> - jen pokud se přihlásíte přes Sign in with Apple</li>
 </ul>
 
 <h2>Co aplikace nedělá</h2>
-<p>Nepoužíváme reklamy, sledovací nebo analytické nástroje třetích stran, ani neprodáváme žádná data.</p>
+<p>Nepoužíváme reklamy ani sledovací/analytické nástroje třetích stran a neprodáváme žádná data nikomu.</p>
 
 <h2>Kontakt</h2>
-<p class="placeholder">TODO: doplnit skutečný kontaktní e-mail před odesláním do App Store / Google Play.</p>
+<p>Dotazy k ochraně osobních údajů nebo žádost o smazání dat mimo appku: <a href="mailto:xjvalis@gmail.com">xjvalis@gmail.com</a></p>
 
 </body>
 </html>
