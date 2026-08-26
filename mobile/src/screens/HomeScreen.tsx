@@ -1,12 +1,10 @@
 import { useEffect, useState } from "react";
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
-import { ChevronDown } from "lucide-react-native";
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { palette, scoreFlavor, space, type } from "../theme";
 import { getForecast, type ForecastResponse } from "../api";
 import { computeDailyOverall } from "../forecastMath";
 import { REGIONS } from "../regions";
 import { useLocation } from "../LocationContext";
-import { useLocationPicker } from "../LocationPickerContext";
 import { useAppNavigation } from "../AppNavigationContext";
 import { IndexCard } from "../components/IndexCard";
 import { SectionHeader } from "../components/SectionHeader";
@@ -16,6 +14,7 @@ import { WeatherSummary } from "../components/WeatherSummary";
 import { CardSkeleton } from "../components/LoadingSkeleton";
 import { LoadingScreen } from "../components/LoadingScreen";
 import { PaperBackground } from "../components/PaperBackground";
+import { CurrentLocationPill } from "../components/CurrentLocationPill";
 
 interface RegionResult {
   region: (typeof REGIONS)[number];
@@ -44,7 +43,6 @@ function buildExplanation(data: ForecastResponse, top: ReturnType<typeof topSpec
 
 export default function HomeScreen() {
   const { location, setLocation } = useLocation();
-  const { openPicker } = useLocationPicker();
   const { setActive, requestMapFocus } = useAppNavigation();
 
   function goToRegionOnMap(region: (typeof REGIONS)[number]) {
@@ -119,11 +117,10 @@ export default function HomeScreen() {
       }
     >
       <PaperBackground style={styles.content}>
-        <Pressable style={styles.eyebrowRow} onPress={openPicker} hitSlop={6}>
-          <Text style={styles.eyebrow}>dnes v okolí · </Text>
-          <Text style={[styles.eyebrow, styles.eyebrowLocation]}>{location.label}</Text>
-          <ChevronDown size={13} strokeWidth={2.2} color={palette.secondary} style={{ marginLeft: 1 }} />
-        </Pressable>
+        <View style={styles.eyebrowRow}>
+          <Text style={styles.eyebrow}>dnes v okolí</Text>
+          <CurrentLocationPill />
+        </View>
         <Text style={styles.headline}>Houby venku</Text>
 
         {error && (
@@ -188,9 +185,8 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   content: { paddingHorizontal: space.lg, paddingTop: space.base, paddingBottom: space.xxl },
-  eyebrowRow: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start" },
+  eyebrowRow: { flexDirection: "row", alignItems: "center", gap: space.sm },
   eyebrow: { ...type.eyebrow, color: palette.secondary },
-  eyebrowLocation: { textDecorationLine: "underline", textDecorationStyle: "dotted", color: palette.primary },
   headline: { ...type.displayXl, color: palette.ink, marginTop: 2 },
   error: { ...type.bodySmall, color: palette.danger, marginTop: space.base },
 });

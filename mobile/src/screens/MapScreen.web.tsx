@@ -1,11 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { MapPin } from "lucide-react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { palette, radius, space, type } from "../theme";
 import { API_BASE, type GridResponse } from "../api";
 import { fetchJsonWithProgress } from "../xhrProgress";
 import { useLocation } from "../LocationContext";
-import { useLocationPicker } from "../LocationPickerContext";
 import { buildGridMapHtml, type MapMode } from "../leafletHtml";
 import { useAppNavigation } from "../AppNavigationContext";
 import { useSavedLocations } from "../SavedLocationsContext";
@@ -13,10 +11,10 @@ import { PageHeader } from "../components/PageHeader";
 import { Chip } from "../components/Chip";
 import { LocationSheet, type SelectedLocation } from "../components/LocationSheet";
 import { LoadingProgress } from "../components/LoadingProgress";
+import { CurrentLocationPill } from "../components/CurrentLocationPill";
 
 export default function MapScreen() {
   const { location } = useLocation();
-  const { openPicker } = useLocationPicker();
   const { consumeMapSpeciesRequest, consumeMapFocusRequest, active } = useAppNavigation();
   const { locations: savedLocations } = useSavedLocations();
   const [grid, setGrid] = useState<GridResponse | null>(null);
@@ -119,14 +117,7 @@ export default function MapScreen() {
         eyebrow="celá ČR · dnes"
         title="Mapa"
         subtitle="Hustota mraku = pravděpodobnost. Klepni na mapu pro detail místa."
-        right={
-          <Pressable onPress={openPicker} hitSlop={6} style={styles.locationPill}>
-            <MapPin size={13} strokeWidth={2.2} color={palette.primary} />
-            <Text style={styles.locationPillText} numberOfLines={1}>
-              {location.label}
-            </Text>
-          </Pressable>
-        }
+        right={<CurrentLocationPill />}
       />
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filters} contentContainerStyle={{ gap: space.sm }}>
@@ -164,20 +155,6 @@ export default function MapScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  locationPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    maxWidth: 120,
-    marginTop: 2,
-    paddingHorizontal: space.sm,
-    paddingVertical: 6,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: palette.line,
-    backgroundColor: palette.surface,
-  },
-  locationPillText: { ...type.caption, color: palette.primary, fontFamily: "Manrope-SemiBold" },
   filters: { flexGrow: 0, paddingHorizontal: space.lg, marginBottom: space.sm },
   mapCard: {
     flex: 1,

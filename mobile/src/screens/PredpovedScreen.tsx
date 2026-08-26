@@ -12,6 +12,7 @@ import { Card } from "../components/Card";
 import { WeatherSummary } from "../components/WeatherSummary";
 import { MushroomCard } from "../components/MushroomCard";
 import { CardSkeleton } from "../components/LoadingSkeleton";
+import { CurrentLocationPill } from "../components/CurrentLocationPill";
 
 export default function PredpovedScreen() {
   const { location } = useLocation();
@@ -74,6 +75,7 @@ export default function PredpovedScreen() {
         eyebrow="7 dní dopředu"
         title="Předpověď"
         subtitle="Kdy a kde by mohly houby začít růst."
+        right={<CurrentLocationPill />}
       />
 
       {trackedLocations.length > 1 && (
