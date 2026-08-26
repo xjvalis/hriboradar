@@ -1,5 +1,7 @@
-import { Alert, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
-import { Bug, ChevronRight, LogOut, Sprout, Trash2 } from "lucide-react-native";
+import { useState } from "react";
+import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import * as Clipboard from "expo-clipboard";
+import { Bug, Check, ChevronRight, Copy, LogOut, Sprout, Trash2 } from "lucide-react-native";
 import { palette, radius, space, type } from "../theme";
 import { PageHeader } from "../components/PageHeader";
 import { PaperBackground } from "../components/PaperBackground";
@@ -15,6 +17,7 @@ import { FALLBACK_ANNUAL_PRICE } from "../subscriptionLimits";
 import { SPECIES_BY_ID } from "../speciesInfo";
 
 const ALL_SPECIES = Object.values(SPECIES_BY_ID).sort((a, b) => a.name_cz.localeCompare(b.name_cz, "cs"));
+const SUPPORT_EMAIL = "podpora@hriboradar.app";
 
 export default function SettingsScreen() {
   const { location } = useLocation();
@@ -25,6 +28,13 @@ export default function SettingsScreen() {
   const { user, signOut, deleteAccount } = useAuth();
   const { isPremium, loading: subLoading, available, annual, restore } = useSubscription();
   const { openPaywall } = usePaywall();
+  const [emailCopied, setEmailCopied] = useState(false);
+
+  async function copySupportEmail() {
+    await Clipboard.setStringAsync(SUPPORT_EMAIL);
+    setEmailCopied(true);
+    setTimeout(() => setEmailCopied(false), 2000);
+  }
 
   function handleToggleSpecies(id: string) {
     if (!isPremium) {
@@ -173,14 +183,19 @@ export default function SettingsScreen() {
         </Pressable>
       </View>
 
-      <Pressable
-        style={styles.reportBtn}
-        onPress={() => Linking.openURL("mailto:podpora@hriboradar.app?subject=H%C5%99iboradar%20-%20nahl%C3%A1%C5%A1en%C3%AD%20chyby")}
-        hitSlop={4}
-      >
+      <View style={styles.supportRow}>
         <Bug size={16} strokeWidth={1.8} color={palette.inkFaint} />
-        <Text style={styles.reportBtnText}>Nahlásit chybu</Text>
-      </Pressable>
+        <Text style={styles.supportText}>
+          Pro podporu nebo nahlášení chyby napište na <Text style={styles.supportEmail}>{SUPPORT_EMAIL}</Text>
+        </Text>
+        <Pressable onPress={copySupportEmail} hitSlop={8} style={styles.copyBtn}>
+          {emailCopied ? (
+            <Check size={15} strokeWidth={2} color={palette.success} />
+          ) : (
+            <Copy size={15} strokeWidth={1.8} color={palette.inkFaint} />
+          )}
+        </Pressable>
+      </View>
       </PaperBackground>
     </ScrollView>
   );
@@ -254,13 +269,16 @@ const styles = StyleSheet.create({
     paddingVertical: space.sm + 2,
   },
   deleteAccountBtnText: { ...type.bodySmall, color: palette.danger, fontFamily: "Manrope-SemiBold" },
-  reportBtn: {
+  supportRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: space.xs,
+    gap: space.sm,
     marginTop: space.xxl,
-    paddingVertical: space.sm,
+    paddingTop: space.lg,
+    borderTopWidth: 1,
+    borderTopColor: palette.line,
   },
-  reportBtnText: { ...type.bodySmall, color: palette.inkFaint },
+  supportText: { ...type.caption, color: palette.inkFaint, flex: 1, lineHeight: 15 },
+  supportEmail: { color: palette.inkSoft, fontFamily: "Manrope-SemiBold" },
+  copyBtn: { padding: 4 },
 });
