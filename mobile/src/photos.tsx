@@ -2,12 +2,14 @@ import { Image, View, Text, StyleSheet } from "react-native";
 import { palette, fontFamily, radius } from "./theme";
 
 // Metro needs literal require() calls, so this map is spelled out by hand
-// rather than built from a string. All species have a real (licensed,
-// Wikimedia Commons - CC BY/CC BY-SA/public domain) photo except
-// smrz-obecny (added later, no sourced photo yet) - it falls back to
-// MushroomThumb's letter-avatar below, same as any future new species
-// would until a real photo is added here.
+// rather than built from a string. Every species has a real (licensed,
+// Wikimedia Commons - CC BY/CC BY-SA/public domain) photo; any future new
+// species falls back to MushroomThumb's letter-avatar below until one is
+// added here.
 const PHOTOS: Record<string, ReturnType<typeof require>> = {
+  // Morchella esculenta 300405.jpg by Bernd Haynold (Wikimedia Commons),
+  // CC BY-SA 2.5 - https://commons.wikimedia.org/wiki/File:Morchella_esculenta_300405.jpg
+  "smrz-obecny": require("../assets/mushrooms/smrz-obecny.jpg"),
   "hrib-smrkovy": require("../assets/mushrooms/hrib-smrkovy.jpg"),
   "hrib-dubovy": require("../assets/mushrooms/hrib-dubovy.jpg"),
   "liska-obecna": require("../assets/mushrooms/liska-obecna.jpg"),
