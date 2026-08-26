@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import { palette, radius, scoreColor, scoreLabel, space, type } from "../theme";
 import { PrimaryButton } from "./PrimaryButton";
 import { ProbabilityBadge } from "./ProbabilityBadge";
@@ -7,6 +7,7 @@ import { BottomSheet } from "./BottomSheet";
 import { getForecast, type ForecastResponse } from "../api";
 import { useSpeciesDetail } from "../SpeciesDetailContext";
 import type { MapMode } from "../leafletHtml";
+import { nearestTouristArea } from "../touristAreas";
 
 export interface SelectedLocation {
   lat: number;
@@ -40,6 +41,13 @@ export function LocationSheet({
 
   const pct = selected.probabilityPct ?? 0;
   const color = scoreColor(pct);
+  // No free/open source has real "turistická oblast" polygon boundaries
+  // (checked Mapy.cz geocoding, OSM, ArcČR 500 - see touristAreas.ts) - the
+  // nearest named point is an approximation, but turns a meaningless
+  // "Vybraná oblast" into "Vybraná oblast — Žďárské vrchy", which is the
+  // whole point of tapping the map to begin with.
+  const area = useMemo(() => nearestTouristArea(selected.lat, selected.lon), [selected.lat, selected.lon]);
+  const mapyUrl = `https://mapy.com/zakladni?x=${selected.lon}&y=${selected.lat}&z=15&source=coor&id=${selected.lon},${selected.lat}`;
   const topSpecies = detail
     ? [...detail.species]
         .map((sp) => ({ sp, today: sp.days.find((d) => d.date === detail.today) }))
@@ -64,7 +72,7 @@ export function LocationSheet({
     <BottomSheet onClose={onClose}>
       <View style={styles.content}>
         <View style={styles.headerRow}>
-          <Text style={styles.title}>Vybraná oblast</Text>
+          <Text style={styles.title}>Vybraná oblast — {area.name}</Text>
           <Text onPress={onClose} style={styles.close}>
             Zavřít
           </Text>
@@ -123,6 +131,10 @@ export function LocationSheet({
           </Text>
         )}
 
+        <Pressable onPress={() => Linking.openURL(mapyUrl)} style={styles.mapyLink}>
+          <Text style={styles.mapyLinkText}>Otevřít přesné místo v Mapy.cz</Text>
+        </Pressable>
+
         <View style={{ marginTop: space.base }}>
           <PrimaryButton label="Uložit lokalitu" disabled />
         </View>
@@ -166,4 +178,6 @@ const styles = StyleSheet.create({
   },
   speciesName: { ...type.body, color: palette.ink },
   why: { ...type.bodySmall, color: palette.inkSoft, marginTop: space.md },
+  mapyLink: { marginTop: space.md, alignItems: "center" },
+  mapyLinkText: { ...type.bodySmall, color: palette.primaryDeep, textDecorationLine: "underline" },
 });
