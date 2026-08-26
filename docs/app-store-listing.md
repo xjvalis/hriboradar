@@ -59,7 +59,6 @@ houby,houbaření,hřiby,lišky,předpověď,počasí,mapa,atlas hub,sezóna,myk
 ```
 https://hriboradar.app/support.html
 ```
-(still served from rostou-delta.vercel.app until the hriboradar.app domain is live in Vercel - see api.ts's PRODUCTION_API_BASE comment)
 
 ## Marketing URL (optional)
 ```
@@ -72,10 +71,9 @@ https://hriboradar.app/privacy.html
 ```
 
 ## Category
-Primary: Food & Drink -or- Weather -or- Lifestyle - Food & Drink probably
-fits best (foraging/mushroom apps commonly list there), Weather is
-defensible too since the forecast is the core mechanic. Worth deciding
-based on what similar foraging apps use, not guessed here.
+Primary: **Education** - matches Sporecast (the closest direct
+competitor, 50K+ installs, 4.6-4.7 stars), which lists there rather than
+Food & Drink or Weather. Confirmed decision, not a placeholder.
 
 ## Age rating
 Expect 4+ - no objectionable content. The species detail's edibility/
@@ -90,7 +88,6 @@ rating.
 ---
 
 ## Still open (not filled in above - need your input)
-- Category: Food & Drink vs Weather vs Lifestyle
 - Copyright holder name
 - Screenshots (need a real device/simulator build - can't produce these
   without running the actual app, which this environment can't do)

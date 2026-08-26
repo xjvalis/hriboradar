@@ -32,7 +32,7 @@ const WRAPPER_START = `
 <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:480px;margin:0 auto;padding:32px 20px;line-height:1.6;color:#24261D;background:#EDE6D6">
 `;
 const WRAPPER_END = `
-  <p style="color:#8C8A6E;font-size:12px;margin-top:32px">Hřiboradar · <a href="https://rostou-delta.vercel.app/privacy.html" style="color:#8C8A6E">Zásady ochrany osobních údajů</a></p>
+  <p style="color:#8C8A6E;font-size:12px;margin-top:32px">Hřiboradar · <a href="https://hriboradar.app/privacy.html" style="color:#8C8A6E">Zásady ochrany osobních údajů</a></p>
 </div>
 `;
 

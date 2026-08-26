@@ -131,18 +131,13 @@ export function PaywallModal() {
         <Text style={styles.legal}>
           Předplatné se automaticky obnovuje, dokud ho nezrušíte - zrušit jde kdykoli ve správě
           předplatných App Store / Google Play. Nákupem souhlasíte s{" "}
-          {/* Still pointing at the old rostou-delta.vercel.app domain -
-              see the PRODUCTION_API_BASE comment in api.ts for why: this
-              whole deployment (API + these static pages) moves to
-              hriboradar.app in one coordinated swap once that domain is
-              actually live, not before. */}
-          <Text style={styles.legalLink} onPress={() => Linking.openURL("https://rostou-delta.vercel.app/terms.html")}>
+          <Text style={styles.legalLink} onPress={() => Linking.openURL("https://hriboradar.app/terms.html")}>
             podmínkami užití
           </Text>{" "}
           a{" "}
           <Text
             style={styles.legalLink}
-            onPress={() => Linking.openURL("https://rostou-delta.vercel.app/privacy.html")}
+            onPress={() => Linking.openURL("https://hriboradar.app/privacy.html")}
           >
             zásadami ochrany osobních údajů
           </Text>
