@@ -83,20 +83,38 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [monthly, setMonthly] = useState<PackageInfo | null>(null);
   const [annual, setAnnual] = useState<PackageInfo | null>(null);
+  // Starts true (optimistic) and flips to false the moment any real native
+  // call throws - which is exactly what happens under Expo Go: the JS
+  // module require()s fine (guarded above), but every actual bridge call
+  // throws synchronously because Expo Go ships a fixed set of native
+  // modules and can't include a third-party one like this without a real
+  // EAS/dev-client build. That's a different failure point than the
+  // require() guard above, so every native call below gets its own
+  // try/catch instead of relying on `available` alone - three effects can
+  // all still fire in the same initial render pass before the first one's
+  // setNativeOk(false) takes effect, so each has to protect itself too.
+  const [nativeOk, setNativeOk] = useState(true);
   const key = keyForPlatform();
-  const available = !!RNPurchases && !!key;
+  const hasKey = !!RNPurchases && !!key;
+  const available = hasKey && nativeOk;
 
   useEffect(() => {
-    if (!available || !RNPurchases) {
+    if (!hasKey || !RNPurchases) {
       setLoading(false);
       return;
     }
-    RNPurchases.configure({ apiKey: key as string });
-    // Native crash logs and unhandled StoreKit/Billing chatter shouldn't
-    // spam a release build's console - LOG_LEVEL.ERROR still surfaces
-    // real problems.
-    RNPurchases.setLogLevel(RNPurchases.LOG_LEVEL.ERROR);
-  }, [available, key]);
+    try {
+      RNPurchases.configure({ apiKey: key as string });
+      // Native crash logs and unhandled StoreKit/Billing chatter shouldn't
+      // spam a release build's console - LOG_LEVEL.ERROR still surfaces
+      // real problems.
+      RNPurchases.setLogLevel(RNPurchases.LOG_LEVEL.ERROR);
+    } catch (e) {
+      console.warn("[Subscription] RevenueCat native module unavailable (Expo Go?) - Plus purchases disabled this session.", e);
+      setNativeOk(false);
+      setLoading(false);
+    }
+  }, [hasKey, key]);
 
   // RevenueCat identifies "who is this customer" itself (anonymous ID by
   // default), but purchases need to follow the same person across a
@@ -106,11 +124,15 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
   // hriboradar_subscriptions.
   useEffect(() => {
     if (!available || !RNPurchases) return;
-    if (!user) {
-      RNPurchases.logOut().catch(() => {});
-      return;
+    try {
+      if (!user) {
+        RNPurchases.logOut().catch(() => {});
+        return;
+      }
+      RNPurchases.logIn(user.id).catch(() => {});
+    } catch {
+      setNativeOk(false);
     }
-    RNPurchases.logIn(user.id).catch(() => {});
   }, [available, user]);
 
   useEffect(() => {
@@ -126,22 +148,31 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     }
 
-    RNPurchases.getCustomerInfo().then(applyCustomerInfo).catch(() => setLoading(false));
-    RNPurchases.getOfferings()
-      .then((o) => {
-        if (cancelled) return;
-        const pkgs = o.current?.availablePackages ?? [];
-        const monthlyPkg = findPackage(pkgs, "monthly");
-        const annualPkg = findPackage(pkgs, "annual");
-        setMonthly(monthlyPkg ? { priceString: monthlyPkg.product.priceString } : null);
-        setAnnual(annualPkg ? { priceString: annualPkg.product.priceString } : null);
-      })
-      .catch(() => {});
+    try {
+      RNPurchases.getCustomerInfo().then(applyCustomerInfo).catch(() => setLoading(false));
+      RNPurchases.getOfferings()
+        .then((o) => {
+          if (cancelled) return;
+          const pkgs = o.current?.availablePackages ?? [];
+          const monthlyPkg = findPackage(pkgs, "monthly");
+          const annualPkg = findPackage(pkgs, "annual");
+          setMonthly(monthlyPkg ? { priceString: monthlyPkg.product.priceString } : null);
+          setAnnual(annualPkg ? { priceString: annualPkg.product.priceString } : null);
+        })
+        .catch(() => {});
+      RNPurchases.addCustomerInfoUpdateListener(applyCustomerInfo);
+    } catch {
+      setNativeOk(false);
+      setLoading(false);
+    }
 
-    RNPurchases.addCustomerInfoUpdateListener(applyCustomerInfo);
     return () => {
       cancelled = true;
-      RNPurchases?.removeCustomerInfoUpdateListener(applyCustomerInfo);
+      try {
+        RNPurchases?.removeCustomerInfoUpdateListener(applyCustomerInfo);
+      } catch {
+        // already unavailable - nothing to clean up
+      }
     };
   }, [available]);
 
