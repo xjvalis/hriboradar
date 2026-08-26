@@ -6,28 +6,31 @@ import { computeDailyOverall, findNextOpportunity } from "./forecastMath";
 import { SPECIES_BY_ID } from "./speciesInfo";
 import { useNotificationPrefs } from "./NotificationPrefsContext";
 
-// One originally-written, pranostika-style headline per month - not a real
-// quoted folk saying, just leaning into the wordplay Czech pranostiky are
-// known for (same "field guide voice" as the rest of the app). The species
-// named alongside it are computed at runtime from species.json, not
-// hardcoded, so this can't drift from the real data.
-//
-// Checked 2026-08-06 against Czech foraging-season coverage (Deník.cz,
-// nahouby.cz, Blesk.cz) for which months actually lead the season - see
-// git history on this file for the full note.
+// A real, well-known Czech pranostika per month - not an invented line.
+// (An earlier version of this made up its own wordplay headlines in the
+// *style* of a pranostika; the actual folk sayings read better and don't
+// risk sounding like a knockoff, so this switched to genuine ones instead.)
+// Sourced from czechtheworld.com/pranostiky and cross-checked against
+// treking.cz/sluzby/pranostiky-pocasi.htm (2026-08-26) for the most widely
+// recognized saying per month - "Březen, za kamna vlezem" and "Duben,
+// ještě tam budem" are the one exception kept as a pair even though the
+// April half wasn't on either source list, since they're near-universally
+// quoted together. The species named alongside each one are computed at
+// runtime from species.json, not hardcoded, so that part can't drift from
+// the real data even though the saying itself is fixed text.
 const MONTH_HEADLINE: Record<number, string> = {
-  1: "Leden si žije potichu - čas dobít síly na jaro.",
-  2: "Únor bývá tichý, ale první náznaky jara se blíží.",
-  3: "Březnové oteplení budí les k životu - první smrže se hlásí o slovo.",
+  1: "Leden studený, duben zelený.",
+  2: "Únor bílý, pole sílí.",
+  3: "Březen, za kamna vlezem.",
   4: "Duben, ještě tam budem!",
-  5: "Květen naplno otvírá sezónu.",
-  6: "Červnová bouřka, houbařská hostina.",
-  7: "Červenec žhne - houby taky, hlavně po bouřkách.",
-  8: "Srpen sbírá síly na to, co přijde v září.",
-  9: "Hvězdy září v září!",
-  10: "Říjen rozjíždí poslední velkou vlnu roku.",
-  11: "Listopad ještě umí překvapit.",
-  12: "Prosinec patří vytrvalcům.",
+  5: "Mokrý máj, v stodole ráj.",
+  6: "Medardova kápě, čtyřicet dní kape.",
+  7: "Jaký červenec, takový leden.",
+  8: "Srpen k zimě hledí a rád vodu cedí.",
+  9: "Září víno vaří a co nedovaří, říjen dopeče.",
+  10: "Mrazy v říjnu, hezky v lednu.",
+  11: "Jaký listopad, takový březen.",
+  12: "Zelené Vánoce, bílé Velikonoce - a naopak.",
 };
 
 function topSpeciesNamesForMonth(month: number, count: number): string[] {
