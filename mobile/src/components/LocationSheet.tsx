@@ -7,6 +7,7 @@ import { BottomSheet } from "./BottomSheet";
 import { getForecast, type ForecastResponse } from "../api";
 import { useSpeciesDetail } from "../SpeciesDetailContext";
 import { useSavedLocations } from "../SavedLocationsContext";
+import { NamePromptModal } from "./NamePromptModal";
 import type { MapMode } from "../leafletHtml";
 import { nearestTouristArea } from "../touristAreas";
 
@@ -40,6 +41,7 @@ export function LocationSheet({
   const { openSpecies } = useSpeciesDetail();
   const { locations: savedLocations, addLocation } = useSavedLocations();
   const [justSaved, setJustSaved] = useState(false);
+  const [naming, setNaming] = useState(false);
 
   // Snap to the nearest grid point's coordinates for the forecast fetch
   // (falls back to lat/lon if an older message shape ever lacks these) so
@@ -161,13 +163,22 @@ export function LocationSheet({
           <PrimaryButton
             label={alreadySaved || justSaved ? "Uloženo." : 'Uložit do "Mých míst"'}
             disabled={alreadySaved || justSaved}
-            onPress={() => {
-              addLocation({ lat: selected.lat, lon: selected.lon, label: area.name });
-              setJustSaved(true);
-            }}
+            onPress={() => setNaming(true)}
           />
         </View>
       </View>
+      {naming && (
+        <NamePromptModal
+          title="Jak se to místo jmenuje?"
+          initialValue={selected.savedLabel || area.name}
+          onCancel={() => setNaming(false)}
+          onConfirm={(label) => {
+            addLocation({ lat: selected.lat, lon: selected.lon, label });
+            setJustSaved(true);
+            setNaming(false);
+          }}
+        />
+      )}
     </BottomSheet>
   );
 }

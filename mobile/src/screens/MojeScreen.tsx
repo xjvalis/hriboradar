@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { Bell, BellOff, Sprout, Trash2 } from "lucide-react-native";
+import { Bell, BellOff, Pencil, Sprout, Trash2 } from "lucide-react-native";
 import { palette, radius, space, type } from "../theme";
 import { PageHeader } from "../components/PageHeader";
 import { PaperBackground } from "../components/PaperBackground";
@@ -9,6 +9,7 @@ import { MushroomQuestionIcon } from "../components/MushroomQuestionIcon";
 import { LocationSearchInput } from "../components/LocationSearchInput";
 import { LocationMapPicker } from "../components/LocationMapPicker";
 import { ObservationSheet } from "../components/ObservationSheet";
+import { NamePromptModal } from "../components/NamePromptModal";
 import { useSavedLocations, type SavedLocation } from "../SavedLocationsContext";
 import { useLocation } from "../LocationContext";
 
@@ -19,10 +20,11 @@ function placesLabel(n: number): string {
 }
 
 export default function MojeScreen() {
-  const { locations, addLocation, removeLocation, toggleLocationAlerts } = useSavedLocations();
+  const { locations, addLocation, removeLocation, toggleLocationAlerts, renameLocation } = useSavedLocations();
   const { setLocation } = useLocation();
   const [observing, setObserving] = useState<SavedLocation | null>(null);
   const [pickingOnMap, setPickingOnMap] = useState(false);
+  const [renaming, setRenaming] = useState<SavedLocation | null>(null);
 
   return (
     <ScrollView style={styles.screen}>
@@ -69,6 +71,9 @@ export default function MojeScreen() {
                 <Pressable onPress={() => setObserving(loc)} hitSlop={6} style={styles.iconBtn}>
                   <MushroomQuestionIcon size={19} color={palette.secondary} />
                 </Pressable>
+                <Pressable onPress={() => setRenaming(loc)} hitSlop={6} style={styles.iconBtn}>
+                  <Pencil size={18} strokeWidth={1.8} color={palette.inkFaint} />
+                </Pressable>
                 <Pressable onPress={() => removeLocation(loc.id)} hitSlop={6} style={styles.iconBtn}>
                   <Trash2 size={19} strokeWidth={1.8} color={palette.inkFaint} />
                 </Pressable>
@@ -85,6 +90,17 @@ export default function MojeScreen() {
       </Text>
 
       {observing && <ObservationSheet location={observing} onClose={() => setObserving(null)} />}
+      {renaming && (
+        <NamePromptModal
+          title="Přejmenovat místo"
+          initialValue={renaming.label}
+          onCancel={() => setRenaming(null)}
+          onConfirm={(label) => {
+            renameLocation(renaming.id, label);
+            setRenaming(null);
+          }}
+        />
+      )}
       {pickingOnMap && (
         <LocationMapPicker
           onConfirm={(loc) => {

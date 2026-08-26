@@ -34,6 +34,7 @@ interface SavedLocationsContextValue {
   addLocation: (location: AppLocation) => void;
   removeLocation: (id: string) => void;
   toggleLocationAlerts: (id: string) => void;
+  renameLocation: (id: string, label: string) => void;
 }
 
 const SavedLocationsContext = createContext<SavedLocationsContextValue | null>(null);
@@ -119,6 +120,12 @@ export function SavedLocationsProvider({ children }: { children: ReactNode }) {
         const next = !(target.alertsEnabled ?? true);
         setLocations((prev) => prev.map((p) => (p.id === id ? { ...p, alertsEnabled: next } : p)));
         supabase.from("rostou_saved_locations").update({ alerts_enabled: next }).eq("id", id).then(() => {});
+      },
+      renameLocation: (id: string, label: string) => {
+        const trimmed = label.trim();
+        if (!trimmed) return;
+        setLocations((prev) => prev.map((p) => (p.id === id ? { ...p, label: trimmed } : p)));
+        supabase.from("rostou_saved_locations").update({ label: trimmed }).eq("id", id).then(() => {});
       },
     }),
     [locations, loaded, user]
