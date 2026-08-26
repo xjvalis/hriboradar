@@ -254,6 +254,17 @@ export function buildGridMapHtml(opts: {
     .app-tooltip { background: #F7F2E7; color: #24261D; border: 1px solid #DBCFA9; border-radius: 8px;
       padding: 5px 10px; font: 600 12px -apple-system, sans-serif; box-shadow: 0 2px 8px rgba(36,38,29,0.18); }
     .app-tooltip::before { border-top-color: #DBCFA9; }
+    /* Real download progress for /api/forest (the dominant byte cost of
+       opening the map - see loadForestData) so a genuinely slow connection
+       shows a number that's actually moving, not a decorative spinner. */
+    .forest-loading { position: absolute; inset: 0; z-index: 2000; background: #EDE6D6;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .forest-loading-text { font: 13px -apple-system, sans-serif; color: #54563E; margin-bottom: 10px; }
+    .forest-loading-pct { font: 700 26px -apple-system, sans-serif; color: #4F7A3D; }
+    .forest-loading-track { width: 160px; height: 5px; border-radius: 999px; background: #DBCFA9;
+      margin-top: 8px; overflow: hidden; }
+    .forest-loading-fill { height: 100%; width: 0%; background: #4F7A3D; border-radius: 999px;
+      transition: width 150ms linear; }
   </style>
 </head>
 <body>
@@ -261,6 +272,11 @@ export function buildGridMapHtml(opts: {
   <div class="legend"></div>
   <div class="layer-toggle"></div>
   <div class="mapy-attribution"></div>
+  <div class="forest-loading" id="forestLoading">
+    <div class="forest-loading-text">Stahuji data o lesích…</div>
+    <div class="forest-loading-pct" id="forestLoadingPct">0 %</div>
+    <div class="forest-loading-track"><div class="forest-loading-fill" id="forestLoadingFill"></div></div>
+  </div>
   <script>
     function notifyParent(payload) {
       var msg = JSON.stringify(payload);
@@ -404,34 +420,65 @@ export function buildGridMapHtml(opts: {
         });
       }
 
+      // Real bytes-received progress (XHR onprogress - fetch() doesn't
+      // expose this reliably across WebView/browser) for the biggest single
+      // download this page makes (~1.3MB compressed in production - real
+      // country-wide polygon data, cached by the browser/WebView after the
+      // first load). Vercel serves this brotli-encoded with chunked
+      // transfer, no Content-Length, so lengthComputable is false -
+      // ESTIMATED_FOREST_BYTES (measured against the real production
+      // response, 2026-08-26) stands in for the total. Still real bytes
+      // actually arriving, not a timer pretending to be busy - the whole
+      // point on a genuinely slow connection out in an actual forest.
+      var ESTIMATED_FOREST_BYTES = 1400000;
+      function setForestProgress(pct) {
+        var pctEl = document.getElementById('forestLoadingPct');
+        var fillEl = document.getElementById('forestLoadingFill');
+        if (pctEl) pctEl.textContent = pct + ' %';
+        if (fillEl) fillEl.style.width = pct + '%';
+      }
+      function hideForestLoading() {
+        var el = document.getElementById('forestLoading');
+        if (el) el.style.display = 'none';
+      }
+
       function loadForestData(cb) {
         var url = (API_BASE || '') + '/api/forest';
         var timedOut = false;
-        // The forest dataset is a few MB (real country-wide polygon data) -
-        // cached by the browser/WebView after the first load, but that
-        // first fetch+parse can genuinely take a while on a slow mobile
-        // connection (exactly the kind of spotty signal you get out in an
-        // actual forest). Generous on purpose: this data isn't optional
-        // scenery anymore, it IS the map now - without it there's nothing
-        // to color at all.
+        // Generous on purpose: this data isn't optional scenery anymore, it
+        // IS the map now - without it there's nothing to color at all.
         var timer = setTimeout(function () {
           timedOut = true;
+          hideForestLoading();
           cb();
         }, 15000);
-        fetch(url)
-          .then(function (r) { return r.json(); })
-          .then(function (data) {
-            if (timedOut) return;
-            clearTimeout(timer);
-            polyMeta = preparePolygons(data.polygons || []);
-            forestReady = true;
-            cb();
-          })
-          .catch(function () {
-            if (timedOut) return;
-            clearTimeout(timer);
-            cb();
-          });
+
+        function finish(data) {
+          if (timedOut) return;
+          clearTimeout(timer);
+          setForestProgress(100);
+          hideForestLoading();
+          if (data) polyMeta = preparePolygons(data.polygons || []);
+          forestReady = !!data;
+          cb();
+        }
+
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', url, true);
+        xhr.onprogress = function (e) {
+          var total = e.lengthComputable && e.total > 0 ? e.total : ESTIMATED_FOREST_BYTES;
+          setForestProgress(Math.min(99, Math.round((e.loaded / total) * 100)));
+        };
+        xhr.onload = function () {
+          if (xhr.status < 200 || xhr.status >= 300) { finish(null); return; }
+          try {
+            finish(JSON.parse(xhr.responseText));
+          } catch (e) {
+            finish(null);
+          }
+        };
+        xhr.onerror = function () { finish(null); };
+        xhr.send();
       }
 
       var OVERALL_STOPS = [

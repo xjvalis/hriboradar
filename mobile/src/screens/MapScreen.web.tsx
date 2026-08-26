@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { MapPin } from "lucide-react-native";
 import { palette, radius, space, type } from "../theme";
-import { getGrid, API_BASE, type GridResponse } from "../api";
+import { API_BASE, type GridResponse } from "../api";
+import { fetchJsonWithProgress } from "../xhrProgress";
 import { useLocation } from "../LocationContext";
+import { useLocationPicker } from "../LocationPickerContext";
 import { buildGridMapHtml, type MapMode } from "../leafletHtml";
 import { useAppNavigation } from "../AppNavigationContext";
 import { useSavedLocations } from "../SavedLocationsContext";
@@ -13,9 +16,11 @@ import { LoadingProgress } from "../components/LoadingProgress";
 
 export default function MapScreen() {
   const { location } = useLocation();
+  const { openPicker } = useLocationPicker();
   const { consumeMapSpeciesRequest, consumeMapFocusRequest, active } = useAppNavigation();
   const { locations: savedLocations } = useSavedLocations();
   const [grid, setGrid] = useState<GridResponse | null>(null);
+  const [gridProgress, setGridProgress] = useState(0);
   const [gridError, setGridError] = useState<string | null>(null);
   const [mode, setMode] = useState<MapMode>({ type: "overall" });
   const [selected, setSelected] = useState<SelectedLocation | null>(null);
@@ -23,7 +28,7 @@ export default function MapScreen() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   useEffect(() => {
-    getGrid()
+    fetchJsonWithProgress<GridResponse>(`${API_BASE}/api/grid`, setGridProgress)
       .then(setGrid)
       .catch((e) => setGridError(String(e.message ?? e)));
   }, []);
@@ -114,6 +119,14 @@ export default function MapScreen() {
         eyebrow="celá ČR · dnes"
         title="Mapa"
         subtitle="Hustota mraku = pravděpodobnost. Klepni na mapu pro detail místa."
+        right={
+          <Pressable onPress={openPicker} hitSlop={6} style={styles.locationPill}>
+            <MapPin size={13} strokeWidth={2.2} color={palette.primary} />
+            <Text style={styles.locationPillText} numberOfLines={1}>
+              {location.label}
+            </Text>
+          </Pressable>
+        }
       />
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filters} contentContainerStyle={{ gap: space.sm }}>
@@ -140,7 +153,7 @@ export default function MapScreen() {
         ) : (
           <View style={{ alignItems: "center" }}>
             <Text style={styles.loading}>Počítám mřížku pro celou republiku…</Text>
-            <LoadingProgress />
+            <LoadingProgress percent={gridProgress} />
           </View>
         )}
       </View>
@@ -151,6 +164,20 @@ export default function MapScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
+  locationPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    maxWidth: 120,
+    marginTop: 2,
+    paddingHorizontal: space.sm,
+    paddingVertical: 6,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: palette.line,
+    backgroundColor: palette.surface,
+  },
+  locationPillText: { ...type.caption, color: palette.primary, fontFamily: "Manrope-SemiBold" },
   filters: { flexGrow: 0, paddingHorizontal: space.lg, marginBottom: space.sm },
   mapCard: {
     flex: 1,

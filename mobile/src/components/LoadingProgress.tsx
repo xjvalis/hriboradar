@@ -2,23 +2,29 @@ import { useEffect, useRef, useState } from "react";
 import { Animated, StyleSheet, Text, View } from "react-native";
 import { palette, radius, space, type } from "../theme";
 
-// None of this app's real blocking waits (font loading, computing the
-// nationwide grid, a WebView's page load) expose actual byte-level
-// progress - there's nothing to hook a real percentage to. This simulates
-// a believable climb instead: fast at first, easing off well short of
-// 100%, and simply gets unmounted by the parent once the real work
-// finishes (same "cuts off mid-animation" pattern most apps use for
-// exactly this kind of indeterminate wait).
-export function LoadingProgress() {
-  const [pct, setPct] = useState(0);
+// Some of this app's blocking waits DO have a real number behind them now
+// (the /api/forest and /api/grid fetches, tracked via XHR onprogress - see
+// leafletHtml.ts and xhrProgress.ts) - pass that in as `percent` and this
+// shows it directly, so someone on a genuinely bad connection sees the bar
+// actually reflect bytes moving, not a timer pretending to be busy. Font
+// loading and a few other waits still have nothing real to hook to
+// (fonts are bundled into the native binary, not downloaded at runtime),
+// so `percent` stays optional - omitting it falls back to a simulated
+// climb that eases off short of 100% and gets unmounted once the real
+// work finishes (same "cuts off mid-animation" pattern most apps use for
+// a genuinely indeterminate wait).
+export function LoadingProgress({ percent }: { percent?: number } = {}) {
+  const [simulatedPct, setSimulatedPct] = useState(0);
   const barWidth = useRef(new Animated.Value(0)).current;
+  const pct = percent ?? simulatedPct;
 
   useEffect(() => {
+    if (percent != null) return;
     const id = setInterval(() => {
-      setPct((p) => Math.min(p + (92 - p) * 0.1 + 0.4, 92));
+      setSimulatedPct((p) => Math.min(p + (92 - p) * 0.1 + 0.4, 92));
     }, 120);
     return () => clearInterval(id);
-  }, []);
+  }, [percent]);
 
   useEffect(() => {
     Animated.timing(barWidth, { toValue: pct, duration: 150, useNativeDriver: false }).start();
