@@ -36,6 +36,14 @@ const RC_KEY_WEB = process.env.EXPO_PUBLIC_REVENUECAT_WEB_KEY;
 // premium split).
 const ENTITLEMENT_ID = "hriboradar";
 
+// Dev-only escape hatch for previewing/screenshotting Plus screens without
+// a real purchase - needed because RevenueCat can't function in Expo Go at
+// all (see the nativeOk guard below), so there's no real way to grant
+// yourself the entitlement while testing there. __DEV__ is false in every
+// production/release build regardless of this env var, so this can never
+// leak into a real user's app.
+const FORCE_PREMIUM_DEV = __DEV__ && process.env.EXPO_PUBLIC_FORCE_PREMIUM === "true";
+
 // The RevenueCat offering's packages were set up with custom identifiers
 // "monthly"/"yearly" rather than picking the predefined monthly/annual
 // package types - so packageType alone (PACKAGE_TYPE.MONTHLY/ANNUAL)
@@ -178,8 +186,8 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<SubscriptionContextValue>(
     () => ({
-      isPremium,
-      loading,
+      isPremium: FORCE_PREMIUM_DEV || isPremium,
+      loading: FORCE_PREMIUM_DEV ? false : loading,
       available,
       monthly,
       annual,
