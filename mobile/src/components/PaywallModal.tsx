@@ -1,11 +1,17 @@
 import { useState } from "react";
-import { Alert, Linking, StyleSheet, Text, View } from "react-native";
+import { Alert, Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import { Check, Sparkles } from "lucide-react-native";
 import { palette, radius, space, type } from "../theme";
 import { BottomSheet } from "./BottomSheet";
 import { PrimaryButton } from "./PrimaryButton";
 import { usePaywall } from "../PaywallContext";
-import { useSubscription } from "../SubscriptionContext";
+import { useSubscription, type BillingPeriod } from "../SubscriptionContext";
+import {
+  FALLBACK_MONTHLY_PRICE,
+  FALLBACK_ANNUAL_PRICE,
+  FALLBACK_MONTHLY_PRICE_CZK,
+  FALLBACK_ANNUAL_PRICE_CZK,
+} from "../subscriptionLimits";
 
 const FEATURES = [
   "Neomezený počet uložených míst",
@@ -13,6 +19,12 @@ const FEATURES = [
   "Podrobný rozpad podle konkrétní houby",
   "Sledování hub a chytrá upozornění na sezónu",
 ];
+
+// Badge always compares the two Kč fallback prices, even once a real
+// RevenueCat offering loads - the % saved by committing to a year is a
+// fixed fact of how the two products are priced, not something that
+// should flicker based on which currency/region string just came back.
+const ANNUAL_SAVINGS_PCT = Math.round((1 - FALLBACK_ANNUAL_PRICE_CZK / (FALLBACK_MONTHLY_PRICE_CZK * 12)) * 100);
 
 // Apple's subscription guidelines (3.1.2) require the paywall itself to
 // show the subscription's title, length, and price before purchase, plus
@@ -24,7 +36,8 @@ const FEATURES = [
 // gated feature.
 export function PaywallModal() {
   const { isOpen, reason, closePaywall } = usePaywall();
-  const { isPremium, available, offeringPriceString, purchase, restore } = useSubscription();
+  const { isPremium, available, monthly, annual, purchase, restore } = useSubscription();
+  const [period, setPeriod] = useState<BillingPeriod>("annual");
   const [purchasing, setPurchasing] = useState(false);
   const [restoring, setRestoring] = useState(false);
 
@@ -39,9 +52,12 @@ export function PaywallModal() {
     return null;
   }
 
+  const monthlyPrice = monthly?.priceString ?? FALLBACK_MONTHLY_PRICE;
+  const annualPrice = annual?.priceString ?? FALLBACK_ANNUAL_PRICE;
+
   async function handlePurchase() {
     setPurchasing(true);
-    const { error } = await purchase();
+    const { error } = await purchase(period);
     setPurchasing(false);
     if (error) Alert.alert("Nákup se nezdařil", error);
   }
@@ -78,7 +94,33 @@ export function PaywallModal() {
           </Text>
         ) : (
           <>
-            <Text style={styles.price}>{offeringPriceString ?? "99 Kč"} / měsíc</Text>
+            <View style={styles.periodRow}>
+              <Pressable
+                style={[styles.periodCard, period === "monthly" && styles.periodCardActive]}
+                onPress={() => setPeriod("monthly")}
+              >
+                <Text style={[styles.periodLabel, period === "monthly" && styles.periodLabelActive]}>Měsíčně</Text>
+                <Text style={[styles.periodPrice, period === "monthly" && styles.periodPriceActive]}>
+                  {monthlyPrice}
+                </Text>
+                <Text style={[styles.periodSub, period === "monthly" && styles.periodSubActive]}>za měsíc</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.periodCard, period === "annual" && styles.periodCardActive]}
+                onPress={() => setPeriod("annual")}
+              >
+                {ANNUAL_SAVINGS_PCT > 0 && (
+                  <View style={styles.savingsBadge}>
+                    <Text style={styles.savingsBadgeText}>ušetříte {ANNUAL_SAVINGS_PCT} %</Text>
+                  </View>
+                )}
+                <Text style={[styles.periodLabel, period === "annual" && styles.periodLabelActive]}>Ročně</Text>
+                <Text style={[styles.periodPrice, period === "annual" && styles.periodPriceActive]}>
+                  {annualPrice}
+                </Text>
+                <Text style={[styles.periodSub, period === "annual" && styles.periodSubActive]}>za rok</Text>
+              </Pressable>
+            </View>
             <PrimaryButton label="Aktivovat Hřiboradar Plus" onPress={handlePurchase} loading={purchasing} />
             <Text onPress={handleRestore} style={styles.restoreLink}>
               {restoring ? "Obnovuji…" : "Už jsem si koupil(a) - obnovit nákup"}
@@ -127,7 +169,32 @@ const styles = StyleSheet.create({
   featureList: { alignSelf: "stretch", gap: space.sm, marginTop: space.lg, marginBottom: space.lg },
   featureRow: { flexDirection: "row", alignItems: "center", gap: space.sm },
   featureText: { ...type.body, color: palette.ink, flexShrink: 1 },
-  price: { ...type.displayLg, fontSize: 22, color: palette.ink, marginBottom: space.sm },
+  periodRow: { flexDirection: "row", gap: space.sm, alignSelf: "stretch", marginBottom: space.md },
+  periodCard: {
+    flex: 1,
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: palette.line,
+    borderRadius: radius.md,
+    paddingVertical: space.md,
+    paddingHorizontal: space.sm,
+  },
+  periodCardActive: { borderColor: palette.primary, backgroundColor: palette.primary + "0d" },
+  periodLabel: { ...type.label, color: palette.inkSoft },
+  periodLabelActive: { color: palette.primaryDeep },
+  periodPrice: { ...type.headingLg, color: palette.ink, marginTop: 4 },
+  periodPriceActive: { color: palette.ink },
+  periodSub: { ...type.caption, color: palette.inkFaint, marginTop: 2 },
+  periodSubActive: { color: palette.inkSoft },
+  savingsBadge: {
+    position: "absolute",
+    top: -10,
+    backgroundColor: palette.accent,
+    borderRadius: radius.pill,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  savingsBadgeText: { ...type.caption, fontSize: 10, color: palette.white, fontFamily: "Manrope-Bold" },
   unavailable: { ...type.bodySmall, color: palette.inkFaint, textAlign: "center", marginVertical: space.md },
   restoreLink: { ...type.caption, color: palette.primary, marginTop: space.md, textAlign: "center" },
   legal: { ...type.caption, color: palette.inkFaint, textAlign: "center", marginTop: space.xl, lineHeight: 16 },

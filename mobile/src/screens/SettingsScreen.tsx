@@ -11,6 +11,7 @@ import { useNotificationPrefs } from "../NotificationPrefsContext";
 import { useAuth } from "../AuthContext";
 import { useSubscription } from "../SubscriptionContext";
 import { usePaywall } from "../PaywallContext";
+import { FALLBACK_ANNUAL_PRICE } from "../subscriptionLimits";
 import { SPECIES_BY_ID } from "../speciesInfo";
 
 const ALL_SPECIES = Object.values(SPECIES_BY_ID).sort((a, b) => a.name_cz.localeCompare(b.name_cz, "cs"));
@@ -22,7 +23,7 @@ export default function SettingsScreen() {
   const { monthlyTipsEnabled, setMonthlyTipsEnabled, terrainSuggestionsEnabled, setTerrainSuggestionsEnabled } =
     useNotificationPrefs();
   const { user, signOut, deleteAccount } = useAuth();
-  const { isPremium, loading: subLoading, available, offeringPriceString, restore } = useSubscription();
+  const { isPremium, loading: subLoading, available, annual, restore } = useSubscription();
   const { openPaywall } = usePaywall();
 
   function handleToggleSpecies(id: string) {
@@ -144,8 +145,8 @@ export default function SettingsScreen() {
           <View style={{ flex: 1 }}>
             <Text style={styles.currentLabel}>Přejít na Hřiboradar Plus</Text>
             <Text style={styles.toggleHint}>
-              {offeringPriceString ? `${offeringPriceString} / měsíc` : "99 Kč / měsíc"} - celotýdenní předpověď,
-              mapa podle druhu a víc.
+              Od {annual?.priceString ?? FALLBACK_ANNUAL_PRICE} / rok - celotýdenní předpověď, mapa podle druhu a
+              víc.
             </Text>
           </View>
           <ChevronRight size={18} strokeWidth={1.8} color={palette.inkFaint} />

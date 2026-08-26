@@ -36,12 +36,20 @@ const RC_KEY_WEB = process.env.EXPO_PUBLIC_REVENUECAT_WEB_KEY;
 // free/premium split).
 const ENTITLEMENT_ID = "premium";
 
+export type BillingPeriod = "monthly" | "annual";
+
+interface PackageInfo {
+  priceString: string;
+}
+
 interface SubscriptionContextValue {
   isPremium: boolean;
   loading: boolean;
   available: boolean; // false when RNPurchases isn't linked (old native build) or no key configured for this platform
-  offeringPriceString: string | null;
-  purchase: () => Promise<{ error: string | null }>;
+  /** null while offerings are still loading, or if that period isn't configured in RevenueCat yet */
+  monthly: PackageInfo | null;
+  annual: PackageInfo | null;
+  purchase: (period: BillingPeriod) => Promise<{ error: string | null }>;
   restore: () => Promise<{ error: string | null }>;
 }
 
@@ -57,7 +65,8 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [isPremium, setIsPremium] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [priceString, setPriceString] = useState<string | null>(null);
+  const [monthly, setMonthly] = useState<PackageInfo | null>(null);
+  const [annual, setAnnual] = useState<PackageInfo | null>(null);
   const key = keyForPlatform();
   const available = !!RNPurchases && !!key;
 
@@ -104,8 +113,12 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     RNPurchases.getCustomerInfo().then(applyCustomerInfo).catch(() => setLoading(false));
     RNPurchases.getOfferings()
       .then((o) => {
-        const pkg = o.current?.availablePackages[0];
-        if (pkg && !cancelled) setPriceString(pkg.product.priceString);
+        if (cancelled) return;
+        const pkgs = o.current?.availablePackages ?? [];
+        const monthlyPkg = pkgs.find((p) => p.packageType === RNPurchases!.PACKAGE_TYPE.MONTHLY);
+        const annualPkg = pkgs.find((p) => p.packageType === RNPurchases!.PACKAGE_TYPE.ANNUAL);
+        setMonthly(monthlyPkg ? { priceString: monthlyPkg.product.priceString } : null);
+        setAnnual(annualPkg ? { priceString: annualPkg.product.priceString } : null);
       })
       .catch(() => {});
 
@@ -121,13 +134,16 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
       isPremium,
       loading,
       available,
-      offeringPriceString: priceString,
-      purchase: async () => {
+      monthly,
+      annual,
+      purchase: async (period: BillingPeriod) => {
         if (!available || !RNPurchases) return { error: "Nákup teď není k dispozici." };
         try {
           const offerings = await RNPurchases.getOfferings();
-          const pkg = offerings.current?.availablePackages[0];
-          if (!pkg) return { error: "Předplatné momentálně není k dispozici." };
+          const pkgs = offerings.current?.availablePackages ?? [];
+          const wantType = period === "monthly" ? RNPurchases.PACKAGE_TYPE.MONTHLY : RNPurchases.PACKAGE_TYPE.ANNUAL;
+          const pkg = pkgs.find((p) => p.packageType === wantType);
+          if (!pkg) return { error: "Tahle varianta předplatného momentálně není k dispozici." };
           const { customerInfo } = await RNPurchases.purchasePackage(pkg);
           setIsPremium(ENTITLEMENT_ID in customerInfo.entitlements.active);
           return { error: null };
@@ -148,7 +164,7 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
         }
       },
     }),
-    [isPremium, loading, available, priceString]
+    [isPremium, loading, available, monthly, annual]
   );
 
   return <SubscriptionContext.Provider value={value}>{children}</SubscriptionContext.Provider>;

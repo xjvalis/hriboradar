@@ -10,12 +10,19 @@ import { createContext, useContext, useMemo, type ReactNode } from "react";
 // wired in, the web build simply has no purchase path - it's the same
 // "not available yet" case the native guard already handles for an
 // old app-store build, just always-on here instead of conditional.
+export type BillingPeriod = "monthly" | "annual";
+
+interface PackageInfo {
+  priceString: string;
+}
+
 interface SubscriptionContextValue {
   isPremium: boolean;
   loading: boolean;
   available: boolean;
-  offeringPriceString: string | null;
-  purchase: () => Promise<{ error: string | null }>;
+  monthly: PackageInfo | null;
+  annual: PackageInfo | null;
+  purchase: (period: BillingPeriod) => Promise<{ error: string | null }>;
   restore: () => Promise<{ error: string | null }>;
 }
 
@@ -27,7 +34,8 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
       isPremium: false,
       loading: false,
       available: false,
-      offeringPriceString: null,
+      monthly: null,
+      annual: null,
       purchase: async () => ({ error: "Předplatné na webu zatím není k dispozici - stáhněte si appku." }),
       restore: async () => ({ error: "Obnovení na webu zatím není k dispozici - stáhněte si appku." }),
     }),
