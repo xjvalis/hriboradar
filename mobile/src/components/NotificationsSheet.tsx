@@ -1,8 +1,13 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { Bell, Leaf, MapPin, Sparkles } from "lucide-react-native";
+import { Bell, Leaf, MapPin, Sparkles, PlusCircle } from "lucide-react-native";
 import { palette, radius, space, type } from "../theme";
 import { BottomSheet } from "./BottomSheet";
 import { useNotifications, type AppNotification } from "../NotificationContext";
+import { useSavedLocations } from "../SavedLocationsContext";
+import { useAppNavigation } from "../AppNavigationContext";
+import { useSpeciesDetail } from "../SpeciesDetailContext";
+import { useLocation } from "../LocationContext";
+import { resolveNotificationAction } from "../notificationActions";
 
 function relativeTime(iso: string): string {
   const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
@@ -16,6 +21,7 @@ const KIND_ICON: Record<AppNotification["kind"], typeof Bell> = {
   species: Leaf,
   location: MapPin,
   generic: Sparkles,
+  suggestion: PlusCircle,
 };
 
 // Self-contained and rendered once at the app shell's top level, same as
@@ -23,9 +29,37 @@ const KIND_ICON: Record<AppNotification["kind"], typeof Bell> = {
 // constrained BottomSheet's full-screen absolute positioning to TopBar's
 // own height instead of the whole screen.
 export function NotificationsSheet() {
-  const { notifications, unreadCount, markAllRead, markRead, sheetOpen, closeSheet } = useNotifications();
+  const { notifications, unreadCount, markAllRead, markRead, sheetOpen, closeSheet, toggleWatchedSpecies, watchedSpecies } =
+    useNotifications();
+  const { locations: saved } = useSavedLocations();
+  const { goToHoubyTimeline, requestMapFocus, setActive } = useAppNavigation();
+  const { openSpecies } = useSpeciesDetail();
+  const { setLocation } = useLocation();
 
   if (!sheetOpen) return null;
+
+  // A tap both marks read and acts - a notification that just sits there
+  // being read, same as before, was exactly the "not interactive" gap this
+  // was built to close. Each kind's action is resolved from dedupeKey (see
+  // notificationActions.ts) rather than stored, so no schema change was
+  // needed to add this.
+  function handlePress(n: AppNotification) {
+    markRead(n.id);
+    const action = resolveNotificationAction(n, saved);
+    if (!action) return;
+    if (action.type === "species") {
+      openSpecies(action.speciesId);
+    } else if (action.type === "houby-timeline") {
+      goToHoubyTimeline();
+    } else if (action.type === "map-location") {
+      setLocation({ lat: action.lat, lon: action.lon, label: action.label });
+      requestMapFocus(action.lat, action.lon, 11);
+      setActive("Mapa");
+    } else if (action.type === "watch-species") {
+      if (!watchedSpecies.includes(action.speciesId)) toggleWatchedSpecies(action.speciesId);
+    }
+    closeSheet();
+  }
 
   return (
     <BottomSheet onClose={closeSheet} maxHeight="80%">
@@ -53,7 +87,7 @@ export function NotificationsSheet() {
             return (
               <Pressable
                 key={n.id}
-                onPress={() => markRead(n.id)}
+                onPress={() => handlePress(n)}
                 style={[styles.item, !n.read && styles.itemUnread]}
               >
                 <View style={styles.itemIcon}>

@@ -14,6 +14,7 @@ import { AuthProvider, useAuth } from "./src/AuthContext";
 import LoginScreen from "./src/screens/LoginScreen";
 import NewPasswordScreen from "./src/screens/NewPasswordScreen";
 import { NotificationProvider } from "./src/NotificationContext";
+import { NotificationPrefsProvider } from "./src/NotificationPrefsContext";
 import { useNotificationGenerator } from "./src/useNotificationGenerator";
 import { NotificationsSheet } from "./src/components/NotificationsSheet";
 import { LocationPickerProvider } from "./src/LocationPickerContext";
@@ -132,13 +133,15 @@ export default function App() {
         <LocationProvider>
           <SavedLocationsProvider>
             <NotificationProvider>
-              <LocationPickerProvider>
-                <SpeciesDetailProvider>
-                  <AppNavigationProvider>
-                    <AppShell />
-                  </AppNavigationProvider>
-                </SpeciesDetailProvider>
-              </LocationPickerProvider>
+              <NotificationPrefsProvider>
+                <LocationPickerProvider>
+                  <SpeciesDetailProvider>
+                    <AppNavigationProvider>
+                      <AppShell />
+                    </AppNavigationProvider>
+                  </SpeciesDetailProvider>
+                </LocationPickerProvider>
+              </NotificationPrefsProvider>
             </NotificationProvider>
           </SavedLocationsProvider>
         </LocationProvider>

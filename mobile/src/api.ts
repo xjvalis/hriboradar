@@ -85,6 +85,11 @@ export interface ForecastResponse {
   terrain: {
     hasForestNearby: boolean;
     dominantType: string | null;
+    // Real ÚHÚL-parsed genera when available (e.g. ["dub", "habr"]) - the
+    // server (lib/terrain.ts) always sends this field, the client type just
+    // hadn't caught up. Matches species.json's host_trees vocabulary, so
+    // this is directly comparable without any translation layer.
+    treeGenera: string[];
     polygonsFound: number;
   };
   current: CurrentConditions | null;

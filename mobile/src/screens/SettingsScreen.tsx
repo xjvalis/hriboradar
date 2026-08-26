@@ -1,4 +1,4 @@
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 import { ChevronRight, LogOut, Trash2 } from "lucide-react-native";
 import { palette, radius, space, type } from "../theme";
 import { PageHeader } from "../components/PageHeader";
@@ -7,6 +7,7 @@ import { Chip } from "../components/Chip";
 import { useLocation } from "../LocationContext";
 import { useLocationPicker } from "../LocationPickerContext";
 import { useNotifications } from "../NotificationContext";
+import { useNotificationPrefs } from "../NotificationPrefsContext";
 import { useAuth } from "../AuthContext";
 import { SPECIES_BY_ID } from "../speciesInfo";
 
@@ -16,6 +17,8 @@ export default function SettingsScreen() {
   const { location } = useLocation();
   const { openPicker } = useLocationPicker();
   const { watchedSpecies, toggleWatchedSpecies } = useNotifications();
+  const { monthlyTipsEnabled, setMonthlyTipsEnabled, terrainSuggestionsEnabled, setTerrainSuggestionsEnabled } =
+    useNotificationPrefs();
   const { user, signOut, deleteAccount } = useAuth();
 
   function confirmDeleteAccount() {
@@ -59,9 +62,37 @@ export default function SettingsScreen() {
 
       <Text style={styles.sectionTitle}>Upozornění</Text>
       <Text style={styles.hint}>
-        Upozornění pro jednotlivá uložená místa se zapínají zvonečkem přímo v sekci Moje - tady jen
-        vybíráte, které druhy chcete sledovat.
+        Upozornění pro jednotlivá uložená místa se zapínají zvonečkem přímo v sekci Moje. Nové posíláme
+        nejvýš jednou týdně, ať appka neotravuje.
       </Text>
+
+      <View style={styles.toggleRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.toggleLabel}>Měsíční tip</Text>
+          <Text style={styles.toggleHint}>Jednou za měsíc krátký houbařský tip, co má zrovna sezónu.</Text>
+        </View>
+        <Switch
+          value={monthlyTipsEnabled}
+          onValueChange={setMonthlyTipsEnabled}
+          trackColor={{ false: palette.line, true: palette.primary }}
+          thumbColor={palette.white}
+        />
+      </View>
+      <View style={styles.toggleRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.toggleLabel}>Tipy na sledování</Text>
+          <Text style={styles.toggleHint}>
+            Když je u uloženého místa hodně stromů, kterým sedí nějaká nesledovaná houba, navrhneme ji přidat.
+          </Text>
+        </View>
+        <Switch
+          value={terrainSuggestionsEnabled}
+          onValueChange={setTerrainSuggestionsEnabled}
+          trackColor={{ false: palette.line, true: palette.primary }}
+          thumbColor={palette.white}
+        />
+      </View>
+
       <Text style={[styles.hint, { marginTop: space.md }]}>
         Sledované druhy - upozorníme, když jim začíná nebo vrcholí sezóna. Jde zapnout i přímo v detailu
         houby.
@@ -112,6 +143,19 @@ const styles = StyleSheet.create({
   },
   currentLabel: { ...type.headingSm, color: palette.ink },
   currentCoords: { ...type.bodySmall, color: palette.inkFaint, marginTop: 2 },
+  toggleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.md,
+    backgroundColor: palette.surface,
+    borderWidth: 1,
+    borderColor: palette.line,
+    borderRadius: radius.md,
+    padding: space.md,
+    marginBottom: space.sm,
+  },
+  toggleLabel: { ...type.headingSm, color: palette.ink },
+  toggleHint: { ...type.caption, color: palette.inkFaint, marginTop: 2, lineHeight: 15 },
   presetRow: { flexDirection: "row", flexWrap: "wrap", gap: space.sm },
   accountActions: { flexDirection: "row", gap: space.sm, marginTop: space.sm },
   signOutBtn: {

@@ -24,6 +24,12 @@ interface AppNavigationValue {
   // around for the next unrelated visit to Mapa.
   requestMapFocus: (lat: number, lon: number, zoom?: number) => void;
   consumeMapFocusRequest: () => MapFocusRequest | null;
+  // Same one-shot pattern for a notification tap that should land on Houby
+  // already scrolled to the current month (SeasonTimeline always scrolls to
+  // *today's* month, not a specific target - fine here since these
+  // notifications are themselves dated to the month they're read in).
+  goToHoubyTimeline: () => void;
+  consumeHoubyTimelineRequest: () => boolean;
 }
 
 const AppNavigationContext = createContext<AppNavigationValue | null>(null);
@@ -32,6 +38,7 @@ export function AppNavigationProvider({ children }: { children: ReactNode }) {
   const [active, setActive] = useState<ScreenName>("Domů");
   const pendingSpeciesId = useRef<string | null>(null);
   const pendingMapFocus = useRef<MapFocusRequest | null>(null);
+  const pendingHoubyTimeline = useRef(false);
 
   function goToMapWithSpecies(speciesId: string) {
     pendingSpeciesId.current = speciesId;
@@ -54,6 +61,17 @@ export function AppNavigationProvider({ children }: { children: ReactNode }) {
     return req;
   }
 
+  function goToHoubyTimeline() {
+    pendingHoubyTimeline.current = true;
+    setActive("Houby");
+  }
+
+  function consumeHoubyTimelineRequest(): boolean {
+    const req = pendingHoubyTimeline.current;
+    pendingHoubyTimeline.current = false;
+    return req;
+  }
+
   return (
     <AppNavigationContext.Provider
       value={{
@@ -63,6 +81,8 @@ export function AppNavigationProvider({ children }: { children: ReactNode }) {
         consumeMapSpeciesRequest,
         requestMapFocus,
         consumeMapFocusRequest,
+        goToHoubyTimeline,
+        consumeHoubyTimelineRequest,
       }}
     >
       {children}

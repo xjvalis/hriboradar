@@ -9,7 +9,7 @@ export interface AppNotification {
   // "species:hrib-dubovy:2026-08" or "location:123:2026-08-05") - lets the
   // generator run on every app open without ever producing duplicates.
   dedupeKey: string;
-  kind: "species" | "location" | "generic";
+  kind: "species" | "location" | "generic" | "suggestion";
   title: string;
   body: string;
   createdAt: string;
