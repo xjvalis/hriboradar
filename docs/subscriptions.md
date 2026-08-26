@@ -38,24 +38,40 @@ to check, so there is no separate quota system to keep in sync with it.
 control over layout/copy in Czech and avoids pulling in a component library
 tuned for RevenueCat's own dashboard-configured paywall templates.
 
-## Current state: Test Store / sandbox
+## Current state: iOS real, Android still Test Store
 
-RevenueCat is wired to a "Test Store" only. `mobile/.env` (gitignored) has a
-single shared key
-(`EXPO_PUBLIC_REVENUECAT_IOS_KEY` = `EXPO_PUBLIC_REVENUECAT_ANDROID_KEY`)
-pointing at that Test Store - not real per-platform keys. This is a
-deliberate placeholder, not a bug.
+iOS is wired to the real App Store Connect app (`cz.hriboradar.app`) - real
+`hriboradar_plus_monthly` / `hriboradar_plus_annual` products exist there,
+attached to the `hriboradar` entitlement in RevenueCat, packaged in the
+current offering as `monthly` / `yearly`. `mobile/.env` (gitignored) has the
+real iOS key (`appl_...`) in `EXPO_PUBLIC_REVENUECAT_IOS_KEY`.
+`EXPO_PUBLIC_REVENUECAT_ANDROID_KEY` still points at the "Test Store" sandbox
+key - deliberate, not a bug, until Google Play Console has the matching
+products.
 
-Before real purchases work:
+Also required for iOS (done): an **In-App Purchase Key** (App Store Server
+API - Users and Access → Integrations in App Store Connect, a `.p8` file +
+Key ID + Issuer ID) uploaded to RevenueCat. Required for StoreKit 2
+(Purchases v5.x+) to record transactions and get accurate pricing/country
+data - separate from the App-Specific Shared Secret.
 
-1. Create real subscription products in App Store Connect and Google Play
-   Console (monthly/yearly, matching prices).
-2. Attach those products to the `hriboradar` entitlement's real
-   (non-Test-Store) offering in the RevenueCat dashboard.
-3. Get real iOS and Android API keys from RevenueCat and set them as
-   separate `EXPO_PUBLIC_REVENUECAT_IOS_KEY` / `_ANDROID_KEY` values.
+Before Android purchases work:
+
+1. Create the same two subscription products in Google Play Console
+   (monthly/yearly, matching prices) - app must be at least in internal
+   testing there first.
+2. Add a real Google Play app in RevenueCat, attach those products to the
+   `hriboradar` entitlement, add them to the current offering as
+   `monthly`/`yearly` packages (same identifiers as iOS).
+3. Get the real Android API key from RevenueCat and set
+   `EXPO_PUBLIC_REVENUECAT_ANDROID_KEY` to it.
+
+Before either platform's purchases are live for real users:
+
 4. Verify the `api/webhooks/revenuecat.ts` webhook is registered against the
    production RevenueCat project, not the sandbox one.
+5. A real EAS build is required either way - `react-native-purchases` cannot
+   function in Expo Go (see below), so nothing here is testable without one.
 
 ## Expo Go crash guard
 
