@@ -9,7 +9,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 // synced to the account: it's a lightweight app-behavior preference, not
 // data that needs to follow the user to a new phone, so it doesn't need a
 // Supabase table.
-const STORAGE_KEY = "rostou:notificationPrefs";
+const STORAGE_KEY = "hriboradar:notificationPrefs";
 
 interface NotificationPrefs {
   monthlyTipsEnabled: boolean;
