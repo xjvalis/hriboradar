@@ -1,5 +1,5 @@
-import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
-import { ChevronRight, LogOut, Sprout, Trash2 } from "lucide-react-native";
+import { Alert, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { Bug, ChevronRight, LogOut, Sprout, Trash2 } from "lucide-react-native";
 import { palette, radius, space, type } from "../theme";
 import { PageHeader } from "../components/PageHeader";
 import { PaperBackground } from "../components/PaperBackground";
@@ -172,6 +172,15 @@ export default function SettingsScreen() {
           <Text style={styles.deleteAccountBtnText}>Smazat účet</Text>
         </Pressable>
       </View>
+
+      <Pressable
+        style={styles.reportBtn}
+        onPress={() => Linking.openURL("mailto:podpora@hriboradar.app?subject=H%C5%99iboradar%20-%20nahl%C3%A1%C5%A1en%C3%AD%20chyby")}
+        hitSlop={4}
+      >
+        <Bug size={16} strokeWidth={1.8} color={palette.inkFaint} />
+        <Text style={styles.reportBtnText}>Nahlásit chybu</Text>
+      </Pressable>
       </PaperBackground>
     </ScrollView>
   );
@@ -245,4 +254,13 @@ const styles = StyleSheet.create({
     paddingVertical: space.sm + 2,
   },
   deleteAccountBtnText: { ...type.bodySmall, color: palette.danger, fontFamily: "Manrope-SemiBold" },
+  reportBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: space.xs,
+    marginTop: space.xxl,
+    paddingVertical: space.sm,
+  },
+  reportBtnText: { ...type.bodySmall, color: palette.inkFaint },
 });
