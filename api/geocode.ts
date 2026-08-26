@@ -1,15 +1,17 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { cached } from "../lib/cache";
+import { cached, roundCoord } from "../lib/cache";
 
 /**
  * GET /api/geocode?q=<text>
+ * GET /api/geocode?lat=<n>&lon=<n>  (reverse - turns "Aktuální poloha" GPS
+ * coordinates into a real place name instead of showing raw numbers)
  *
  * Place-name search for the location picker. Proxied server-side rather
  * than called directly from the app: Nominatim's usage policy explicitly
- * prohibits implementing search-as-you-type against their public instance
- * from a client, only from a server that identifies itself and can be
- * rate-limited/blocked as a single well-behaved caller (same reasoning as
- * the Overpass terrain lookups in lib/terrain.ts).
+ * prohibits implementing search-as-you-type (or reverse lookups) against
+ * their public instance from a client, only from a server that identifies
+ * itself and can be rate-limited/blocked as a single well-behaved caller
+ * (same reasoning as the Overpass terrain lookups in lib/terrain.ts).
  */
 
 const GEOCODE_CACHE_TTL_MS = 30 * 60 * 1000;
@@ -42,7 +44,35 @@ async function fetchNominatim(q: string): Promise<GeocodeResult[]> {
   });
 }
 
+async function fetchNominatimReverse(lat: number, lon: number): Promise<GeocodeResult> {
+  const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=14`;
+  const res = await fetch(url, {
+    headers: { "User-Agent": "RostouApp/0.1 (+https://github.com/xjvalis/rostou)" },
+    signal: AbortSignal.timeout(GEOCODE_TIMEOUT_MS),
+  });
+  if (!res.ok) throw new Error(`Nominatim returned ${res.status}`);
+  const d = (await res.json()) as NominatimResult;
+  const [label, ...rest] = d.display_name.split(", ");
+  // The real GPS fix, not Nominatim's (coarser, settlement-centroid) point -
+  // this is what "use my current location" is actually for.
+  return { label, sublabel: rest.join(", "), lat, lon };
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  const lat = req.query.lat != null ? Number(req.query.lat) : undefined;
+  const lon = req.query.lon != null ? Number(req.query.lon) : undefined;
+  if (Number.isFinite(lat) && Number.isFinite(lon)) {
+    try {
+      const result = await cached(`rgeocode:${roundCoord(lat as number)},${roundCoord(lon as number)}`, GEOCODE_CACHE_TTL_MS, () =>
+        fetchNominatimReverse(lat as number, lon as number)
+      );
+      res.status(200).json({ results: [result] });
+    } catch {
+      res.status(200).json({ results: [] });
+    }
+    return;
+  }
+
   const q = String(req.query.q ?? "").trim();
   if (q.length < 3) {
     res.status(200).json({ results: [] });

@@ -1,11 +1,14 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { MapPin } from "lucide-react-native";
+import { useState } from "react";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { MapPin, LocateFixed } from "lucide-react-native";
+import * as Location from "expo-location";
 import { palette, radius, space, type } from "../theme";
 import { BottomSheet } from "./BottomSheet";
 import { LocationSearchInput } from "./LocationSearchInput";
 import { useLocation, PRESET_LOCATIONS, type AppLocation } from "../LocationContext";
 import { useSavedLocations } from "../SavedLocationsContext";
 import { useLocationPicker } from "../LocationPickerContext";
+import { reverseGeocode } from "../api";
 
 // Makes the "current location" something to play with rather than a fixed
 // label - tap it anywhere it's shown and jump straight to any saved place,
@@ -18,6 +21,8 @@ export function LocationPickerSheet() {
   const { isOpen, closePicker } = useLocationPicker();
   const { location, setLocation } = useLocation();
   const { locations: saved } = useSavedLocations();
+  const [locating, setLocating] = useState(false);
+  const [locateError, setLocateError] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
@@ -26,10 +31,48 @@ export function LocationPickerSheet() {
     closePicker();
   }
 
+  // Reverse-geocoded into a real place name rather than just dropping the
+  // pin at the raw GPS fix and calling it "Aktuální poloha" forever - once
+  // picked, this is a location like any other (feeds Domů/Předpověď), so it
+  // should read like one instead of staying a generic label.
+  async function useCurrentLocation() {
+    setLocateError(null);
+    setLocating(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        setLocateError("Přístup k poloze je zakázaný - povolte ho telefonu v nastavení.");
+        return;
+      }
+      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const geocoded = await reverseGeocode(pos.coords.latitude, pos.coords.longitude);
+      choose({
+        lat: pos.coords.latitude,
+        lon: pos.coords.longitude,
+        label: geocoded?.label ?? "Aktuální poloha",
+      });
+    } catch {
+      setLocateError("Polohu se nepodařilo zjistit.");
+    } finally {
+      setLocating(false);
+    }
+  }
+
   return (
     <BottomSheet onClose={closePicker} maxHeight="80%">
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.title}>Vybrat polohu</Text>
+
+        <Pressable onPress={useCurrentLocation} disabled={locating} style={styles.currentRow}>
+          {locating ? (
+            <ActivityIndicator size="small" color={palette.primary} />
+          ) : (
+            <LocateFixed size={18} strokeWidth={1.8} color={palette.primary} />
+          )}
+          <Text style={styles.currentRowText}>{locating ? "Zjišťuji polohu…" : "Aktuální poloha"}</Text>
+        </Pressable>
+        {locateError && <Text style={styles.locateError}>{locateError}</Text>}
+
         <LocationSearchInput onSelect={(r) => choose({ lat: r.lat, lon: r.lon, label: r.label })} />
 
         {saved.length > 0 && (
@@ -76,6 +119,20 @@ export function LocationPickerSheet() {
 const styles = StyleSheet.create({
   content: { padding: space.lg, paddingTop: space.sm, paddingBottom: space.xl },
   title: { ...type.headingLg, color: palette.ink, marginBottom: space.md },
+  currentRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.sm,
+    paddingVertical: space.sm + 2,
+    paddingHorizontal: space.md,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: palette.primary,
+    backgroundColor: palette.primary + "14",
+    marginBottom: space.md,
+  },
+  currentRowText: { ...type.headingSm, color: palette.primary },
+  locateError: { ...type.caption, color: palette.danger, marginTop: -space.sm, marginBottom: space.md },
   sectionLabel: { ...type.label, color: palette.inkFaint, marginTop: space.lg, marginBottom: space.sm },
   row: {
     flexDirection: "row",

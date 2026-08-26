@@ -130,6 +130,16 @@ export async function searchLocations(query: string): Promise<GeocodeResult[]> {
   return data.results;
 }
 
+// Turns raw GPS coordinates ("Aktuální poloha") into a real place name -
+// the label is a real address, the lat/lon in the result are still the
+// exact GPS fix (see api/geocode.ts), not Nominatim's coarser point.
+export async function reverseGeocode(lat: number, lon: number): Promise<GeocodeResult | null> {
+  const res = await fetch(`${API_BASE}/api/geocode?lat=${lat}&lon=${lon}`);
+  if (!res.ok) return null;
+  const data = await res.json();
+  return data.results[0] ?? null;
+}
+
 export interface FeedbackInput {
   lat: number;
   lon: number;
