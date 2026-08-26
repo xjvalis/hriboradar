@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { MapPin, LocateFixed } from "lucide-react-native";
-import * as Location from "expo-location";
 import { palette, radius, space, type } from "../theme";
 import { BottomSheet } from "./BottomSheet";
 import { LocationSearchInput } from "./LocationSearchInput";
@@ -9,6 +8,23 @@ import { useLocation, PRESET_LOCATIONS, type AppLocation } from "../LocationCont
 import { useSavedLocations } from "../SavedLocationsContext";
 import { useLocationPicker } from "../LocationPickerContext";
 import { reverseGeocode } from "../api";
+
+// expo-location has native code - it only actually exists in the app
+// binary once a *native* rebuild (EAS Build or `expo run:ios`/`run:
+// android`) has included it, not just after a JS/Metro reload. A static
+// `import * as Location from "expo-location"` throws synchronously the
+// moment this module is evaluated if the native module isn't linked yet -
+// and since this sheet is always mounted at the app shell's top level
+// (see the component comment below), that crashed the *entire app* on
+// launch for anyone still on an older native build, not just this one
+// button. require() wrapped in try/catch degrades to "not available yet"
+// instead of taking the whole app down; useCurrentLocation checks it below.
+let ExpoLocation: typeof import("expo-location") | null;
+try {
+  ExpoLocation = require("expo-location");
+} catch {
+  ExpoLocation = null;
+}
 
 // Makes the "current location" something to play with rather than a fixed
 // label - tap it anywhere it's shown and jump straight to any saved place,
@@ -37,14 +53,18 @@ export function LocationPickerSheet() {
   // should read like one instead of staying a generic label.
   async function useCurrentLocation() {
     setLocateError(null);
+    if (!ExpoLocation) {
+      setLocateError("Aktuální poloha bude dostupná po další aktualizaci appky.");
+      return;
+    }
     setLocating(true);
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
+      const { status } = await ExpoLocation.requestForegroundPermissionsAsync();
       if (status !== "granted") {
         setLocateError("Přístup k poloze je zakázaný - povolte ho telefonu v nastavení.");
         return;
       }
-      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const pos = await ExpoLocation.getCurrentPositionAsync({ accuracy: ExpoLocation.Accuracy.Balanced });
       const geocoded = await reverseGeocode(pos.coords.latitude, pos.coords.longitude);
       choose({
         lat: pos.coords.latitude,
