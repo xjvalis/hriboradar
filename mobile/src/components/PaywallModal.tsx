@@ -60,7 +60,7 @@ export function PaywallModal() {
         <View style={styles.iconWrap}>
           <Sparkles size={22} strokeWidth={2} color={palette.accent} />
         </View>
-        <Text style={styles.title}>Rostou? Plus</Text>
+        <Text style={styles.title}>Hřiboradar Plus</Text>
         {reason && <Text style={styles.reason}>{reason}</Text>}
 
         <View style={styles.featureList}>
@@ -79,7 +79,7 @@ export function PaywallModal() {
         ) : (
           <>
             <Text style={styles.price}>{offeringPriceString ?? "99 Kč"} / měsíc</Text>
-            <PrimaryButton label="Aktivovat Rostou? Plus" onPress={handlePurchase} loading={purchasing} />
+            <PrimaryButton label="Aktivovat Hřiboradar Plus" onPress={handlePurchase} loading={purchasing} />
             <Text onPress={handleRestore} style={styles.restoreLink}>
               {restoring ? "Obnovuji…" : "Už jsem si koupil(a) - obnovit nákup"}
             </Text>
@@ -89,6 +89,11 @@ export function PaywallModal() {
         <Text style={styles.legal}>
           Předplatné se automaticky obnovuje, dokud ho nezrušíte - zrušit jde kdykoli ve správě
           předplatných App Store / Google Play. Nákupem souhlasíte s{" "}
+          {/* Still pointing at the old rostou-delta.vercel.app domain -
+              see the PRODUCTION_API_BASE comment in api.ts for why: this
+              whole deployment (API + these static pages) moves to
+              hriboradar.app in one coordinated swap once that domain is
+              actually live, not before. */}
           <Text style={styles.legalLink} onPress={() => Linking.openURL("https://rostou-delta.vercel.app/terms.html")}>
             podmínkami užití
           </Text>{" "}

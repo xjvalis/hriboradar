@@ -62,7 +62,7 @@ export function LoadingScreen() {
   return (
     <View style={styles.screen}>
       <SpinningMushroom />
-      <Text style={styles.brand}>Rostou?</Text>
+      <Text style={styles.brand}>Hřiboradar</Text>
       <Animated.Text style={[styles.step, { opacity: fade }]}>{STEPS[stepIndex]}</Animated.Text>
       <LoadingProgress />
     </View>

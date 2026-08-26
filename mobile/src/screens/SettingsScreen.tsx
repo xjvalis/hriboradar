@@ -36,7 +36,7 @@ export default function SettingsScreen() {
   async function handleRestore() {
     const { error } = await restore();
     if (error) Alert.alert("Nepodařilo se obnovit nákup", error);
-    else if (!isPremium) Alert.alert("Nic k obnovení", "K tomuto účtu nejsou žádné dřívější nákupy Rostou? Plus.");
+    else if (!isPremium) Alert.alert("Nic k obnovení", "K tomuto účtu nejsou žádné dřívější nákupy Hřiboradar Plus.");
   }
 
   function confirmDeleteAccount() {
@@ -126,23 +126,23 @@ export default function SettingsScreen() {
         ))}
       </View>
 
-      <Text style={styles.sectionTitle}>Rostou? Plus</Text>
+      <Text style={styles.sectionTitle}>Hřiboradar Plus</Text>
       {isPremium ? (
         <View style={styles.plusCard}>
           <Sprout size={20} strokeWidth={1.8} color={palette.primary} />
           <View style={{ flex: 1 }}>
-            <Text style={styles.currentLabel}>Máte Rostou? Plus</Text>
+            <Text style={styles.currentLabel}>Máte Hřiboradar Plus</Text>
             <Text style={styles.toggleHint}>Předpověď na 7 dní, mapa podle druhu, víc uložených míst a sledování hub.</Text>
           </View>
         </View>
       ) : (
         <Pressable
           style={styles.plusCard}
-          onPress={() => openPaywall(available ? undefined : "Rostou? Plus bude dostupné po další aktualizaci appky.")}
+          onPress={() => openPaywall(available ? undefined : "Hřiboradar Plus bude dostupné po další aktualizaci appky.")}
         >
           <Sprout size={20} strokeWidth={1.8} color={palette.primary} />
           <View style={{ flex: 1 }}>
-            <Text style={styles.currentLabel}>Přejít na Rostou? Plus</Text>
+            <Text style={styles.currentLabel}>Přejít na Hřiboradar Plus</Text>
             <Text style={styles.toggleHint}>
               {offeringPriceString ? `${offeringPriceString} / měsíc` : "99 Kč / měsíc"} - celotýdenní předpověď,
               mapa podle druhu a víc.

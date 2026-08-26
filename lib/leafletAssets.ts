@@ -1,5 +1,5 @@
 // Duplicated from mobile/src/leafletAssets.ts - same reasoning as species.json's two
-// copies (see supabase/rostou_schema.sql history / api/data/species.json): Expo
+// copies (see supabase/hriboradar_schema.sql history / api/data/species.json): Expo
 // cannot import files from outside mobile/, so the server (api/*.ts, and
 // dev-server.mjs for local dev) needs its own copy to render /api/map and
 // /api/map-pin as real HTML responses. Keep both copies in sync by hand.

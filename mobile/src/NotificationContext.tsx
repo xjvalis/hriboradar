@@ -95,7 +95,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
           const legacyIds: string[] = JSON.parse(legacySpeciesRaw);
           if (legacyIds.length > 0) {
             await supabase
-              .from("rostou_watched_species")
+              .from("hriboradar_watched_species")
               .upsert(
                 legacyIds.map((species_id) => ({ species_id })),
                 { onConflict: "user_id,species_id", ignoreDuplicates: true }
@@ -110,11 +110,11 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
       const [{ data: notifRows }, { data: speciesRows }] = await Promise.all([
         supabase
-          .from("rostou_notifications")
+          .from("hriboradar_notifications")
           .select("id, dedupe_key, kind, title, body, created_at, read")
           .order("created_at", { ascending: false })
           .limit(MAX_NOTIFICATIONS),
-        supabase.from("rostou_watched_species").select("species_id"),
+        supabase.from("hriboradar_watched_species").select("species_id"),
       ]);
       if (cancelled) return;
       setNotifications((notifRows ?? []).map(rowToNotification));
@@ -134,7 +134,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   function addNotification(n: { dedupeKey: string; kind: AppNotification["kind"]; title: string; body: string }) {
     if (!user) return;
     supabase
-      .from("rostou_notifications")
+      .from("hriboradar_notifications")
       .upsert(
         { dedupe_key: n.dedupeKey, kind: n.kind, title: n.title, body: n.body },
         { onConflict: "user_id,dedupe_key", ignoreDuplicates: true }
@@ -150,13 +150,13 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
   function markRead(id: string) {
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
-    supabase.from("rostou_notifications").update({ read: true }).eq("id", id).then(() => {});
+    supabase.from("hriboradar_notifications").update({ read: true }).eq("id", id).then(() => {});
   }
 
   function markAllRead() {
     if (!user) return;
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-    supabase.from("rostou_notifications").update({ read: true }).eq("read", false).then(() => {});
+    supabase.from("hriboradar_notifications").update({ read: true }).eq("read", false).then(() => {});
   }
 
   function toggleWatchedSpecies(id: string) {
@@ -164,9 +164,9 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     const isWatched = watchedSpecies.includes(id);
     setWatchedSpecies((prev) => (isWatched ? prev.filter((s) => s !== id) : [...prev, id]));
     if (isWatched) {
-      supabase.from("rostou_watched_species").delete().eq("species_id", id).then(() => {});
+      supabase.from("hriboradar_watched_species").delete().eq("species_id", id).then(() => {});
     } else {
-      supabase.from("rostou_watched_species").insert({ species_id: id }).then(() => {});
+      supabase.from("hriboradar_watched_species").insert({ species_id: id }).then(() => {});
     }
   }
 

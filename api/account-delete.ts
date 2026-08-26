@@ -5,7 +5,7 @@ import { createClient } from "@supabase/supabase-js";
  * POST /api/account-delete
  *
  * Permanently deletes the caller's own Supabase auth user (and, via
- * `on delete cascade` on every user_id foreign key in rostou_schema.sql,
+ * `on delete cascade` on every user_id foreign key in hriboradar_schema.sql,
  * every saved location, feedback row, notification, etc. tied to it).
  *
  * Two-step because deleting a user needs the service_role key, which must

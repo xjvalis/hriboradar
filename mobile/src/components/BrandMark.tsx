@@ -7,7 +7,7 @@ export function BrandMark({ size = "md" }: { size?: "sm" | "md" }) {
   return (
     <View style={styles.row}>
       <MorelLogo height={iconHeight} />
-      <Text style={[styles.text, size === "sm" && styles.textSm]}>Rostou?</Text>
+      <Text style={[styles.text, size === "sm" && styles.textSm]}>Hřiboradar</Text>
     </View>
   );
 }

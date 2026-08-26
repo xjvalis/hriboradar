@@ -33,7 +33,7 @@ interface NominatimResult {
 async function fetchNominatim(q: string): Promise<GeocodeResult[]> {
   const url = `https://nominatim.openstreetmap.org/search?format=json&countrycodes=cz&limit=6&q=${encodeURIComponent(q)}`;
   const res = await fetch(url, {
-    headers: { "User-Agent": "RostouApp/0.1 (+https://github.com/xjvalis/rostou)" },
+    headers: { "User-Agent": "HriboradarApp/0.1 (+https://github.com/xjvalis/rostou)" },
     signal: AbortSignal.timeout(GEOCODE_TIMEOUT_MS),
   });
   if (!res.ok) throw new Error(`Nominatim returned ${res.status}`);
@@ -47,7 +47,7 @@ async function fetchNominatim(q: string): Promise<GeocodeResult[]> {
 async function fetchNominatimReverse(lat: number, lon: number): Promise<GeocodeResult> {
   const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=14`;
   const res = await fetch(url, {
-    headers: { "User-Agent": "RostouApp/0.1 (+https://github.com/xjvalis/rostou)" },
+    headers: { "User-Agent": "HriboradarApp/0.1 (+https://github.com/xjvalis/rostou)" },
     signal: AbortSignal.timeout(GEOCODE_TIMEOUT_MS),
   });
   if (!res.ok) throw new Error(`Nominatim returned ${res.status}`);

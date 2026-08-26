@@ -1,4 +1,4 @@
-# Rostou?
+# Hřiboradar
 
 Appka pro houbaře v ČR - pravděpodobnost růstu konkrétních druhů hub na
 konkrétním místě, kombinující počasí, půdní vlhkost a druhovou skladbu lesa.

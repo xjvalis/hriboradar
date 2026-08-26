@@ -62,7 +62,7 @@ export function SavedLocationsProvider({ children }: { children: ReactNode }) {
         try {
           const legacy: SavedLocation[] = JSON.parse(legacyRaw);
           if (legacy.length > 0) {
-            await supabase.from("rostou_saved_locations").insert(
+            await supabase.from("hriboradar_saved_locations").insert(
               legacy.map((l) => ({ lat: l.lat, lon: l.lon, label: l.label, alerts_enabled: l.alertsEnabled ?? true }))
             );
           }
@@ -73,7 +73,7 @@ export function SavedLocationsProvider({ children }: { children: ReactNode }) {
       }
 
       const { data } = await supabase
-        .from("rostou_saved_locations")
+        .from("hriboradar_saved_locations")
         .select("id, lat, lon, label, alerts_enabled")
         .order("created_at", { ascending: true });
       if (!cancelled) {
@@ -102,7 +102,7 @@ export function SavedLocationsProvider({ children }: { children: ReactNode }) {
         );
         if (exists) return;
         supabase
-          .from("rostou_saved_locations")
+          .from("hriboradar_saved_locations")
           .insert({ lat: location.lat, lon: location.lon, label: location.label, alerts_enabled: true })
           .select("id, lat, lon, label, alerts_enabled")
           .single()
@@ -112,20 +112,20 @@ export function SavedLocationsProvider({ children }: { children: ReactNode }) {
       },
       removeLocation: (id: string) => {
         setLocations((prev) => prev.filter((p) => p.id !== id));
-        supabase.from("rostou_saved_locations").delete().eq("id", id).then(() => {});
+        supabase.from("hriboradar_saved_locations").delete().eq("id", id).then(() => {});
       },
       toggleLocationAlerts: (id: string) => {
         const target = locations.find((p) => p.id === id);
         if (!target) return;
         const next = !(target.alertsEnabled ?? true);
         setLocations((prev) => prev.map((p) => (p.id === id ? { ...p, alertsEnabled: next } : p)));
-        supabase.from("rostou_saved_locations").update({ alerts_enabled: next }).eq("id", id).then(() => {});
+        supabase.from("hriboradar_saved_locations").update({ alerts_enabled: next }).eq("id", id).then(() => {});
       },
       renameLocation: (id: string, label: string) => {
         const trimmed = label.trim();
         if (!trimmed) return;
         setLocations((prev) => prev.map((p) => (p.id === id ? { ...p, label: trimmed } : p)));
-        supabase.from("rostou_saved_locations").update({ label: trimmed }).eq("id", id).then(() => {});
+        supabase.from("hriboradar_saved_locations").update({ label: trimmed }).eq("id", id).then(() => {});
       },
     }),
     [locations, loaded, user]

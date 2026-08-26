@@ -1,5 +1,5 @@
 // ============================================================================
-// DESIGN SYSTEM - "Rostou?"
+// DESIGN SYSTEM - "Hřiboradar"
 // Modern Czech mycology: botanical field guide translated into a 2026
 // consumer mobile app. Forest + paper + restraint, not SaaS-dashboard.
 // Every screen must consume these tokens - no ad-hoc hex values or

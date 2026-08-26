@@ -202,7 +202,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Deletes the account server-side (needs the service_role key, see
   // api/account-delete.ts) then clears the local session - on delete
-  // cascade in rostou_schema.sql takes every saved location/feedback/
+  // cascade in hriboradar_schema.sql takes every saved location/feedback/
   // notification row with it, there's nothing left to clean up here.
   async function deleteAccount(): Promise<AuthResult> {
     if (!isSupabaseConfigured) return { error: NOT_CONFIGURED_ERROR };

@@ -12,6 +12,14 @@ import { supabase } from "./supabase";
 // 2026-08-09 (real forecast JSON, not the mockup) - if this ever needs to
 // change, check Vercel dashboard → Settings → Domains, don't assume the
 // obvious slug.
+//
+// STILL POINTS AT THE OLD "rostou" DOMAIN as of the Hřiboradar rename -
+// deliberately not swapped to hriboradar.app yet, since that domain isn't
+// registered/wired into Vercel yet and this constant is the app's only
+// route to its real backend; changing it before the new domain actually
+// resolves would break every network call for every user. Update this once
+// hriboradar.app (or a renamed Vercel project) is live and confirmed
+// working via curl, the same way "rostou-delta" was confirmed above.
 const PRODUCTION_API_BASE = "https://rostou-delta.vercel.app";
 
 // In dev, mobile talks to the local stand-in server (see /dev-server.mjs

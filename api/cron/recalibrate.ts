@@ -22,13 +22,13 @@ function bucketOf(pct: number): number {
 
 /**
  * POST /api/cron/recalibrate - nightly job (see vercel.json) that turns raw
- * rostou_feedback rows into the per-(species, probability decile,
+ * hriboradar_feedback rows into the per-(species, probability decile,
  * model_version) calibration_stats lib/calibration.ts reads at
  * forecast-serving time.
  *
  * Runs with the service_role key deliberately - it's the only piece of this
  * system allowed to read feedback across every user at once (RLS blocks
- * that for the anon/authenticated roles by design, see rostou_schema.sql).
+ * that for the anon/authenticated roles by design, see hriboradar_schema.sql).
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const auth = req.headers.authorization;
@@ -47,7 +47,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const supabase = createClient(url, serviceKey);
 
   const { data: rows, error } = await supabase
-    .from("rostou_feedback")
+    .from("hriboradar_feedback")
     .select("species_id, predicted_probability, found")
     .eq("model_version", MODEL_VERSION);
 
@@ -123,7 +123,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (upserts.length > 0) {
     const { error: upsertError } = await supabase
-      .from("rostou_calibration_stats")
+      .from("hriboradar_calibration_stats")
       .upsert(upserts, { onConflict: "species_id,probability_bucket,model_version" });
     if (upsertError) {
       res.status(500).json({ error: upsertError.message });

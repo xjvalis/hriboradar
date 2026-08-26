@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "Rostou?",
-    "slug": "rostou",
-    "scheme": "rostou",
+    "name": "Hřiboradar",
+    "slug": "hriboradar",
+    "scheme": "hriboradar",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -10,14 +10,14 @@
     "newArchEnabled": false,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "cz.rostou.app",
+      "bundleIdentifier": "cz.hriboradar.app",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSLocationWhenInUseUsageDescription": "Rostou? potřebuje vaši polohu, abyste mohli rychle nastavit aktuální místo jako výchozí bod pro předpověď."
+        "NSLocationWhenInUseUsageDescription": "Hřiboradar potřebuje vaši polohu, abyste mohli rychle nastavit aktuální místo jako výchozí bod pro předpověď."
       }
     },
     "android": {
-      "package": "cz.rostou.app",
+      "package": "cz.hriboradar.app",
       "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#EDE6D6",
@@ -46,7 +46,7 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Rostou? potřebuje vaši polohu, abyste mohli rychle nastavit aktuální místo jako výchozí bod pro předpověď."
+          "locationWhenInUsePermission": "Hřiboradar potřebuje vaši polohu, abyste mohli rychle nastavit aktuální místo jako výchozí bod pro předpověď."
         }
       ]
     ],

@@ -111,7 +111,7 @@ async function queryOne(endpoint: string, query: string): Promise<OverpassRespon
     method: "POST",
     headers: {
       // Some Overpass mirrors 406/429 requests without a real UA.
-      "User-Agent": "RostouApp/0.1 (+https://github.com/xjvalis/rostou)",
+      "User-Agent": "HriboradarApp/0.1 (+https://github.com/xjvalis/rostou)",
       "Content-Type": "application/x-www-form-urlencoded",
     },
     body: new URLSearchParams({ data: query }),

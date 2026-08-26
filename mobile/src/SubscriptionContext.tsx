@@ -78,7 +78,7 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
   // reinstall or a new device - logIn ties the RevenueCat customer record
   // to this app's own Supabase user id once known, the same identifier
   // the webhook (api/webhooks/revenuecat.ts) uses to update
-  // rostou_subscriptions.
+  // hriboradar_subscriptions.
   useEffect(() => {
     if (!available || !RNPurchases) return;
     if (!user) {

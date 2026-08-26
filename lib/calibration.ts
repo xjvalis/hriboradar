@@ -26,7 +26,7 @@ async function fetchCalibrationStats(): Promise<Map<string, CalibrationStatsRow>
 
   const supabase = createClient(url, anonKey);
   const { data, error } = await supabase
-    .from("rostou_calibration_stats")
+    .from("hriboradar_calibration_stats")
     .select("species_id, probability_bucket, n, calibrated_probability")
     .eq("model_version", MODEL_VERSION)
     .neq("species_id", "__global__");

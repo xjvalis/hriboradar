@@ -6,7 +6,7 @@ scratch in the App Store Connect UI.
 
 ## App name (max 30 chars)
 ```
-Rostou?
+Hřiboradar
 ```
 
 ## Subtitle (max 30 chars)
@@ -22,7 +22,7 @@ obecná tabulka, ale předpověď na míru vašemu místu.
 
 ## Description (max 4000 chars)
 ```
-Rostou? spočítá, jak velká je dnes šance najít houby - podle skutečného
+Hřiboradar spočítá, jak velká je dnes šance najít houby - podle skutečného
 počasí, ročního období a typu lesa v okolí, ne podle obecné tabulky.
 
 CO APLIKACE UMÍ
@@ -57,8 +57,9 @@ houby,houbaření,hřiby,lišky,předpověď,počasí,mapa,atlas hub,sezóna,myk
 
 ## Support URL (required)
 ```
-https://rostou-delta.vercel.app/support.html
+https://hriboradar.app/support.html
 ```
+(still served from rostou-delta.vercel.app until the hriboradar.app domain is live in Vercel - see api.ts's PRODUCTION_API_BASE comment)
 
 ## Marketing URL (optional)
 ```
@@ -67,7 +68,7 @@ https://rostou-delta.vercel.app/support.html
 
 ## Privacy Policy URL (required)
 ```
-https://rostou-delta.vercel.app/privacy.html
+https://hriboradar.app/privacy.html
 ```
 
 ## Category
@@ -93,6 +94,3 @@ rating.
 - Copyright holder name
 - Screenshots (need a real device/simulator build - can't produce these
   without running the actual app, which this environment can't do)
-- Whether "Rostou?" as the App Store display name is final, or whether a
-  more descriptive name is wanted since "Rostou?" alone doesn't say
-  "mushroom" to someone browsing search results

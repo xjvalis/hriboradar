@@ -1,7 +1,7 @@
 {
-  "name": "rostou-api",
+  "name": "hriboradar-api",
   "private": true,
-  "description": "Vercel serverless functions for the Rostou? app (weather/soil/prediction endpoints). The Expo mobile app lives separately in /mobile.",
+  "description": "Vercel serverless functions for the Hřiboradar app (weather/soil/prediction endpoints). The Expo mobile app lives separately in /mobile.",
   "scripts": {
     "dev:api": "tsx --env-file-if-exists=.env dev-server.mjs"
   },

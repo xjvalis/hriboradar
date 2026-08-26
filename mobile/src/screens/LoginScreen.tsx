@@ -101,7 +101,7 @@ export default function LoginScreen() {
     if (error) setError(error);
   }
 
-  const title = mode === "forgot" ? "Obnovit heslo" : "Rostou?";
+  const title = mode === "forgot" ? "Obnovit heslo" : "Hřiboradar";
   const tagline =
     mode === "forgot"
       ? "Zadejte e-mail, na který vám pošleme odkaz na obnovení hesla."

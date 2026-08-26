@@ -132,7 +132,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const { error: upsertError } = await supabase
-      .from("rostou_feedback")
+      .from("hriboradar_feedback")
       .upsert(rows, { onConflict: "user_id,species_id,lat,lon,target_date" });
 
     if (upsertError) {

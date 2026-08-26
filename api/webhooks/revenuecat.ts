@@ -5,7 +5,7 @@ import { sendEmail, subscriptionActiveEmail, subscriptionCanceledEmail, billingI
 /**
  * POST /api/webhooks/revenuecat
  *
- * Server-side mirror of subscription state (rostou_subscriptions) and the
+ * Server-side mirror of subscription state (hriboradar_subscriptions) and the
  * trigger point for transactional emails - NOT the gating mechanism itself.
  * The app gates Plus features from the RevenueCat SDK's on-device
  * entitlement check directly (see mobile/src/SubscriptionContext.tsx),
@@ -80,7 +80,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const userId = event.app_user_id;
   const periodEnd = event.expiration_at_ms ? new Date(event.expiration_at_ms).toISOString() : null;
 
-  const { error: upsertError } = await admin.from("rostou_subscriptions").upsert(
+  const { error: upsertError } = await admin.from("hriboradar_subscriptions").upsert(
     {
       user_id: userId,
       status,
