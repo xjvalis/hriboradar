@@ -12,6 +12,11 @@ import { nearestTouristArea } from "../touristAreas";
 export interface SelectedLocation {
   lat: number;
   lon: number;
+  // The nearest weather-grid point's coordinates - forecast lookups use
+  // these (not lat/lon) so repeated taps in the same region reuse the same
+  // cached /api/forecast entry instead of each hitting a fresh coordinate.
+  gridLat?: number;
+  gridLon?: number;
   probabilityPct: number | null;
   topSpeciesName: string | null;
   topSpeciesId: string | null;
@@ -29,15 +34,19 @@ export function LocationSheet({
   const [detail, setDetail] = useState<ForecastResponse | null>(null);
   const { openSpecies } = useSpeciesDetail();
 
+  // Snap to the nearest grid point's coordinates for the forecast fetch
+  // (falls back to lat/lon if an older message shape ever lacks these) so
+  // repeated taps in the same region reuse the already-cached /api/forecast
+  // entry instead of each one hitting a fresh, uncached coordinate.
+  const gridLat = selected.gridLat ?? selected.lat;
+  const gridLon = selected.gridLon ?? selected.lon;
+
   useEffect(() => {
     setDetail(null);
-    // The point tapped comes straight from /api/grid, which already
-    // computed & cached weather+terrain for this exact coordinate - this
-    // fetch almost always resolves from cache, not a fresh lookup.
-    getForecast(selected.lat, selected.lon)
+    getForecast(gridLat, gridLon)
       .then(setDetail)
       .catch(() => {});
-  }, [selected.lat, selected.lon]);
+  }, [gridLat, gridLon]);
 
   const pct = selected.probabilityPct ?? 0;
   const color = scoreColor(pct);

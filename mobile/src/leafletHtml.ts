@@ -728,8 +728,20 @@ export function buildGridMapHtml(opts: {
         });
         notifyParent({
           type: 'locationSelected',
-          lat: best.lat,
-          lon: best.lon,
+          // The exact tapped/marker point - shown to the user and used for
+          // the Mapy.cz deep link, so it must be the real spot, not the
+          // (up to ~15km away) weather-grid point snapped to below. Every
+          // tap inside the same grid cell used to report the identical
+          // grid.lat/lon, which made the Mapy.cz pin look "stuck" on one
+          // spot no matter where in a region you actually clicked.
+          lat: lat,
+          lon: lon,
+          // Forecast data still comes from the nearest grid point (that's
+          // the real resolution weather data exists at) - gridLat/gridLon
+          // let the app re-fetch from the same cached point instead of
+          // hitting a fresh, uncached coordinate for every distinct tap.
+          gridLat: best.lat,
+          gridLon: best.lon,
           probabilityPct: best.overall,
           topSpeciesName: topId != null ? speciesNames[topId] : null,
           topSpeciesId: topId
