@@ -11,7 +11,10 @@ import { LocationMapPicker } from "../components/LocationMapPicker";
 import { ObservationSheet } from "../components/ObservationSheet";
 import { NamePromptModal } from "../components/NamePromptModal";
 import { useSavedLocations, type SavedLocation } from "../SavedLocationsContext";
-import { useLocation } from "../LocationContext";
+import { useLocation, type AppLocation } from "../LocationContext";
+import { useSubscription } from "../SubscriptionContext";
+import { usePaywall } from "../PaywallContext";
+import { FREE_SAVED_LOCATIONS_LIMIT } from "../subscriptionLimits";
 
 function placesLabel(n: number): string {
   if (n === 1) return "1 uložené místo";
@@ -22,9 +25,24 @@ function placesLabel(n: number): string {
 export default function MojeScreen() {
   const { locations, addLocation, removeLocation, toggleLocationAlerts, renameLocation } = useSavedLocations();
   const { setLocation } = useLocation();
+  const { isPremium } = useSubscription();
+  const { openPaywall } = usePaywall();
   const [observing, setObserving] = useState<SavedLocation | null>(null);
   const [pickingOnMap, setPickingOnMap] = useState(false);
   const [renaming, setRenaming] = useState<SavedLocation | null>(null);
+
+  // Free tier: one saved place, enough to actually use the app (your own
+  // backyard/nearest forest) - more than one is the "I go to several
+  // specific spots" behavior that's worth paying for. Renaming/removing
+  // an existing place is never gated, only *adding* a new one past the
+  // limit.
+  function addLocationGated(loc: AppLocation) {
+    if (!isPremium && locations.length >= FREE_SAVED_LOCATIONS_LIMIT) {
+      openPaywall("Chcete uložit víc než jedno místo?");
+      return;
+    }
+    addLocation(loc);
+  }
 
   return (
     <ScrollView style={styles.screen}>
@@ -37,7 +55,7 @@ export default function MojeScreen() {
 
       <Text style={styles.sectionTitle}>Přidat místo</Text>
       <View style={styles.padded}>
-        <LocationSearchInput onSelect={addLocation} />
+        <LocationSearchInput onSelect={addLocationGated} />
         <Pressable onPress={() => setPickingOnMap(true)} hitSlop={6} style={styles.manualToggle}>
           <Text style={styles.manualToggleText}>+ Najít na mapě (chalupa, oblíbený lesík…)</Text>
         </Pressable>
@@ -104,7 +122,7 @@ export default function MojeScreen() {
       {pickingOnMap && (
         <LocationMapPicker
           onConfirm={(loc) => {
-            addLocation(loc);
+            addLocationGated(loc);
             setPickingOnMap(false);
           }}
           onClose={() => setPickingOnMap(false)}

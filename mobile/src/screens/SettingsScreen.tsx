@@ -1,5 +1,5 @@
 import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
-import { ChevronRight, LogOut, Trash2 } from "lucide-react-native";
+import { ChevronRight, LogOut, Sprout, Trash2 } from "lucide-react-native";
 import { palette, radius, space, type } from "../theme";
 import { PageHeader } from "../components/PageHeader";
 import { PaperBackground } from "../components/PaperBackground";
@@ -9,6 +9,8 @@ import { useLocationPicker } from "../LocationPickerContext";
 import { useNotifications } from "../NotificationContext";
 import { useNotificationPrefs } from "../NotificationPrefsContext";
 import { useAuth } from "../AuthContext";
+import { useSubscription } from "../SubscriptionContext";
+import { usePaywall } from "../PaywallContext";
 import { SPECIES_BY_ID } from "../speciesInfo";
 
 const ALL_SPECIES = Object.values(SPECIES_BY_ID).sort((a, b) => a.name_cz.localeCompare(b.name_cz, "cs"));
@@ -20,6 +22,22 @@ export default function SettingsScreen() {
   const { monthlyTipsEnabled, setMonthlyTipsEnabled, terrainSuggestionsEnabled, setTerrainSuggestionsEnabled } =
     useNotificationPrefs();
   const { user, signOut, deleteAccount } = useAuth();
+  const { isPremium, loading: subLoading, available, offeringPriceString, restore } = useSubscription();
+  const { openPaywall } = usePaywall();
+
+  function handleToggleSpecies(id: string) {
+    if (!isPremium) {
+      openPaywall("Chcete sledovat konkrétní houby a dostávat upozornění na jejich sezónu?");
+      return;
+    }
+    toggleWatchedSpecies(id);
+  }
+
+  async function handleRestore() {
+    const { error } = await restore();
+    if (error) Alert.alert("Nepodařilo se obnovit nákup", error);
+    else if (!isPremium) Alert.alert("Nic k obnovení", "K tomuto účtu nejsou žádné dřívější nákupy Rostou? Plus.");
+  }
 
   function confirmDeleteAccount() {
     Alert.alert(
@@ -103,10 +121,41 @@ export default function SettingsScreen() {
             key={sp.id}
             label={sp.name_cz}
             active={watchedSpecies.includes(sp.id)}
-            onPress={() => toggleWatchedSpecies(sp.id)}
+            onPress={() => handleToggleSpecies(sp.id)}
           />
         ))}
       </View>
+
+      <Text style={styles.sectionTitle}>Rostou? Plus</Text>
+      {isPremium ? (
+        <View style={styles.plusCard}>
+          <Sprout size={20} strokeWidth={1.8} color={palette.primary} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.currentLabel}>Máte Rostou? Plus</Text>
+            <Text style={styles.toggleHint}>Předpověď na 7 dní, mapa podle druhu, víc uložených míst a sledování hub.</Text>
+          </View>
+        </View>
+      ) : (
+        <Pressable
+          style={styles.plusCard}
+          onPress={() => openPaywall(available ? undefined : "Rostou? Plus bude dostupné po další aktualizaci appky.")}
+        >
+          <Sprout size={20} strokeWidth={1.8} color={palette.primary} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.currentLabel}>Přejít na Rostou? Plus</Text>
+            <Text style={styles.toggleHint}>
+              {offeringPriceString ? `${offeringPriceString} / měsíc` : "99 Kč / měsíc"} - celotýdenní předpověď,
+              mapa podle druhu a víc.
+            </Text>
+          </View>
+          <ChevronRight size={18} strokeWidth={1.8} color={palette.inkFaint} />
+        </Pressable>
+      )}
+      {!subLoading && available && (
+        <Pressable onPress={handleRestore} hitSlop={6} style={{ marginTop: space.sm, alignSelf: "flex-start" }}>
+          <Text style={styles.restoreLink}>Obnovit nákup</Text>
+        </Pressable>
+      )}
 
       <Text style={styles.sectionTitle}>Účet</Text>
       <View style={styles.currentCard}>
@@ -157,6 +206,17 @@ const styles = StyleSheet.create({
   toggleLabel: { ...type.headingSm, color: palette.ink },
   toggleHint: { ...type.caption, color: palette.inkFaint, marginTop: 2, lineHeight: 15 },
   presetRow: { flexDirection: "row", flexWrap: "wrap", gap: space.sm },
+  plusCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.md,
+    backgroundColor: palette.surface,
+    borderWidth: 1,
+    borderColor: palette.line,
+    borderRadius: radius.md,
+    padding: space.md,
+  },
+  restoreLink: { ...type.bodySmall, color: palette.primaryDeep, textDecorationLine: "underline" },
   accountActions: { flexDirection: "row", gap: space.sm, marginTop: space.sm },
   signOutBtn: {
     flex: 1,

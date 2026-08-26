@@ -12,11 +12,15 @@ import { Chip } from "../components/Chip";
 import { LocationSheet, type SelectedLocation } from "../components/LocationSheet";
 import { LoadingProgress } from "../components/LoadingProgress";
 import { CurrentLocationPill } from "../components/CurrentLocationPill";
+import { useSubscription } from "../SubscriptionContext";
+import { usePaywall } from "../PaywallContext";
 
 export default function MapScreen() {
   const { location } = useLocation();
   const { consumeMapSpeciesRequest, consumeMapFocusRequest, active } = useAppNavigation();
   const { locations: savedLocations } = useSavedLocations();
+  const { isPremium } = useSubscription();
+  const { openPaywall } = usePaywall();
   const [grid, setGrid] = useState<GridResponse | null>(null);
   const [gridProgress, setGridProgress] = useState(0);
   const [gridError, setGridError] = useState<string | null>(null);
@@ -92,7 +96,10 @@ export default function MapScreen() {
   useEffect(() => {
     if (active !== "Mapa" || !mapReady) return;
     const pendingSpecies = consumeMapSpeciesRequest();
-    if (pendingSpecies) setMode({ type: "species", id: pendingSpecies });
+    if (pendingSpecies) {
+      if (isPremium) setMode({ type: "species", id: pendingSpecies });
+      else openPaywall("Chcete vidět mapu podle konkrétní houby?");
+    }
     const pendingFocus = consumeMapFocusRequest();
     if (pendingFocus) {
       iframeRef.current?.contentWindow?.postMessage(
@@ -131,7 +138,11 @@ export default function MapScreen() {
             key={sp.id}
             label={sp.name_cz}
             active={mode.type === "species" && mode.id === sp.id}
-            onPress={() => setMode({ type: "species", id: sp.id })}
+            onPress={() =>
+              isPremium
+                ? setMode({ type: "species", id: sp.id })
+                : openPaywall("Chcete vidět mapu podle konkrétní houby?")
+            }
           />
         ))}
       </ScrollView>

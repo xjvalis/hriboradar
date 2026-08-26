@@ -21,6 +21,9 @@ import { LocationPickerProvider } from "./src/LocationPickerContext";
 import { LocationPickerSheet } from "./src/components/LocationPickerSheet";
 import { SpeciesDetailProvider } from "./src/SpeciesDetailContext";
 import { SpeciesDetailSheet } from "./src/components/SpeciesDetailSheet";
+import { SubscriptionProvider } from "./src/SubscriptionContext";
+import { PaywallProvider } from "./src/PaywallContext";
+import { PaywallModal } from "./src/components/PaywallModal";
 import HomeScreen from "./src/screens/HomeScreen";
 import MapScreen from "./src/screens/MapScreen";
 import PredpovedScreen from "./src/screens/PredpovedScreen";
@@ -113,6 +116,7 @@ function AppShell() {
       <SpeciesDetailSheet />
       <NotificationsSheet />
       <LocationPickerSheet />
+      <PaywallModal />
       <DrawerMenu
         visible={drawerOpen}
         active={active}
@@ -130,21 +134,25 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <LocationProvider>
-          <SavedLocationsProvider>
-            <NotificationProvider>
-              <NotificationPrefsProvider>
-                <LocationPickerProvider>
-                  <SpeciesDetailProvider>
-                    <AppNavigationProvider>
-                      <AppShell />
-                    </AppNavigationProvider>
-                  </SpeciesDetailProvider>
-                </LocationPickerProvider>
-              </NotificationPrefsProvider>
-            </NotificationProvider>
-          </SavedLocationsProvider>
-        </LocationProvider>
+        <SubscriptionProvider>
+          <PaywallProvider>
+            <LocationProvider>
+              <SavedLocationsProvider>
+                <NotificationProvider>
+                  <NotificationPrefsProvider>
+                    <LocationPickerProvider>
+                      <SpeciesDetailProvider>
+                        <AppNavigationProvider>
+                          <AppShell />
+                        </AppNavigationProvider>
+                      </SpeciesDetailProvider>
+                    </LocationPickerProvider>
+                  </NotificationPrefsProvider>
+                </NotificationProvider>
+              </SavedLocationsProvider>
+            </LocationProvider>
+          </PaywallProvider>
+        </SubscriptionProvider>
       </AuthProvider>
     </SafeAreaProvider>
   );

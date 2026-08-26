@@ -201,3 +201,27 @@ alter table public.rostou_calibration_stats enable row level security;
 drop policy if exists "Rostou read calibration stats" on public.rostou_calibration_stats;
 create policy "Rostou read calibration stats" on public.rostou_calibration_stats
   for select using (true);
+
+-- Rostou? Plus - server-side zrcadlo předplatného. Appka samotná gatuje
+-- funkce podle RevenueCat SDK stavu přímo na zařízení (rychlejší, funguje
+-- i bez zásahu serveru) - tahle tabulka NENÍ ten gating mechanismus, je to
+-- záznam pro api/webhooks/revenuecat.ts (odesílání e-mailů při
+-- předplatit/zrušit, budoucí administrativa/podpora). Psáno výhradně tím
+-- webhookem přes service_role klíč - proto žádná insert/update policy pro
+-- běžné uživatele, stejná konvence jako rostou_calibration_stats.
+create table if not exists public.rostou_subscriptions (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  revenuecat_customer_id text,
+  status text not null default 'none', -- none | active | trial | canceled | expired | billing_issue
+  product_id text,
+  current_period_end timestamptz,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.rostou_subscriptions enable row level security;
+
+-- Uživatel vidí jen svůj vlastní stav předplatného - žádná zápisová
+-- politika, viz komentář výše.
+drop policy if exists "Rostou read own subscription" on public.rostou_subscriptions;
+create policy "Rostou read own subscription" on public.rostou_subscriptions
+  for select using (auth.uid() = user_id);

@@ -5,6 +5,7 @@ import { getForecast } from "./api";
 import { computeDailyOverall, findNextOpportunity } from "./forecastMath";
 import { SPECIES_BY_ID } from "./speciesInfo";
 import { useNotificationPrefs } from "./NotificationPrefsContext";
+import { useSubscription } from "./SubscriptionContext";
 
 // A real, well-known Czech pranostika per month - not an invented line.
 // (An earlier version of this made up its own wordplay headlines in the
@@ -69,9 +70,10 @@ export function useNotificationGenerator() {
   const { addNotification, watchedSpecies, notifications, loaded } = useNotifications();
   const { locations: saved, loaded: savedLoaded } = useSavedLocations();
   const { monthlyTipsEnabled, terrainSuggestionsEnabled, loaded: prefsLoaded } = useNotificationPrefs();
+  const { isPremium, loading: subLoading } = useSubscription();
 
   useEffect(() => {
-    if (!loaded || !savedLoaded || !prefsLoaded) return;
+    if (!loaded || !savedLoaded || !prefsLoaded || subLoading) return;
     let cancelled = false;
 
     async function run() {
@@ -89,7 +91,13 @@ export function useNotificationGenerator() {
       // lišky" does). Also checks whether that location's real forest
       // composition (ÚHÚL/OSM - the same terrain data the score itself
       // uses) suggests a species worth watching that isn't yet.
-      for (const loc of saved.filter((l) => l.alertsEnabled !== false)) {
+      // Location/species/terrain notifications all key off Plus features
+      // (saved-location forecasts beyond today, species watching, terrain
+      // suggestions) - free users don't have those to begin with, so this
+      // loop is skipped for them entirely. The monthly pranostika digest
+      // below is the one deliberate exception (explicit user request: kept
+      // free for everyone regardless of subscription status).
+      for (const loc of isPremium ? saved.filter((l) => l.alertsEnabled !== false) : []) {
         try {
           const data = await getForecast(loc.lat, loc.lon);
           const daily = computeDailyOverall(data);
@@ -156,7 +164,7 @@ export function useNotificationGenerator() {
         }
       }
 
-      watchedSpecies.forEach((id) => {
+      (isPremium ? watchedSpecies : []).forEach((id) => {
         const sp = SPECIES_BY_ID[id];
         if (!sp || !sp.season_months.includes(month)) return;
         const inPeak = sp.season_peak_months.includes(month);
@@ -207,5 +215,5 @@ export function useNotificationGenerator() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loaded, savedLoaded, prefsLoaded, saved, watchedSpecies, monthlyTipsEnabled, terrainSuggestionsEnabled]);
+  }, [loaded, savedLoaded, prefsLoaded, subLoading, isPremium, saved, watchedSpecies, monthlyTipsEnabled, terrainSuggestionsEnabled]);
 }

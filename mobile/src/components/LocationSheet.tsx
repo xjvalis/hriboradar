@@ -8,6 +8,9 @@ import { getForecast, type ForecastResponse } from "../api";
 import { useSpeciesDetail } from "../SpeciesDetailContext";
 import { useSavedLocations } from "../SavedLocationsContext";
 import { NamePromptModal } from "./NamePromptModal";
+import { useSubscription } from "../SubscriptionContext";
+import { usePaywall } from "../PaywallContext";
+import { FREE_SAVED_LOCATIONS_LIMIT } from "../subscriptionLimits";
 import type { MapMode } from "../leafletHtml";
 import { nearestTouristArea } from "../touristAreas";
 
@@ -40,6 +43,8 @@ export function LocationSheet({
   const [detail, setDetail] = useState<ForecastResponse | null>(null);
   const { openSpecies } = useSpeciesDetail();
   const { locations: savedLocations, addLocation } = useSavedLocations();
+  const { isPremium } = useSubscription();
+  const { openPaywall } = usePaywall();
   const [justSaved, setJustSaved] = useState(false);
   const [naming, setNaming] = useState(false);
 
@@ -163,7 +168,13 @@ export function LocationSheet({
           <PrimaryButton
             label={alreadySaved || justSaved ? "Uloženo." : 'Uložit do "Mých míst"'}
             disabled={alreadySaved || justSaved}
-            onPress={() => setNaming(true)}
+            onPress={() => {
+              if (!isPremium && savedLocations.length >= FREE_SAVED_LOCATIONS_LIMIT) {
+                openPaywall("Chcete uložit víc než jedno místo?");
+                return;
+              }
+              setNaming(true);
+            }}
           />
         </View>
       </View>

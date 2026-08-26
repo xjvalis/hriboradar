@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Lock } from "lucide-react-native";
 import { palette, radius, scoreColor, scoreFlavor, scoreLabel, space, type } from "../theme";
 import { getForecast, type ForecastResponse } from "../api";
 import { useLocation } from "../LocationContext";
@@ -13,10 +14,14 @@ import { WeatherSummary } from "../components/WeatherSummary";
 import { MushroomCard } from "../components/MushroomCard";
 import { CardSkeleton } from "../components/LoadingSkeleton";
 import { CurrentLocationPill } from "../components/CurrentLocationPill";
+import { useSubscription } from "../SubscriptionContext";
+import { usePaywall } from "../PaywallContext";
 
 export default function PredpovedScreen() {
   const { location } = useLocation();
   const { locations: saved } = useSavedLocations();
+  const { isPremium } = useSubscription();
+  const { openPaywall } = usePaywall();
 
   // Excludes a saved place that's also the current location (e.g. after
   // tapping it on Moje to "set as current") - without this it appeared
@@ -54,9 +59,14 @@ export default function PredpovedScreen() {
     [daily, detail]
   );
 
+  // Free tier only ever shows today's detail, even as the default pick -
+  // the upcoming-opportunity headline below still teases "za 3 dny by
+  // mohly růst houby" (that's the whole point, it's what makes paying for
+  // the full week worth it), it just doesn't silently jump the detail
+  // view to a day a free user can't actually open.
   const shownDate =
     selectedDate ??
-    (opportunity?.type === "upcoming" ? opportunity.date : detail?.today) ??
+    (isPremium && opportunity?.type === "upcoming" ? opportunity.date : detail?.today) ??
     null;
   const shownDay = daily.find((d) => d.date === shownDate);
   const shownWeather = detail?.weather.find((w) => w.date === shownDate);
@@ -144,15 +154,26 @@ export default function PredpovedScreen() {
           {daily.map((d) => {
             const isSelected = d.date === shownDate;
             const color = scoreColor(d.overall);
+            // Today is always free; the rest of the week is the Plus
+            // feature - still shown (with a real score, not blurred out)
+            // so it's obvious there's something worth unlocking, just
+            // locked behind the paywall instead of the usual day-select.
+            const locked = !isPremium && d.date !== detail.today;
             return (
               <Pressable
                 key={d.date}
-                onPress={() => setSelectedDate(d.date)}
+                onPress={() =>
+                  locked ? openPaywall("Chcete vidět předpověď na celý týden dopředu?") : setSelectedDate(d.date)
+                }
                 style={[styles.dayCard, isSelected && styles.dayCardActive]}
               >
                 <Text style={styles.dayWeekday}>{weekdayLabel(d.date, detail.today)}</Text>
                 <View style={[styles.dayScoreDot, { borderColor: color }]}>
-                  <Text style={[styles.dayScoreText, { color }]}>{d.overall}</Text>
+                  {locked ? (
+                    <Lock size={13} strokeWidth={2} color={palette.inkFaint} />
+                  ) : (
+                    <Text style={[styles.dayScoreText, { color }]}>{d.overall}</Text>
+                  )}
                 </View>
                 <Text style={styles.dayDate}>{dayMonthLabel(d.date)}</Text>
               </Pressable>

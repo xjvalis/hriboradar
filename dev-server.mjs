@@ -15,6 +15,7 @@ const routes = {
   "/api/feedback": (await import("./api/feedback.ts")).default,
   "/api/account-delete": (await import("./api/account-delete.ts")).default,
   "/api/cron/recalibrate": (await import("./api/cron/recalibrate.ts")).default,
+  "/api/webhooks/revenuecat": (await import("./api/webhooks/revenuecat.ts")).default,
 };
 
 const PORT = 3001;
