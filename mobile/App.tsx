@@ -1,7 +1,7 @@
 import { StatusBar } from "expo-status-bar";
 import { useFonts } from "expo-font";
 import { useState } from "react";
-import { StyleSheet } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { palette } from "./src/theme";
 import { LoadingScreen } from "./src/components/LoadingScreen";
@@ -85,13 +85,30 @@ function AppShell() {
     );
   }
 
-  const ActiveScreen = SCREENS[active];
-
   return (
     <SafeAreaView style={styles.screen} edges={["top", "left", "right"]}>
       <StatusBar style="dark" />
       <TopBar onMenuPress={() => setDrawerOpen(true)} />
-      <ActiveScreen />
+      {/* Every screen stays mounted permanently, just hidden - swapping
+          `active` used to fully unmount/remount the outgoing/incoming
+          screen, which meant Mapa (the heaviest one: a huge inline-HTML
+          WebView, a nationwide grid fetch, a 36k-polygon choropleth) paid
+          its full load cost again on every single visit, not just the
+          first. display:none keeps React state, the WebView/iframe
+          instance, and any in-flight data alive across tab switches - the
+          other screens' one-shot fetch-on-mount effects benefit the same
+          way (weather doesn't need re-fetching every time you glance at
+          Domů). See AppNavigationContext for how Mapa's one-shot "jump to
+          this species/region" requests still work now that it isn't
+          guaranteed to remount on every visit. */}
+      {(Object.keys(SCREENS) as ScreenName[]).map((name) => {
+        const Screen = SCREENS[name];
+        return (
+          <View key={name} style={active === name ? styles.activeScreen : styles.hiddenScreen}>
+            <Screen />
+          </View>
+        );
+      })}
       <SpeciesDetailSheet />
       <NotificationsSheet />
       <LocationPickerSheet />
@@ -132,4 +149,6 @@ export default function App() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: palette.bg },
+  activeScreen: { flex: 1 },
+  hiddenScreen: { display: "none" },
 });

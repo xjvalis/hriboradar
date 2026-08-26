@@ -10,39 +10,19 @@ import { useSavedLocations } from "../SavedLocationsContext";
 import { PageHeader } from "../components/PageHeader";
 import { Chip } from "../components/Chip";
 import { LocationSheet, type SelectedLocation } from "../components/LocationSheet";
+import { LoadingProgress } from "../components/LoadingProgress";
 
 export default function MapScreen() {
   const { location } = useLocation();
-  const { consumeMapSpeciesRequest, consumeMapFocusRequest } = useAppNavigation();
+  const { consumeMapSpeciesRequest, consumeMapFocusRequest, active } = useAppNavigation();
   const { locations: savedLocations } = useSavedLocations();
   const [grid, setGrid] = useState<GridResponse | null>(null);
   const [gridError, setGridError] = useState<string | null>(null);
   const [webviewError, setWebviewError] = useState<string | null>(null);
-  // MapScreen fully remounts each time the user navigates here (App.tsx
-  // swaps screens, it doesn't keep them mounted offscreen), so a lazy
-  // initializer is enough to pick up a pending "Ukázat na mapě" request -
-  // no effect/race needed. Captured once into a ref too, so the initial
-  // species can be baked into mapUri below (see why in that comment)
-  // without mapUri also depending on `mode`, which changes on every chip
-  // tap and would otherwise reload the whole WebView each time.
-  const initialSpeciesRef = useRef<string | null>(null);
-  const [mode, setMode] = useState<MapMode>(() => {
-    const pending = consumeMapSpeciesRequest();
-    if (!pending) return { type: "overall" };
-    initialSpeciesRef.current = pending;
-    return { type: "species", id: pending };
-  });
-  // "Kam dnes?" already points `location` itself at the region (see
-  // HomeScreen.goToRegionOnMap), so lat/lon in mapUri below are already
-  // right - this only needs to carry the extra "and zoom in" instruction.
-  const initialZoomRef = useRef<number | null | undefined>(undefined);
-  if (initialZoomRef.current === undefined) {
-    initialZoomRef.current = consumeMapFocusRequest()?.zoom ?? null;
-  }
+  const [mode, setMode] = useState<MapMode>({ type: "overall" });
   const [selected, setSelected] = useState<SelectedLocation | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const webviewRef = useRef<WebView>(null);
-  const isFirstMode = useRef(true);
 
   useEffect(() => {
     getGrid()
@@ -53,19 +33,15 @@ export default function MapScreen() {
       });
   }, []);
 
-  // /api/map always renders in "overall" mode server-side (it has no way
-  // to know about client-only navigation state) - a species chip tapped
-  // after the page loads reaches it fine via postMessage below, but an
-  // *initial* species mode needs to be baked into the URL itself. Posting
-  // it via postMessage instead would race the WebView's own page-load: if
-  // the message arrives before the page's listener is registered, it's
-  // just dropped, and the map silently opens in the wrong mode.
-  const mapUri = useMemo(() => {
-    let uri = `${API_BASE}/api/map?lat=${location.lat}&lon=${location.lon}`;
-    if (initialSpeciesRef.current) uri += `&species=${encodeURIComponent(initialSpeciesRef.current)}`;
-    if (initialZoomRef.current) uri += `&fzoom=${initialZoomRef.current}`;
-    return uri;
-  }, [location.lat, location.lon]);
+  // App.tsx now keeps every screen mounted permanently (just hidden) so
+  // Mapa doesn't pay its full load cost again on every visit - which means
+  // this WebView is no longer guaranteed to remount when the user actually
+  // switches to Mapa. species/fzoom used to be baked into this URL for
+  // exactly that "guaranteed to remount" case; now that visiting Mapa a
+  // second time reuses the same still-loaded page, that initial-mode-only
+  // trick would just be silently ignored, so pending requests instead flow
+  // through the same postMessage path every time (see the effect below).
+  const mapUri = useMemo(() => `${API_BASE}/api/map?lat=${location.lat}&lon=${location.lon}`, [location.lat, location.lon]);
 
   // Same "wait for the page's own ready signal" reasoning as MapScreen.web -
   // /api/map is a public, unauthenticated endpoint, so it has no way to bake
@@ -74,10 +50,6 @@ export default function MapScreen() {
   useEffect(() => setMapReady(false), [mapUri]);
 
   useEffect(() => {
-    if (isFirstMode.current) {
-      isFirstMode.current = false;
-      return;
-    }
     webviewRef.current?.postMessage(JSON.stringify({ type: "setMode", mode }));
   }, [mode]);
 
@@ -85,6 +57,24 @@ export default function MapScreen() {
     if (!mapReady) return;
     webviewRef.current?.postMessage(JSON.stringify({ type: "setSavedLocations", locations: savedLocations }));
   }, [mapReady, savedLocations]);
+
+  // Picks up a "Ukázat na mapě" species jump or a "Kam dnes?" region focus
+  // whenever the user is actually looking at Mapa AND its page has loaded
+  // far enough to have a message listener registered - re-running this
+  // check on every dependency change is safe since consume*Request() is a
+  // no-op once already drained, so it can't double-apply a stale request.
+  useEffect(() => {
+    if (active !== "Mapa" || !mapReady) return;
+    const pendingSpecies = consumeMapSpeciesRequest();
+    if (pendingSpecies) setMode({ type: "species", id: pendingSpecies });
+    const pendingFocus = consumeMapFocusRequest();
+    if (pendingFocus) {
+      webviewRef.current?.postMessage(
+        JSON.stringify({ type: "focusView", lat: pendingFocus.lat, lon: pendingFocus.lon, zoom: pendingFocus.zoom })
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, mapReady]);
 
   return (
     <View style={styles.screen}>
@@ -121,6 +111,7 @@ export default function MapScreen() {
         ) : !grid ? (
           <View style={styles.centerOverlay}>
             <Text style={styles.loading}>Načítám data z API…</Text>
+            <LoadingProgress />
           </View>
         ) : (
           <WebView
@@ -140,6 +131,7 @@ export default function MapScreen() {
             renderLoading={() => (
               <View style={styles.loadingWrap}>
                 <Text style={styles.loading}>Počítám mřížku pro celou republiku…</Text>
+                <LoadingProgress />
               </View>
             )}
             onError={(e) => setWebviewError(e.nativeEvent.description)}

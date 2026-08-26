@@ -709,6 +709,11 @@ export function buildGridMapHtml(opts: {
           var msg = JSON.parse(raw);
           if (msg.type === 'setMode') applyMode(msg.mode);
           else if (msg.type === 'setSavedLocations') renderSavedLocations(msg.locations);
+          // Re-pans an already-loaded map to a new region (e.g. a second
+          // "Kam dnes?" tap after the map screen was kept mounted and
+          // warm from an earlier visit) - initialView only covers the
+          // very first page load, baked into the URL/HTML itself.
+          else if (msg.type === 'focusView') map.setView([msg.lat, msg.lon], msg.zoom || 10);
         } catch (e) {
           // not our message
         }

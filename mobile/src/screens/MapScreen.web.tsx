@@ -3,38 +3,24 @@ import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { palette, radius, space, type } from "../theme";
 import { getGrid, API_BASE, type GridResponse } from "../api";
 import { useLocation } from "../LocationContext";
-import { buildGridMapHtml, type MapMode, type MapView } from "../leafletHtml";
+import { buildGridMapHtml, type MapMode } from "../leafletHtml";
 import { useAppNavigation } from "../AppNavigationContext";
 import { useSavedLocations } from "../SavedLocationsContext";
 import { PageHeader } from "../components/PageHeader";
 import { Chip } from "../components/Chip";
 import { LocationSheet, type SelectedLocation } from "../components/LocationSheet";
+import { LoadingProgress } from "../components/LoadingProgress";
 
 export default function MapScreen() {
   const { location } = useLocation();
-  const { consumeMapSpeciesRequest, consumeMapFocusRequest } = useAppNavigation();
+  const { consumeMapSpeciesRequest, consumeMapFocusRequest, active } = useAppNavigation();
   const { locations: savedLocations } = useSavedLocations();
   const [grid, setGrid] = useState<GridResponse | null>(null);
   const [gridError, setGridError] = useState<string | null>(null);
-  // Mirrors MapScreen.tsx's lazy init for a pending "Ukázat na mapě"
-  // request (see AppNavigationContext) - no URL/postMessage trick needed
-  // here since the web build passes initialMode straight into
-  // buildGridMapHtml below, not through a fetched page.
-  const [mode, setMode] = useState<MapMode>(() => {
-    const pending = consumeMapSpeciesRequest();
-    return pending ? { type: "species", id: pending } : { type: "overall" };
-  });
-  // Same one-shot pattern for a "Kam dnes?" region tap - zoom in there
-  // instead of the usual whole-country view. Captured once so it doesn't
-  // re-trigger the html useMemo below every render.
-  const initialViewRef = useRef<MapView | null | undefined>(undefined);
-  if (initialViewRef.current === undefined) {
-    initialViewRef.current = consumeMapFocusRequest();
-  }
+  const [mode, setMode] = useState<MapMode>({ type: "overall" });
   const [selected, setSelected] = useState<SelectedLocation | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const isFirstMode = useRef(true);
 
   useEffect(() => {
     getGrid()
@@ -58,7 +44,14 @@ export default function MapScreen() {
 
   // The HTML is built once per (grid, location) - NOT per mode. Switching
   // species shouldn't reload every map tile and reset pan/zoom; instead the
-  // mode change is pushed into the already-loaded page below.
+  // mode change is pushed into the already-loaded page below. App.tsx now
+  // keeps every screen mounted permanently (just hidden), so this iframe is
+  // no longer guaranteed to remount when the user switches to Mapa -
+  // initialMode/initialView used to be baked in here for exactly that
+  // "guaranteed fresh page" case; now a return visit reuses the same
+  // already-loaded iframe, so pending requests instead flow through the
+  // postMessage effect below every time, the same way a mid-session chip
+  // tap already did.
   const html = useMemo(() => {
     if (!grid) return null;
     return buildGridMapHtml({
@@ -66,28 +59,17 @@ export default function MapScreen() {
       speciesList: grid.speciesList,
       userLat: location.lat,
       userLon: location.lon,
-      initialMode: mode,
-      initialView: initialViewRef.current ?? undefined,
       apiBase: API_BASE,
       mapApiKey: process.env.EXPO_PUBLIC_MAPY_CZ_API_KEY ?? "",
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [grid, location.lat, location.lon]);
 
   // A fresh srcDoc means a fresh page - its own "ready" message hasn't
   // arrived yet, so posting setSavedLocations right away would race the
-  // new page's listener (same hazard the initial species mode sidesteps
-  // by being baked into the URL instead - this page has no such baked-in
-  // path for saved locations, since the native WebView build fetches this
-  // HTML from a public, unauthenticated endpoint that has no idea who's
-  // signed in or what they've saved).
+  // new page's listener.
   useEffect(() => setMapReady(false), [html]);
 
   useEffect(() => {
-    if (isFirstMode.current) {
-      isFirstMode.current = false;
-      return;
-    }
     iframeRef.current?.contentWindow?.postMessage(JSON.stringify({ type: "setMode", mode }), "*");
   }, [mode]);
 
@@ -98,6 +80,25 @@ export default function MapScreen() {
       "*"
     );
   }, [mapReady, savedLocations]);
+
+  // Picks up a "Ukázat na mapě" species jump or a "Kam dnes?" region focus
+  // whenever the user is actually looking at Mapa AND its page has loaded
+  // far enough to have a message listener registered - re-running this
+  // check on every dependency change is safe since consume*Request() is a
+  // no-op once already drained, so it can't double-apply a stale request.
+  useEffect(() => {
+    if (active !== "Mapa" || !mapReady) return;
+    const pendingSpecies = consumeMapSpeciesRequest();
+    if (pendingSpecies) setMode({ type: "species", id: pendingSpecies });
+    const pendingFocus = consumeMapFocusRequest();
+    if (pendingFocus) {
+      iframeRef.current?.contentWindow?.postMessage(
+        JSON.stringify({ type: "focusView", lat: pendingFocus.lat, lon: pendingFocus.lon, zoom: pendingFocus.zoom }),
+        "*"
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, mapReady]);
 
   return (
     <View style={styles.screen}>
@@ -129,7 +130,10 @@ export default function MapScreen() {
         ) : html ? (
           <iframe ref={iframeRef} title="Mapa" srcDoc={html} style={{ width: "100%", height: "100%", border: 0 }} />
         ) : (
-          <Text style={styles.loading}>Počítám mřížku pro celou republiku…</Text>
+          <View style={{ alignItems: "center" }}>
+            <Text style={styles.loading}>Počítám mřížku pro celou republiku…</Text>
+            <LoadingProgress />
+          </View>
         )}
       </View>
       {selected && <LocationSheet selected={selected} mode={mode} onClose={() => setSelected(null)} />}

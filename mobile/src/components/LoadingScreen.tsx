@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Animated, Easing, StyleSheet, Text, View } from "react-native";
 import { palette, space, type } from "../theme";
 import { MorelLogo } from "./MorelLogo";
+import { LoadingProgress } from "./LoadingProgress";
 
 const STEPS = [
   "Stahuji data o počasí…",
@@ -63,6 +64,7 @@ export function LoadingScreen() {
       <SpinningMushroom />
       <Text style={styles.brand}>Rostou?</Text>
       <Animated.Text style={[styles.step, { opacity: fade }]}>{STEPS[stepIndex]}</Animated.Text>
+      <LoadingProgress />
     </View>
   );
 }
