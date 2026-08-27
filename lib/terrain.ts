@@ -1,49 +1,34 @@
 /**
- * Forest composition near a point, from OpenStreetMap via the Overpass API
- * (free, no key). This is the piece that stops the app suggesting oak
+ * Forest composition near a point, from a static grid built once from a
+ * Czech OpenStreetMap extract (see data-prep/build_forest_grid.py) - not
+ * fetched live. This is the piece that stops the app suggesting oak
  * mushrooms in a spruce forest, or any mycorrhizal species in a field or
  * city block.
  *
- * Two signals, best available wins:
- *  1. `uhul:slt` - in some regions OSM forest polygons were imported
- *     straight from ÚHÚL's own typology WFS (source=UHULtypoWFS), with a
- *     real Czech forestry "skupina lesních typů" description like
- *     "Bohatá habrová doubrava". We keyword-match tree genera out of that
- *     text - the closest thing to real ÚHÚL data we can get without a
- *     licensed GIS pipeline.
- *  2. `leaf_type` / `wood` - coarser broadleaved/needleleaved/mixed tag,
- *     present on plain volunteer-mapped polygons. Used when there's no
- *     ÚHÚL import for that polygon.
+ * Used to query the live Overpass API per-request instead - dropped after
+ * all 3 configured mirrors went down at once (2026-08-27), which is
+ * exactly the kind of outage a hyper-local forecast app can't afford to
+ * inherit. Landscape composition doesn't change day to day, so "fetch it
+ * once, bake it into the deploy" is strictly better here: faster (no
+ * network round trip), immune to a third party's uptime, and - since the
+ * grid is 250m resolution instead of the old 1.5km search radius - more
+ * precise too (a city block 300m from a small park no longer reads as
+ * "forest nearby").
  *
- * Coverage is real but patchy (depends on OSM mapping in that area), so
- * this is a best-effort signal, not a certified forest inventory.
+ * Two signals per grid cell, best available wins - same as before:
+ *  1. Tree genus bitmask - from `uhul:slt` (ÚHÚL forest-type text, e.g.
+ *     "Bohatá habrová doubrava") keyword-matched at build time. The
+ *     precise, species-level signal.
+ *  2. Leaf-type fallback - coarser broadleaved/needleleaved/mixed, used
+ *     only where no ÚHÚL-derived genus data exists for that cell.
+ *
+ * Coverage is real but patchy (depends on OSM mapping quality in that
+ * area), so this is a best-effort signal, not a certified forest
+ * inventory.
  */
 
-import { cached, roundCoord } from "./cache";
-
-// overpass.kumi.systems was the only endpoint that reliably returned data
-// with a proper User-Agent in testing; the official overpass-api.de
-// cluster 406'd fetch() requests regardless of headers (Apache-level
-// content-negotiation quirk) and its mirrors were intermittently
-// overloaded. Keep multiple endpoints so one bad instance doesn't take
-// the feature down.
-const OVERPASS_ENDPOINTS = [
-  "https://overpass.kumi.systems/api/interpreter",
-  "https://lz4.overpass-api.de/api/interpreter",
-  "https://overpass-api.de/api/interpreter",
-];
-
-const SEARCH_RADIUS_M = 1500;
-
-// Forest composition doesn't change minute to minute - cache aggressively.
-const TERRAIN_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24h
-// But a failed lookup (Overpass down/rate-limited) gets a short TTL - long
-// enough to stop every request paying the full timeout during an outage,
-// short enough that we retry for real data soon after.
-const TERRAIN_FAILURE_TTL_MS = 90 * 1000; // 90s
-// Each endpoint gets less time before falling back - the old 9s x 3
-// endpoints meant a single request could take up to 27s in the worst case.
-const OVERPASS_TIMEOUT_MS = 5000;
+import fs from "node:fs";
+import path from "node:path";
 
 export type DominantForestType = "jehličnatý" | "listnatý" | "smíšený" | null;
 
@@ -51,46 +36,50 @@ export interface TerrainInfo {
   hasForestNearby: boolean;
   dominantType: DominantForestType;
   treeGenera: string[]; // e.g. ["dub", "habr"] when ÚHÚL text was parsed
-  polygonsFound: number;
-  source: "osm-overpass";
+  polygonsFound: number; // 1 if any grid data was found at/near this point, 0 otherwise - a count no longer applies once forest is a raster, not discrete polygons
+  source: "osm-grid";
 }
 
-interface OverpassElement {
-  id: number;
-  tags?: Record<string, string>;
+// Must match data-prep/build_forest_grid.py's SLT_KEYWORDS order exactly -
+// that's what fixes each genus's bit position in the grid's genus byte.
+const GENUS_ORDER = ["smrk", "borovice", "dub", "buk", "habr", "bříza", "topol osika"];
+
+const LEAF_NONE = 0,
+  LEAF_CONIFER = 1,
+  LEAF_BROADLEAF = 2,
+  LEAF_MIXED = 3,
+  // ~92% of real Czech OSM forest polygons carry neither uhul:slt nor
+  // leaf_type/wood (measured at build time - see data-prep/build_forest_grid.py) -
+  // this marks "yes, real forest here" for those, distinct from LEAF_NONE
+  // ("no forest data at all"). leafTypeName() below falls through to null
+  // for it, same as it always has for any code it doesn't recognize -
+  // dominantType: null is exactly "forest present, type unknown."
+  LEAF_UNKNOWN = 4;
+
+interface GridMeta {
+  latMin: number;
+  latMax: number;
+  lonMin: number;
+  lonMax: number;
+  cellM: number;
+  latStep: number;
+  lonStep: number;
+  rows: number;
+  cols: number;
 }
 
-interface OverpassResponse {
-  elements: OverpassElement[];
-}
+let gridBuffer: Buffer | null = null;
+let gridMeta: GridMeta | null = null;
 
-// Keyword -> our species.json host_trees vocabulary, matched against ÚHÚL
-// "skupina lesních typů" free text (Czech forestry shorthand).
-const SLT_KEYWORDS: [RegExp, string][] = [
-  [/smrč|smrko/i, "smrk"],
-  [/borov|bor(?!ov[áý] hora)/i, "borovice"],
-  [/doubrav|doubí|dubin/i, "dub"],
-  [/bučin|buč(?!ty)/i, "buk"],
-  [/habr/i, "habr"],
-  [/březin|březov/i, "bříza"],
-  [/osikov|topolov/i, "topol osika"],
-];
-
-function generaFromSlt(slt: string): string[] {
-  const found = new Set<string>();
-  for (const [re, genus] of SLT_KEYWORDS) {
-    if (re.test(slt)) found.add(genus);
-  }
-  return [...found];
-}
-
-function leafTypeFromTags(tags: Record<string, string>): DominantForestType {
-  const value = tags.leaf_type ?? tags.wood;
-  if (!value) return null;
-  if (value === "broadleaved" || value === "deciduous") return "listnatý";
-  if (value === "needleleaved" || value === "coniferous") return "jehličnatý";
-  if (value === "mixed") return "smíšený";
-  return null;
+// Loaded once per serverless instance (module-level cache, same pattern as
+// api/data/species.json's static import) - the file is a few MB, trivial
+// next to a cold start's other costs, and every request after the first
+// reuses it from memory.
+function loadGrid(): void {
+  if (gridBuffer && gridMeta) return;
+  const dataDir = path.join(__dirname, "data");
+  gridMeta = JSON.parse(fs.readFileSync(path.join(dataDir, "forest-grid.meta.json"), "utf-8"));
+  gridBuffer = fs.readFileSync(path.join(dataDir, "forest-grid.bin"));
 }
 
 const CONIFER_TREES = new Set(["smrk", "borovice"]);
@@ -106,103 +95,78 @@ function forestTypeFromGenera(genera: string[]): DominantForestType {
   return null;
 }
 
-async function queryOne(endpoint: string, query: string): Promise<OverpassResponse> {
-  const res = await fetch(endpoint, {
-    method: "POST",
-    headers: {
-      // Some Overpass mirrors 406/429 requests without a real UA.
-      "User-Agent": "HriboradarApp/0.1 (+https://github.com/xjvalis/hriboradar)",
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: new URLSearchParams({ data: query }),
-    signal: AbortSignal.timeout(OVERPASS_TIMEOUT_MS),
-  });
-  if (!res.ok) throw new Error(`Overpass ${endpoint} returned ${res.status}`);
-  const text = await res.text();
-  return JSON.parse(text) as OverpassResponse;
+function leafTypeName(code: number): DominantForestType {
+  if (code === LEAF_CONIFER) return "jehličnatý";
+  if (code === LEAF_BROADLEAF) return "listnatý";
+  if (code === LEAF_MIXED) return "smíšený";
+  return null;
 }
 
-// Race all endpoints instead of trying them one after another - sequential
-// fallback meant a request could wait up to endpoints.length x timeout
-// before failing (measured ~15s cold). Racing means we wait only as long
-// as the fastest endpoint that actually answers.
-async function queryOverpass(query: string): Promise<OverpassResponse> {
-  return Promise.any(OVERPASS_ENDPOINTS.map((endpoint) => queryOne(endpoint, query)));
+// Reads one cell's raw (genusMask, leafCode) pair, or null if out of
+// bounds or empty (no forest data recorded there).
+function readCell(row: number, col: number): { genusMask: number; leafCode: number } | null {
+  const meta = gridMeta!;
+  if (row < 0 || row >= meta.rows || col < 0 || col >= meta.cols) return null;
+  const offset = (row * meta.cols + col) * 2;
+  const genusMask = gridBuffer![offset];
+  const leafCode = gridBuffer![offset + 1];
+  if (genusMask === 0 && leafCode === 0) return null;
+  return { genusMask, leafCode };
 }
 
-export function fetchTerrain(lat: number, lon: number): Promise<TerrainInfo> {
-  const key = `terrain:${roundCoord(lat)},${roundCoord(lon)}`;
-  return cached(
-    key,
-    TERRAIN_CACHE_TTL_MS,
-    () => fetchTerrainUncached(lat, lon),
-    // hasForestNearby:true + polygonsFound:0 only happens in the catch-all
-    // fallback below (Overpass failed) - give that a short TTL instead of
-    // the full day, so a transient outage self-heals quickly.
-    (result) =>
-      result.hasForestNearby && result.polygonsFound === 0 ? TERRAIN_FAILURE_TTL_MS : null
-  );
-}
+// A single 250m cell is precise, but a real houbař standing right at a
+// forest's edge shouldn't get a hard "no" just because their exact GPS
+// fix landed a few meters on the wrong side of it - so this checks a
+// small 3x3-cell neighborhood (~750m box) around the point and unions
+// whatever forest data any of those cells have. That's a deliberate,
+// modest rounding (matches "trochu zaoblit ale ne moc" - a little
+// tolerance, not a lot): a genuine city center has no forest data in any
+// of the 9 cells either, so it still correctly reads as "no forest
+// nearby," while a point right at a tree line doesn't flicker between
+// yes/no depending on exactly which side of a 250m boundary it falls on.
+const NEIGHBOR_RADIUS_CELLS = 1;
 
-async function fetchTerrainUncached(lat: number, lon: number): Promise<TerrainInfo> {
-  const query = `[out:json][timeout:8];(way(around:${SEARCH_RADIUS_M},${lat},${lon})["landuse"="forest"];way(around:${SEARCH_RADIUS_M},${lat},${lon})["natural"="wood"];);out tags 30;`;
+export async function fetchTerrain(lat: number, lon: number): Promise<TerrainInfo> {
+  loadGrid();
+  const meta = gridMeta!;
 
-  try {
-    const data = await queryOverpass(query);
-    const elements = data.elements.filter((e) => e.tags);
-
-    if (elements.length === 0) {
-      return {
-        hasForestNearby: false,
-        dominantType: null,
-        treeGenera: [],
-        polygonsFound: 0,
-        source: "osm-overpass",
-      };
-    }
-
-    const generaCounts: Record<string, number> = {};
-    const leafTypeCounts: Record<string, number> = {};
-    for (const el of elements) {
-      const tags = el.tags!;
-      if (tags["uhul:slt"]) {
-        for (const genus of generaFromSlt(tags["uhul:slt"])) {
-          generaCounts[genus] = (generaCounts[genus] ?? 0) + 1;
-        }
-      }
-      const leaf = leafTypeFromTags(tags);
-      if (leaf) leafTypeCounts[leaf] = (leafTypeCounts[leaf] ?? 0) + 1;
-    }
-
-    const treeGenera = Object.entries(generaCounts)
-      .sort((a, b) => b[1] - a[1])
-      .map(([genus]) => genus);
-
-    const dominantType =
-      treeGenera.length > 0
-        ? forestTypeFromGenera(treeGenera)
-        : Object.entries(leafTypeCounts).sort((a, b) => b[1] - a[1])[0]?.[0] as
-            | DominantForestType
-            | undefined ?? null;
-
-    return {
-      hasForestNearby: true,
-      dominantType,
-      treeGenera,
-      polygonsFound: elements.length,
-      source: "osm-overpass",
-    };
-  } catch {
-    // Overpass down/timed out - treat as "unknown", not "no forest", so we
-    // don't wrongly zero out every species just because a lookup failed.
-    return {
-      hasForestNearby: true,
-      dominantType: null,
-      treeGenera: [],
-      polygonsFound: 0,
-      source: "osm-overpass",
-    };
+  if (lat < meta.latMin || lat > meta.latMax || lon < meta.lonMin || lon > meta.lonMax) {
+    // Outside Czechia's bounding box entirely - no data by definition.
+    return { hasForestNearby: false, dominantType: null, treeGenera: [], polygonsFound: 0, source: "osm-grid" };
   }
+
+  const centerRow = Math.floor((lat - meta.latMin) / meta.latStep);
+  const centerCol = Math.floor((lon - meta.lonMin) / meta.lonStep);
+
+  let genusMask = 0;
+  let leafCode = LEAF_NONE;
+  let found = false;
+  for (let dr = -NEIGHBOR_RADIUS_CELLS; dr <= NEIGHBOR_RADIUS_CELLS; dr++) {
+    for (let dc = -NEIGHBOR_RADIUS_CELLS; dc <= NEIGHBOR_RADIUS_CELLS; dc++) {
+      const cell = readCell(centerRow + dr, centerCol + dc);
+      if (!cell) continue;
+      found = true;
+      genusMask |= cell.genusMask;
+      // A real classification from one neighbor cell always wins over
+      // LEAF_UNKNOWN from another - prefer the more informative signal.
+      if (leafCode === LEAF_NONE || leafCode === LEAF_UNKNOWN) leafCode = cell.leafCode;
+    }
+  }
+
+  if (!found) {
+    return { hasForestNearby: false, dominantType: null, treeGenera: [], polygonsFound: 0, source: "osm-grid" };
+  }
+
+  const treeGenera = GENUS_ORDER.filter((_, i) => (genusMask & (1 << i)) !== 0);
+  const dominantType = treeGenera.length > 0 ? forestTypeFromGenera(treeGenera) : leafTypeName(leafCode);
+
+  return {
+    hasForestNearby: true,
+    dominantType,
+    treeGenera,
+    polygonsFound: 1,
+    source: "osm-grid",
+  };
 }
 
 export function expectedForestType(hostTrees: string[]): DominantForestType {
@@ -219,7 +183,13 @@ export function terrainMatchFactor(
   terrain: TerrainInfo
 ): number {
   if (hostTrees.length === 0) return 1; // saprotrof/parazit - not tree-bound
-  if (!terrain.hasForestNearby) return 0.05; // open field / city - mycorrhizal species need trees
+  // Used to be a small 0.05 residual instead of a hard 0, hedging against
+  // the old live Overpass 1.5km-radius search producing false negatives.
+  // The static 250m grid (with its own small neighborhood check, see
+  // NEIGHBOR_RADIUS_CELLS above) is precise and reliable enough that
+  // "no forest nearby" can mean exactly that now - a mycorrhizal species
+  // genuinely has ~0% chance in the middle of a city block.
+  if (!terrain.hasForestNearby) return 0;
 
   if (terrain.treeGenera.length > 0) {
     const exactGenusMatch = hostTrees.some((t) => terrain.treeGenera.includes(t));

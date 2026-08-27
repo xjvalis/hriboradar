@@ -5,6 +5,7 @@ import { PrimaryButton } from "./PrimaryButton";
 import { ProbabilityBadge } from "./ProbabilityBadge";
 import { BottomSheet } from "./BottomSheet";
 import { getForecast, type ForecastResponse } from "../api";
+import { computeDailyOverall } from "../forecastMath";
 import { useSpeciesDetail } from "../SpeciesDetailContext";
 import { useSavedLocations } from "../SavedLocationsContext";
 import { NamePromptModal } from "./NamePromptModal";
@@ -62,7 +63,16 @@ export function LocationSheet({
       .catch(() => {});
   }, [gridLat, gridLon]);
 
-  const pct = selected.probabilityPct ?? 0;
+  // selected.probabilityPct comes from the map's overview grid (points up to
+  // ~15km apart - see leafletHtml.ts) and is only a placeholder shown while
+  // `detail` loads. Once the real per-species forecast for this exact tapped
+  // coordinate arrives, its own overall score (same weighted-top-3 formula
+  // api/grid.ts uses) replaces it - otherwise a spot with clearly no real
+  // forest nearby (e.g. a city center) could keep showing a nearby forest's
+  // score indefinitely, which is exactly the "why does downtown Prague show
+  // 54%" bug this fixes.
+  const todayOverall = detail ? computeDailyOverall(detail).find((d) => d.date === detail.today)?.overall : undefined;
+  const pct = todayOverall ?? selected.probabilityPct ?? 0;
   const color = scoreColor(pct);
   // No free/open source has real "turistická oblast" polygon boundaries
   // (checked Mapy.cz geocoding, OSM, ArcČR 500 - see touristAreas.ts) - the

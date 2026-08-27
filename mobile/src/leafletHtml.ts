@@ -816,12 +816,17 @@ export function buildGridMapHtml(opts: {
           // spot no matter where in a region you actually clicked.
           lat: lat,
           lon: lon,
-          // Forecast data still comes from the nearest grid point (that's
-          // the real resolution weather data exists at) - gridLat/gridLon
-          // let the app re-fetch from the same cached point instead of
-          // hitting a fresh, uncached coordinate for every distinct tap.
-          gridLat: best.lat,
-          gridLon: best.lon,
+          // Used to be the nearest ~15km-spaced overview-map grid point
+          // (best.lat/best.lon), reused to dodge an "uncached" /api/forecast
+          // hit - but that meant a tap in the middle of a city could report
+          // the same forecast as a real forest up to ~15km away, since both
+          // snapped to the same grid cell. /api/forecast caches by its own
+          // ~110m-rounded coordinate (see roundCoord in lib/cache.ts), which
+          // is plenty - so the real tapped point is both more accurate AND
+          // still effectively cached, just at a resolution that actually
+          // matches "which exact spot did the user tap."
+          gridLat: lat,
+          gridLon: lon,
           probabilityPct: best.overall,
           topSpeciesName: topId != null ? speciesNames[topId] : null,
           topSpeciesId: topId,

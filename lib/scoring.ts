@@ -7,7 +7,7 @@ import { terrainMatchFactor, type TerrainInfo } from "./terrain";
 // scoring formula below starts its own calibration cohort instead of
 // silently mixing with data the old formula produced. Bump this whenever
 // scoreSpeciesDay's math changes in a way that shifts probabilities.
-export const MODEL_VERSION = "1.0.0";
+export const MODEL_VERSION = "1.1.0";
 
 export interface Species {
   id: string;

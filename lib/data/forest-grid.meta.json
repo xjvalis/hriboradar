@@ -1,0 +1,20 @@
+{
+  "latMin": 48.55,
+  "latMax": 51.06,
+  "lonMin": 12.09,
+  "lonMax": 18.87,
+  "cellM": 250,
+  "latStep": 0.0022522522522522522,
+  "lonStep": 0.0034799942092896357,
+  "rows": 1115,
+  "cols": 1949,
+  "genusBits": {
+    "smrk": 0,
+    "borovice": 1,
+    "dub": 2,
+    "buk": 3,
+    "habr": 4,
+    "b\u0159\u00edza": 5,
+    "topol osika": 6
+  }
+}

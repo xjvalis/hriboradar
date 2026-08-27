@@ -4,5 +4,10 @@
       "path": "/api/cron/recalibrate",
       "schedule": "0 3 * * *"
     }
-  ]
+  ],
+  "functions": {
+    "api/**/*.ts": {
+      "includeFiles": "lib/data/forest-grid.*"
+    }
+  }
 }

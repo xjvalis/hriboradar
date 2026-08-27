@@ -40,8 +40,11 @@ const ENTITLEMENT_ID = "hriboradar";
 // a real purchase - needed because RevenueCat can't function in Expo Go at
 // all (see the nativeOk guard below), so there's no real way to grant
 // yourself the entitlement while testing there. __DEV__ is false in every
-// production/release build regardless of this env var, so this can never
-// leak into a real user's app.
+// "production"/"preview" EAS build, so this can never leak into a real
+// user's app - but it IS true in an EAS "development"-profile build (a
+// real dev-client install, not just Expo Go), so mobile/.env's
+// EXPO_PUBLIC_FORCE_PREMIUM must be "false" except during a deliberate
+// screenshot session, or every fresh account on that build looks Plus.
 const FORCE_PREMIUM_DEV = __DEV__ && process.env.EXPO_PUBLIC_FORCE_PREMIUM === "true";
 
 // The RevenueCat offering's packages were set up with custom identifiers

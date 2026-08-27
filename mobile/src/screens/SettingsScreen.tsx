@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { Alert, Linking, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { Bug, Check, ChevronRight, Copy, LogOut, Sprout, Trash2 } from "lucide-react-native";
 import { palette, radius, space, type } from "../theme";
@@ -34,6 +34,19 @@ export default function SettingsScreen() {
     await Clipboard.setStringAsync(SUPPORT_EMAIL);
     setEmailCopied(true);
     setTimeout(() => setEmailCopied(false), 2000);
+  }
+
+  // Apple requires a way to manage/cancel a subscription reachable from
+  // inside the app (guideline 3.1.2) - it doesn't have to be a custom
+  // screen, a link straight to the platform's own subscription management
+  // is the standard, Apple-recommended approach (they manage billing, not
+  // us - RevenueCat mirrors status, it doesn't own cancellation).
+  function openManageSubscription() {
+    const url =
+      Platform.OS === "ios"
+        ? "itms-apps://apps.apple.com/account/subscriptions"
+        : "https://play.google.com/store/account/subscriptions?package=cz.hriboradar.app";
+    Linking.openURL(url).catch(() => {});
   }
 
   function handleToggleSpecies(id: string) {
@@ -139,13 +152,18 @@ export default function SettingsScreen() {
 
       <Text style={styles.sectionTitle}>Hřiboradar Plus</Text>
       {isPremium ? (
-        <View style={styles.plusCard}>
-          <Sprout size={20} strokeWidth={1.8} color={palette.primary} />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.currentLabel}>Máte Hřiboradar Plus</Text>
-            <Text style={styles.toggleHint}>Předpověď na 7 dní, mapa podle druhu, víc uložených míst a sledování hub.</Text>
+        <>
+          <View style={styles.plusCard}>
+            <Sprout size={20} strokeWidth={1.8} color={palette.primary} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.currentLabel}>Máte Hřiboradar Plus</Text>
+              <Text style={styles.toggleHint}>Předpověď na 7 dní, mapa podle druhu, víc uložených míst a sledování hub.</Text>
+            </View>
           </View>
-        </View>
+          <Pressable onPress={openManageSubscription} hitSlop={6} style={{ marginTop: space.sm, alignSelf: "flex-start" }}>
+            <Text style={styles.restoreLink}>Spravovat nebo zrušit předplatné</Text>
+          </Pressable>
+        </>
       ) : (
         <Pressable
           style={styles.plusCard}

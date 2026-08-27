@@ -40,6 +40,12 @@ export function scoreColor(pct: number): string {
 }
 
 export function scoreLabel(pct: number): string {
+  // A real, hard zero (not just "poor") only happens when the terrain grid
+  // found no forest within ~750m at all (see terrainMatchFactor in
+  // lib/terrain.ts) - a city block or open field, not just bad weather.
+  // Worth its own copy rather than folding into "Nepravděpodobné", which
+  // reads like "technically possible, just unlikely."
+  if (pct === 0) return "Tady žádný les není";
   const tier = scoreTier(pct);
   return tier === "good" ? "Dobré podmínky" : tier === "medium" ? "Slabší šance" : "Nepravděpodobné";
 }
@@ -48,6 +54,7 @@ export function scoreLabel(pct: number): string {
 // this is the "field guide voice" line that precedes the factual weather
 // explanation, e.g. "Houbám dnes chybí vlhkost a čas. 4. den po dešti..."
 export function scoreFlavor(pct: number): string {
+  if (pct === 0) return "Nejspíš byste tu houbu hledali marně";
   const tier = scoreTier(pct);
   if (tier === "good") return "Dnes to v lese žije";
   if (tier === "medium") return "Les se pomalu probouzí";

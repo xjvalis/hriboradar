@@ -6,3 +6,8 @@ node_modules/
 .DS_Store
 data-prep/forest-raw*.json
 data-prep/test-*.json
+# Raw OSM extract (~1GB) that data-prep/build_forest_grid.py consumes -
+# a reproducible input (re-download from Geofabrik), not something to
+# version control. Only its processed output (lib/data/forest-grid.*) is
+# tracked - that's the actual deploy artifact.
+data-prep/osm/
