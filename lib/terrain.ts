@@ -37,6 +37,12 @@ export interface TerrainInfo {
   dominantType: DominantForestType;
   treeGenera: string[]; // e.g. ["dub", "habr"] when ÚHÚL text was parsed
   polygonsFound: number; // 1 if any grid data was found at/near this point, 0 otherwise - a count no longer applies once forest is a raster, not discrete polygons
+  // True when the point falls inside a built-up area (landuse=residential/
+  // commercial/industrial/retail/construction/railway/garages) - applied as
+  // its own penalty in lib/scoring.ts, independent of hasForestNearby,
+  // since even a saprotrophic species that doesn't need a forest at all
+  // still isn't realistically growing on a train station concourse.
+  isUrban: boolean;
   source: "osm-grid";
 }
 
@@ -66,6 +72,7 @@ interface GridMeta {
   lonStep: number;
   rows: number;
   cols: number;
+  bytesPerCell: number;
 }
 
 let gridBuffer: Buffer | null = null;
@@ -95,6 +102,22 @@ function forestTypeFromGenera(genera: string[]): DominantForestType {
   return null;
 }
 
+// Ranks a leaf code by how informative it is, for merging across the 3x3
+// neighborhood below: a real type (conifer/broadleaf/mixed) always beats
+// LEAF_UNKNOWN ("forest, but no type on record"), which always beats
+// LEAF_NONE ("no forest at all"). Plain numeric comparison doesn't work
+// for this - LEAF_UNKNOWN=4 is numerically larger than the real-type
+// codes 1-3, which previously let a later LEAF_NONE(0) neighbor
+// incorrectly stomp an earlier LEAF_UNKNOWN(4) back down to 0 (found
+// 2026-08-27: Smržovka's forest data vanished because 8 of its 9
+// neighborhood cells were plain LEAF_NONE and iterated after the one
+// real LEAF_UNKNOWN cell).
+function leafPriority(code: number): number {
+  if (code === LEAF_NONE) return 0;
+  if (code === LEAF_UNKNOWN) return 1;
+  return 2; // LEAF_CONIFER / LEAF_BROADLEAF / LEAF_MIXED
+}
+
 function leafTypeName(code: number): DominantForestType {
   if (code === LEAF_CONIFER) return "jehličnatý";
   if (code === LEAF_BROADLEAF) return "listnatý";
@@ -102,16 +125,17 @@ function leafTypeName(code: number): DominantForestType {
   return null;
 }
 
-// Reads one cell's raw (genusMask, leafCode) pair, or null if out of
-// bounds or empty (no forest data recorded there).
-function readCell(row: number, col: number): { genusMask: number; leafCode: number } | null {
+// Reads one cell's raw (genusMask, leafCode, isUrban) triple, or null if
+// out of bounds or completely empty (no forest AND not built-up).
+function readCell(row: number, col: number): { genusMask: number; leafCode: number; isUrban: boolean } | null {
   const meta = gridMeta!;
   if (row < 0 || row >= meta.rows || col < 0 || col >= meta.cols) return null;
-  const offset = (row * meta.cols + col) * 2;
+  const offset = (row * meta.cols + col) * meta.bytesPerCell;
   const genusMask = gridBuffer![offset];
   const leafCode = gridBuffer![offset + 1];
-  if (genusMask === 0 && leafCode === 0) return null;
-  return { genusMask, leafCode };
+  const isUrban = gridBuffer![offset + 2] === 1;
+  if (genusMask === 0 && leafCode === 0 && !isUrban) return null;
+  return { genusMask, leafCode, isUrban };
 }
 
 // A single 250m cell is precise, but a real houbař standing right at a
@@ -132,7 +156,7 @@ export async function fetchTerrain(lat: number, lon: number): Promise<TerrainInf
 
   if (lat < meta.latMin || lat > meta.latMax || lon < meta.lonMin || lon > meta.lonMax) {
     // Outside Czechia's bounding box entirely - no data by definition.
-    return { hasForestNearby: false, dominantType: null, treeGenera: [], polygonsFound: 0, source: "osm-grid" };
+    return { hasForestNearby: false, dominantType: null, treeGenera: [], polygonsFound: 0, isUrban: false, source: "osm-grid" };
   }
 
   const centerRow = Math.floor((lat - meta.latMin) / meta.latStep);
@@ -147,24 +171,35 @@ export async function fetchTerrain(lat: number, lon: number): Promise<TerrainInf
       if (!cell) continue;
       found = true;
       genusMask |= cell.genusMask;
-      // A real classification from one neighbor cell always wins over
-      // LEAF_UNKNOWN from another - prefer the more informative signal.
-      if (leafCode === LEAF_NONE || leafCode === LEAF_UNKNOWN) leafCode = cell.leafCode;
+      if (leafPriority(cell.leafCode) > leafPriority(leafCode)) leafCode = cell.leafCode;
     }
   }
 
+  // Deliberately NOT unioned across the 3x3 neighborhood like forest data
+  // above - that tolerance exists so a real forest edge doesn't flicker
+  // based on which side of a 250m line the GPS fix lands on, but "urban"
+  // means "the exact point itself is built-up," not "somewhere within
+  // ~750m there's a building." Unioning it meant a real forest 200m
+  // outside a small village (a very common Czech pattern - villages sit
+  // right up against their surrounding woods) got the same penalty as
+  // standing on the village square (found 2026-08-27 near Smržovka).
+  const centerCell = readCell(centerRow, centerCol);
+  const isUrban = centerCell?.isUrban ?? false;
+
   if (!found) {
-    return { hasForestNearby: false, dominantType: null, treeGenera: [], polygonsFound: 0, source: "osm-grid" };
+    return { hasForestNearby: false, dominantType: null, treeGenera: [], polygonsFound: 0, isUrban, source: "osm-grid" };
   }
 
+  const hasForestNearby = genusMask !== 0 || leafCode !== LEAF_NONE;
   const treeGenera = GENUS_ORDER.filter((_, i) => (genusMask & (1 << i)) !== 0);
   const dominantType = treeGenera.length > 0 ? forestTypeFromGenera(treeGenera) : leafTypeName(leafCode);
 
   return {
-    hasForestNearby: true,
+    hasForestNearby,
     dominantType,
     treeGenera,
-    polygonsFound: 1,
+    polygonsFound: hasForestNearby ? 1 : 0,
+    isUrban,
     source: "osm-grid",
   };
 }

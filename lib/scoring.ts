@@ -7,7 +7,7 @@ import { terrainMatchFactor, type TerrainInfo } from "./terrain";
 // scoring formula below starts its own calibration cohort instead of
 // silently mixing with data the old formula produced. Bump this whenever
 // scoreSpeciesDay's math changes in a way that shifts probabilities.
-export const MODEL_VERSION = "1.1.0";
+export const MODEL_VERSION = "1.2.0";
 
 export interface Species {
   id: string;
@@ -38,9 +38,20 @@ export interface DayScore {
     rain_timing: number;
     moisture: number;
     terrain: number;
+    urban: number;
     days_since_rain: number | null;
   };
 }
+
+// Applied on top of terrainMatchFactor, not folded into it - a built-up
+// area drags down every species, including saprotrophs that don't need a
+// forest at all (bedla, václavka - see terrainMatchFactor's
+// host_trees.length===0 case): even a mushroom that grows in plain grass
+// isn't realistically growing on a train station concourse. Not a hard
+// zero - a small park or garden can sit inside a landuse=residential
+// polygon the 250m grid doesn't resolve, so a dramatic-but-nonzero
+// penalty is the honest choice (explicit user direction, 2026-08-27).
+const URBAN_PENALTY = 0.15;
 
 function clamp(v: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, v));
@@ -93,14 +104,16 @@ export function scoreSpeciesDay(
   const rain = rainTimingFactor(since, species.days_after_rain);
   const moisture = moistureFactor(day.soilMoisturePct, species.moisture_need);
   const terrainMatch = terrainMatchFactor(species.host_trees, terrain);
+  const urban = terrain.isUrban ? URBAN_PENALTY : 1;
 
-  // Season and terrain are hard gates (multiplied) - wrong forest or wrong
-  // month should crush the score, not just nudge it. Temp/rain-timing/
-  // moisture are weighted-averaged so decent-but-imperfect weather doesn't
-  // collapse to near-zero the way multiplying three sub-1 factors would.
+  // Season, terrain, and urban are hard gates (multiplied) - wrong forest,
+  // wrong month, or a built-up area should crush the score, not just
+  // nudge it. Temp/rain-timing/moisture are weighted-averaged so
+  // decent-but-imperfect weather doesn't collapse to near-zero the way
+  // multiplying three sub-1 factors would.
   const weighted = temp * 0.3 + rain * 0.4 + moisture * 0.3;
   const probability = clamp(
-    Math.round(season * terrainMatch * weighted * 100),
+    Math.round(season * terrainMatch * urban * weighted * 100),
     0,
     100
   );
@@ -114,6 +127,7 @@ export function scoreSpeciesDay(
       rain_timing: Math.round(rain * 100) / 100,
       moisture: Math.round(moisture * 100) / 100,
       terrain: Math.round(terrainMatch * 100) / 100,
+      urban: Math.round(urban * 100) / 100,
       days_since_rain: since,
     },
   };

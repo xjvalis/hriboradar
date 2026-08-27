@@ -88,6 +88,7 @@ export interface ForecastResponse {
     // this is directly comparable without any translation layer.
     treeGenera: string[];
     polygonsFound: number;
+    isUrban: boolean;
   };
   current: CurrentConditions | null;
   weather: DayWeather[];
