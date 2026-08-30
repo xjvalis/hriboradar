@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { Alert, Linking, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 import * as Clipboard from "expo-clipboard";
-import { Bug, Check, ChevronRight, Copy, LogOut, Sprout, Trash2 } from "lucide-react-native";
+import { Bug, Check, ChevronRight, Copy, KeyRound, LogOut, Sprout, Trash2 } from "lucide-react-native";
 import { palette, radius, space, type } from "../theme";
 import { PageHeader } from "../components/PageHeader";
 import { PaperBackground } from "../components/PaperBackground";
 import { Chip } from "../components/Chip";
+import { ChangePasswordSheet } from "../components/ChangePasswordSheet";
 import { useLocation } from "../LocationContext";
 import { useLocationPicker } from "../LocationPickerContext";
 import { useNotifications } from "../NotificationContext";
@@ -29,6 +30,15 @@ export default function SettingsScreen() {
   const { isPremium, loading: subLoading, available, annual, restore } = useSubscription();
   const { openPaywall } = usePaywall();
   const [emailCopied, setEmailCopied] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
+
+  // Google/Apple-only accounts have no password to change - Supabase marks
+  // this on the user's identities array (one entry per linked provider),
+  // not on app_metadata.provider (which is just "which one they used most
+  // recently", not "which ones exist"). Showing the option to an OAuth-only
+  // user would just produce a confusing "updateUser" call with no password
+  // to actually change against.
+  const hasPasswordAuth = user?.identities?.some((i) => i.provider === "email") ?? false;
 
   async function copySupportEmail() {
     await Clipboard.setStringAsync(SUPPORT_EMAIL);
@@ -190,6 +200,12 @@ export default function SettingsScreen() {
       <View style={styles.currentCard}>
         <Text style={styles.currentLabel}>{user?.email ?? "Přihlášeno"}</Text>
       </View>
+      {hasPasswordAuth && (
+        <Pressable style={styles.changePasswordBtn} onPress={() => setChangingPassword(true)} hitSlop={4}>
+          <KeyRound size={16} strokeWidth={1.8} color={palette.ink} />
+          <Text style={styles.signOutBtnText}>Změnit heslo</Text>
+        </Pressable>
+      )}
       <View style={styles.accountActions}>
         <Pressable style={styles.signOutBtn} onPress={signOut} hitSlop={4}>
           <LogOut size={16} strokeWidth={1.8} color={palette.ink} />
@@ -200,6 +216,7 @@ export default function SettingsScreen() {
           <Text style={styles.deleteAccountBtnText}>Smazat účet</Text>
         </Pressable>
       </View>
+      {changingPassword && <ChangePasswordSheet onClose={() => setChangingPassword(false)} />}
 
       <View style={styles.supportRow}>
         <Bug size={16} strokeWidth={1.8} color={palette.inkFaint} />
@@ -260,6 +277,18 @@ const styles = StyleSheet.create({
     padding: space.md,
   },
   restoreLink: { ...type.bodySmall, color: palette.primaryDeep, textDecorationLine: "underline" },
+  changePasswordBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: space.xs,
+    backgroundColor: palette.surface,
+    borderWidth: 1,
+    borderColor: palette.line,
+    borderRadius: radius.md,
+    paddingVertical: space.sm + 2,
+    marginTop: space.sm,
+  },
   accountActions: { flexDirection: "row", gap: space.sm, marginTop: space.sm },
   signOutBtn: {
     flex: 1,

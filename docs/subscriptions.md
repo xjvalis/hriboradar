@@ -13,8 +13,14 @@ model, and one webhook, instead of three separate purchase integrations.
 
 ## Entitlement and packages
 
-- Entitlement ID: `hriboradar` (RevenueCat dashboard "Identifier" field, not
-  the display name "Hřiboradar+" - identifiers can't carry diacritics).
+- Entitlement ID: `hřiboradar` (RevenueCat dashboard "Identifier" field -
+  verified 2026-08-27 by reading it directly off Product catalog ->
+  Entitlements, it does carry the diacritic despite an earlier wrong
+  assumption that identifiers can't. A promotional grant issued against
+  `hriboradar` (no háček) silently never matched, since
+  `getCustomerInfo().entitlements.active` keys on the real identifier -
+  that mismatch is what SubscriptionContext.tsx's `ENTITLEMENT_ID` constant
+  must match exactly).
 - Package identifiers: `monthly` and `yearly` (custom, not the predefined
   RevenueCat package types) - see `findPackage()` in
   `mobile/src/SubscriptionContext.tsx`, which matches on both the predefined
@@ -39,6 +45,14 @@ control over layout/copy in Czech and avoids pulling in a component library
 tuned for RevenueCat's own dashboard-configured paywall templates.
 
 ## Current state: iOS real, Android still Test Store
+
+Paid Apps Agreement, Bank Account, and both Tax Forms all show **Active** in
+App Store Connect as of 2026-08-28 (were "Processing" earlier) - this was the
+likely cause of the "[RevenueCat] There was a problem with the App Store"
+console warning seen during testing (StoreKit can't return real product/price
+data for an app whose paid-agreement chain isn't fully active yet). Worth a
+fresh app restart to confirm that warning is gone and `getOfferings()` now
+returns real priced packages instead of nulls.
 
 iOS is wired to the real App Store Connect app (`cz.hriboradar.app`) - real
 `hriboradar_plus_monthly` / `hriboradar_plus_annual` products exist there,

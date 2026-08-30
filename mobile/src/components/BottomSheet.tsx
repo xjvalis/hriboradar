@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ReactNode } from "react";
-import { Animated, PanResponder, Pressable, StyleSheet, View } from "react-native";
+import { Animated, KeyboardAvoidingView, PanResponder, Platform, Pressable, StyleSheet, View } from "react-native";
 import { palette, radius, shadow, space } from "../theme";
 
 // Backdrop tap and swipe-down-to-dismiss, shared by every bottom sheet in
@@ -40,7 +40,17 @@ export function BottomSheet({
   ).current;
 
   return (
-    <View style={styles.backdrop}>
+    // iOS doesn't resize/reposition anything on its own when the keyboard
+    // opens - without this, a text input near the bottom of a sheet (e.g.
+    // LocationSearchInput in LocationPickerSheet) just sits underneath the
+    // keyboard, invisible while typing. "padding" pushes the whole sheet up
+    // by the keyboard's height instead. Android already resizes the window
+    // itself (windowSoftInputMode, the RN default), so adding this there
+    // too would double-shift the sheet - undefined behavior is a no-op.
+    <KeyboardAvoidingView
+      style={styles.backdrop}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
       <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
       <Animated.View
         style={[
@@ -55,7 +65,7 @@ export function BottomSheet({
         </View>
         {children}
       </Animated.View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

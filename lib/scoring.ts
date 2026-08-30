@@ -84,6 +84,50 @@ function moistureFactor(soilMoisturePct: number, need: string): number {
   return clamp(soilMoisturePct / idealPct, 0, 1);
 }
 
+interface WeatherFactors {
+  season: number;
+  temp: number;
+  rain: number;
+  moisture: number;
+  weighted: number; // temp/rain/moisture combined, before the season gate
+  daysSinceRainValue: number | null;
+}
+
+// Everything about a species/day score that depends only on weather + the
+// calendar - no terrain, no location at all. Split out from scoreSpeciesDay
+// so the map overview (lib/grid.ts) can interpolate *this* part smoothly
+// across its sparse ~15km sample grid (weather genuinely doesn't change
+// sharply over a few km) while applying each real forest polygon's own
+// exact terrain match separately and precisely (see MAP_SAMPLE_RADIUS_CELLS's
+// comment in lib/terrain.ts for the bug this fixes: blending terrain into
+// the same sparse interpolation made forest 5km away get credited to a
+// point that isn't actually forested, so a pulsing "look here" hotspot
+// could sit right next to a spot that - tapped precisely - read 28%).
+function weatherFactors(days: DayWeather[], dayIndex: number, species: Species): WeatherFactors {
+  const day = days[dayIndex];
+  const month = Number(day.date.slice(5, 7));
+  const since = daysSinceRain(days, dayIndex, species.min_rain_mm);
+
+  const season = seasonFactor(month, species);
+  const temp = tempFactor(day.tempAvgC, species.temp_range_c);
+  const rain = rainTimingFactor(since, species.days_after_rain);
+  const moisture = moistureFactor(day.soilMoisturePct, species.moisture_need);
+  const weighted = temp * 0.3 + rain * 0.4 + moisture * 0.3;
+
+  return { season, temp, rain, moisture, weighted, daysSinceRainValue: since };
+}
+
+/**
+ * The weather-only potential (0-100) for one species/day, ignoring terrain
+ * entirely - what lib/grid.ts's sparse sample grid stores per point, later
+ * combined with a specific location's own precise terrain (see comment on
+ * weatherFactors above).
+ */
+export function weatherPotential(days: DayWeather[], dayIndex: number, species: Species): number {
+  const f = weatherFactors(days, dayIndex, species);
+  return clamp(Math.round(f.season * f.weighted * 100), 0, 100);
+}
+
 /**
  * Scores one species for one day in the fetched weather window.
  * `terrain` is looked up once per location (it doesn't change day to day)
@@ -95,14 +139,7 @@ export function scoreSpeciesDay(
   species: Species,
   terrain: TerrainInfo
 ): DayScore {
-  const day = days[dayIndex];
-  const month = Number(day.date.slice(5, 7));
-  const since = daysSinceRain(days, dayIndex, species.min_rain_mm);
-
-  const season = seasonFactor(month, species);
-  const temp = tempFactor(day.tempAvgC, species.temp_range_c);
-  const rain = rainTimingFactor(since, species.days_after_rain);
-  const moisture = moistureFactor(day.soilMoisturePct, species.moisture_need);
+  const f = weatherFactors(days, dayIndex, species);
   const terrainMatch = terrainMatchFactor(species.host_trees, terrain);
   const urban = terrain.isUrban ? URBAN_PENALTY : 1;
 
@@ -111,24 +148,23 @@ export function scoreSpeciesDay(
   // nudge it. Temp/rain-timing/moisture are weighted-averaged so
   // decent-but-imperfect weather doesn't collapse to near-zero the way
   // multiplying three sub-1 factors would.
-  const weighted = temp * 0.3 + rain * 0.4 + moisture * 0.3;
   const probability = clamp(
-    Math.round(season * terrainMatch * urban * weighted * 100),
+    Math.round(f.season * terrainMatch * urban * f.weighted * 100),
     0,
     100
   );
 
   return {
-    date: day.date,
+    date: days[dayIndex].date,
     probability_pct: probability,
     factors: {
-      season: Math.round(season * 100) / 100,
-      temp: Math.round(temp * 100) / 100,
-      rain_timing: Math.round(rain * 100) / 100,
-      moisture: Math.round(moisture * 100) / 100,
+      season: Math.round(f.season * 100) / 100,
+      temp: Math.round(f.temp * 100) / 100,
+      rain_timing: Math.round(f.rain * 100) / 100,
+      moisture: Math.round(f.moisture * 100) / 100,
       terrain: Math.round(terrainMatch * 100) / 100,
       urban: Math.round(urban * 100) / 100,
-      days_since_rain: since,
+      days_since_rain: f.daysSinceRainValue,
     },
   };
 }

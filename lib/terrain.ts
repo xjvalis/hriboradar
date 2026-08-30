@@ -150,7 +150,21 @@ function readCell(row: number, col: number): { genusMask: number; leafCode: numb
 // yes/no depending on exactly which side of a 250m boundary it falls on.
 const NEIGHBOR_RADIUS_CELLS = 1;
 
-export async function fetchTerrain(lat: number, lon: number): Promise<TerrainInfo> {
+// The `radiusCells` param below exists for api/forest.ts, which looks up
+// each real forest polygon's own terrain individually (still the precise
+// default radius - a polygon's centroid genuinely is in/near that forest,
+// no widening needed) rather than trying to make a sparse, widely-spaced
+// sample grid stand in for exact terrain (that approach was tried for the
+// map overview and reverted 2026-08-28 - see lib/grid.ts's module comment
+// for what went wrong: forest several km from a sample point got credited
+// to that point, so a "hotspot" could glow on the map right next to a spot
+// that, tapped precisely, read far lower).
+
+export async function fetchTerrain(
+  lat: number,
+  lon: number,
+  radiusCells: number = NEIGHBOR_RADIUS_CELLS
+): Promise<TerrainInfo> {
   loadGrid();
   const meta = gridMeta!;
 
@@ -165,8 +179,8 @@ export async function fetchTerrain(lat: number, lon: number): Promise<TerrainInf
   let genusMask = 0;
   let leafCode = LEAF_NONE;
   let found = false;
-  for (let dr = -NEIGHBOR_RADIUS_CELLS; dr <= NEIGHBOR_RADIUS_CELLS; dr++) {
-    for (let dc = -NEIGHBOR_RADIUS_CELLS; dc <= NEIGHBOR_RADIUS_CELLS; dc++) {
+  for (let dr = -radiusCells; dr <= radiusCells; dr++) {
+    for (let dc = -radiusCells; dc <= radiusCells; dc++) {
       const cell = readCell(centerRow + dr, centerCol + dc);
       if (!cell) continue;
       found = true;

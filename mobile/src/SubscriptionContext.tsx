@@ -29,12 +29,16 @@ const RC_KEY_ANDROID = process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY;
 const RC_KEY_WEB = process.env.EXPO_PUBLIC_REVENUECAT_WEB_KEY;
 
 // The one entitlement this app sells - RevenueCat dashboard Identifier
-// field (not the "Hřiboradar+" display name, which can have diacritics/
-// symbols the actual API identifier can't). A single boolean gate is
-// enough; there's only one paid tier (see docs/subscriptions.md for why
-// usage/time limits were rejected in favor of a feature-based free/
-// premium split).
-const ENTITLEMENT_ID = "hriboradar";
+// field, confirmed 2026-08-27 by reading it directly off the dashboard
+// (Product catalog -> Entitlements -> hřiboradar): it genuinely does carry
+// the diacritic, matching the "Hřiboradar+" display name almost exactly -
+// an earlier assumption that RevenueCat identifiers can't have diacritics
+// was wrong, and had this as "hriboradar" (no háček), which silently never
+// matched any real entitlements.active key from getCustomerInfo(). A
+// single boolean gate is enough; there's only one paid tier (see
+// docs/subscriptions.md for why usage/time limits were rejected in favor
+// of a feature-based free/premium split).
+const ENTITLEMENT_ID = "hřiboradar";
 
 // Dev-only escape hatch for previewing/screenshotting Plus screens without
 // a real purchase - needed because RevenueCat can't function in Expo Go at

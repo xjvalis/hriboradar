@@ -34,6 +34,7 @@ export interface GridPoint {
 export interface SpeciesRef {
   id: string;
   name_cz: string;
+  host_trees: string[];
 }
 
 export type MapMode = { type: "overall" } | { type: "species"; id: string };
@@ -200,6 +201,15 @@ export function buildGridMapHtml(opts: {
   const speciesNamesJs = JSON.stringify(
     Object.fromEntries(speciesList.map((sp) => [sp.id, sp.name_cz]))
   );
+  // host_trees per species (e.g. ["dub","habr"], or [] for a saprotroph
+  // that isn't tree-bound at all) - lets the client apply the exact same
+  // terrainMatchFactor logic as lib/terrain.ts, per real forest polygon,
+  // instead of baking a single already-terrain-adjusted score into the
+  // sparse weather grid (see lib/grid.ts's module comment for why that
+  // approach was reverted).
+  const speciesHostTreesJs = JSON.stringify(
+    Object.fromEntries(speciesList.map((sp) => [sp.id, sp.host_trees]))
+  );
   const initialModeJs = JSON.stringify(initialMode);
   const initialViewJs = JSON.stringify(initialView ?? null);
   const apiBaseJs = JSON.stringify(apiBase);
@@ -357,9 +367,20 @@ export function buildGridMapHtml(opts: {
 
       var gridPoints = ${pointsJs};
       var speciesNames = ${speciesNamesJs};
+      var speciesHostTrees = ${speciesHostTreesJs};
       var API_BASE = ${apiBaseJs};
 
-      var FLOOR = 20;
+      // Must stay >= the score where OVERALL_STOPS/SPECIES_STOPS first
+      // become visible (opacity > 0) - anything below that renders fully
+      // transparent anyway, so including it only costs a real polygon
+      // score computation + a canvas/vector draw call for something nobody
+      // will ever see. Left at 20 after the terrain rework (2026-08-28)
+      // meant a real forest polygon almost always clears SOME species'
+      // terrain match - 25818 of 36507 polygons (71%!) started passing
+      // FLOOR, each drawn as an invisible shape, which is almost certainly
+      // why the map was slow/blank-looking on a real phone (found via
+      // Cyrilov u Úval: tap showed the correct 72%, but nothing rendered).
+      var FLOOR = 50;
       var CUTOFF_DEG = 0.30;
       var MASK_W = 1600, MASK_H = 614; // raster resolution for the zoomed-out path
       var VECTOR_ZOOM_THRESHOLD = 12; // >= this: precise per-forest shapes; below: merged raster
@@ -393,13 +414,13 @@ export function buildGridMapHtml(opts: {
       var polyMeta = null;
       var forestReady = false;
 
-      function preparePolygons(polygons) {
-        return polygons.map(function (rings) {
+      function preparePolygons(polygons, terrain) {
+        return polygons.map(function (rings, i) {
           var outer = rings[0];
           var sumLat = 0, sumLon = 0;
           var minLat = Infinity, maxLat = -Infinity, minLon = Infinity, maxLon = -Infinity;
-          for (var i = 0; i < outer.length; i++) {
-            var lat = outer[i][0], lon = outer[i][1];
+          for (var i2 = 0; i2 < outer.length; i2++) {
+            var lat = outer[i2][0], lon = outer[i2][1];
             sumLat += lat; sumLon += lon;
             if (lat < minLat) minLat = lat;
             if (lat > maxLat) maxLat = lat;
@@ -409,7 +430,11 @@ export function buildGridMapHtml(opts: {
           return {
             rings: rings,
             centroid: [sumLat / outer.length, sumLon / outer.length],
-            bbox: [minLat, minLon, maxLat, maxLon]
+            bbox: [minLat, minLon, maxLat, maxLon],
+            // This exact polygon's own precise terrain (see api/forest.ts) -
+            // { treeGenera, dominantType, isUrban }, or a fully-empty
+            // fallback if the server response is ever an older shape without it.
+            terrain: (terrain && terrain[i]) || { treeGenera: [], dominantType: null, isUrban: false }
           };
         });
       }
@@ -452,7 +477,7 @@ export function buildGridMapHtml(opts: {
           clearTimeout(timer);
           setForestProgress(100);
           hideForestLoading();
-          if (data) polyMeta = preparePolygons(data.polygons || []);
+          if (data) polyMeta = preparePolygons(data.polygons || [], data.terrain || []);
           forestReady = !!data;
           cb();
         }
@@ -475,21 +500,37 @@ export function buildGridMapHtml(opts: {
         xhr.send();
       }
 
+      // Low-to-high heat ramp, tuned so ONLY the app's own "Vysoká šance"
+      // tier (>=55%, see scoreTier in theme.ts / tierLabel below) ever
+      // paints the map - "Nízká" and "Slušná" (0-54%) stay fully invisible.
+      // Tried coloring from 40% (2026-08-28) and it made almost the whole
+      // country look promising, since most forest genuinely lands in the
+      // 28-54% "decent but no promises" band most of the year - that's the
+      // "whole map colored" problem this reverts. The jump right at 55% is
+      // deliberately NOT subtle (opacity 0.55, not a faint 0.2ish tint) -
+      // an earlier pass started too transparent, so zoomed-out it looked
+      // like "nothing here" even where real green cover existed, only
+      // revealing itself on zoom-in. From there it ramps fast (front-loaded,
+      // not linear): solidly green by 65%, yellowing from ~70%, orange by
+      // 80%, red by 90-100%.
       var OVERALL_STOPS = [
-        [0, 79, 122, 61, 0],
-        [20, 79, 122, 61, 0],
-        [40, 79, 122, 61, 0.45],
-        [60, 176, 173, 58, 0.55],
-        [75, 214, 140, 50, 0.68],
-        [90, 176, 58, 44, 0.8],
-        [100, 145, 40, 32, 0.88]
+        [0, 130, 180, 90, 0],
+        [50, 130, 180, 90, 0],
+        [55, 110, 175, 70, 0.55],
+        [65, 90, 165, 55, 0.78],
+        [70, 150, 180, 50, 0.82],
+        [80, 225, 195, 55, 0.85],
+        [90, 205, 65, 50, 0.9],
+        [100, 175, 45, 42, 0.92]
       ];
-      var SPECIES_STOPS = [
-        [0, 79, 122, 61, 0],
-        [20, 79, 122, 61, 0],
-        [55, 79, 122, 61, 0.5],
-        [100, 36, 52, 32, 0.85]
-      ];
+      // Was a single-hue light-green -> dark-green ramp (deliberate, see
+      // "Map: separate overall-conditions mode from single-species mode") -
+      // reverted after real use showed it made even a genuinely strong spot
+      // (e.g. lišky at 75%) barely stand out from an average one, since nothing
+      // ever left the green family. Same stops as "všechny houby" now, so a
+      // high score for one species reads as unmistakably high the same way
+      // the overall mode already does.
+      var SPECIES_STOPS = OVERALL_STOPS;
 
       function colorAt(stops, score) {
         var s = Math.max(0, Math.min(100, score));
@@ -509,8 +550,54 @@ export function buildGridMapHtml(opts: {
         return [last[1], last[2], last[3], last[4]];
       }
 
-      function interpolate(accessor, lat, lon) {
-        var wsum = 0, ssum = 0;
+      var SPECIES_IDS = Object.keys(speciesHostTrees);
+      var URBAN_PENALTY = 0.15; // must match lib/scoring.ts's URBAN_PENALTY
+      var CONIFER_TREES = { smrk: true, borovice: true };
+      var BROADLEAF_TREES = { dub: true, buk: true, 'bříza': true, habr: true, 'topol osika': true };
+
+      function forestTypeFromGenera(genera) {
+        if (genera.length === 0) return null;
+        var hasConifer = false, hasBroadleaf = false;
+        for (var i = 0; i < genera.length; i++) {
+          if (CONIFER_TREES[genera[i]]) hasConifer = true;
+          if (BROADLEAF_TREES[genera[i]]) hasBroadleaf = true;
+        }
+        if (hasConifer && hasBroadleaf) return 'smíšený';
+        if (hasConifer) return 'jehličnatý';
+        if (hasBroadleaf) return 'listnatý';
+        return null;
+      }
+
+      // Exact JS port of lib/terrain.ts's terrainMatchFactor - hasForestNearby
+      // is implicitly true here (terrain always comes from a real mapped
+      // forest polygon's own centroid, see api/forest.ts), so that branch is
+      // dropped; everything else (exact genus match / leaf-type-only match /
+      // forest-present-but-unknown-type / wrong-type-entirely) is identical.
+      function terrainMatchFactor(hostTrees, terrain) {
+        if (hostTrees.length === 0) return 1;
+        if (terrain.treeGenera.length > 0) {
+          for (var i = 0; i < hostTrees.length; i++) {
+            if (terrain.treeGenera.indexOf(hostTrees[i]) !== -1) return 1;
+          }
+          return 0.1;
+        }
+        var expected = forestTypeFromGenera(hostTrees);
+        if (!expected || !terrain.dominantType) return 0.5;
+        if (expected === terrain.dominantType) return 0.85;
+        if (expected === 'smíšený' || terrain.dominantType === 'smíšený') return 0.7;
+        return 0.15;
+      }
+
+      // One pass over the sparse weather grid (unchanged IDW mechanism),
+      // accumulating every species' interpolated value at once instead of
+      // repeating the whole distance/weight pass once per species - the
+      // distance math is the expensive part and is identical across
+      // species, so sharing it here keeps this roughly as cheap as the old
+      // single-accessor version despite now covering all ~15 species.
+      function interpolateAllSpecies(lat, lon) {
+        var wsum = 0;
+        var sums = {};
+        for (var s = 0; s < SPECIES_IDS.length; s++) sums[SPECIES_IDS[s]] = 0;
         for (var i = 0; i < gridPoints.length; i++) {
           var p = gridPoints[i];
           var dlat = p.lat - lat;
@@ -520,9 +607,45 @@ export function buildGridMapHtml(opts: {
           var w = 1 - d / CUTOFF_DEG;
           w = w * w;
           wsum += w;
-          ssum += w * accessor(p);
+          for (var s2 = 0; s2 < SPECIES_IDS.length; s2++) {
+            var id = SPECIES_IDS[s2];
+            sums[id] += w * (p.scores[id] || 0);
+          }
         }
-        return wsum > 0 ? ssum / wsum : 0;
+        var out = {};
+        for (var s3 = 0; s3 < SPECIES_IDS.length; s3++) {
+          var id2 = SPECIES_IDS[s3];
+          out[id2] = wsum > 0 ? sums[id2] / wsum : 0;
+        }
+        return out;
+      }
+
+      var OVERALL_WEIGHTS = [0.5, 0.3, 0.2]; // must match lib/grid.ts's OVERALL_WEIGHTS
+
+      // Combines interpolated (smooth, weather-only) potential with this
+      // exact polygon's own precise terrain - the fix for hotspots/fills
+      // that used to glow based on forest several km away (see lib/grid.ts's
+      // module comment). "Overall" is re-derived AFTER terrain is applied,
+      // not reused from the sparse grid's own weather-only overall field,
+      // since which species dominate can change once terrain gates them.
+      function scoreForPolygon(mode, weatherBySpecies, terrain) {
+        var urban = terrain.isUrban ? URBAN_PENALTY : 1;
+        if (mode.type === 'species') {
+          var hostTrees = speciesHostTrees[mode.id] || [];
+          var tm = terrainMatchFactor(hostTrees, terrain);
+          return Math.round((weatherBySpecies[mode.id] || 0) * tm * urban);
+        }
+        var perSpecies = [];
+        for (var s = 0; s < SPECIES_IDS.length; s++) {
+          var id = SPECIES_IDS[s];
+          var tm2 = terrainMatchFactor(speciesHostTrees[id] || [], terrain);
+          perSpecies.push(weatherBySpecies[id] * tm2 * urban);
+        }
+        perSpecies.sort(function (a, b) { return b - a; });
+        var top = perSpecies.slice(0, OVERALL_WEIGHTS.length);
+        var weighted = 0, weightUsed = 0;
+        for (var i = 0; i < top.length; i++) { weighted += top[i] * OVERALL_WEIGHTS[i]; weightUsed += OVERALL_WEIGHTS[i]; }
+        return weightUsed > 0 ? Math.round(weighted / weightUsed) : 0;
       }
 
       // One score+color per forest polygon (not per pixel), computed ONCE
@@ -533,11 +656,12 @@ export function buildGridMapHtml(opts: {
       // polygon scoring pass 2-3x over. A polygon either qualifies (real
       // fill color) or doesn't (skipped, same FLOOR cutoff the old smooth
       // field used).
-      function computeScored(accessor, stops) {
+      function computeScored(mode, stops) {
         var out = [];
         for (var i = 0; i < polyMeta.length; i++) {
           var poly = polyMeta[i];
-          var score = interpolate(accessor, poly.centroid[0], poly.centroid[1]);
+          var weatherBySpecies = interpolateAllSpecies(poly.centroid[0], poly.centroid[1]);
+          var score = scoreForPolygon(mode, weatherBySpecies, poly.terrain);
           if (score < FLOOR) continue;
           out.push({ poly: poly, score: score, rgba: colorAt(stops, score) });
         }
@@ -603,9 +727,6 @@ export function buildGridMapHtml(opts: {
         vectorLayerGroup.addTo(map);
         if (old) map.removeLayer(old);
       }
-
-      function overallAccessor(p) { return p.overall; }
-      function speciesAccessor(id) { return function (p) { return p.scores[id] || 0; }; }
 
       function gradientCss(stops) {
         var parts = stops.map(function (s) {
@@ -735,9 +856,8 @@ export function buildGridMapHtml(opts: {
 
       function applyMode(mode) {
         currentMode = mode;
-        var accessor = mode.type === 'overall' ? overallAccessor : speciesAccessor(mode.id);
         var stops = mode.type === 'overall' ? OVERALL_STOPS : SPECIES_STOPS;
-        currentScored = computeScored(accessor, stops);
+        currentScored = computeScored(mode, stops);
         renderForZoom(true);
         renderHotspots(currentScored, mode);
         updateLegend(mode);
