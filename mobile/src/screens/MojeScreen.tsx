@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { Bell, BellOff, Pencil, Sprout, Trash2 } from "lucide-react-native";
+import { Bell, BellOff, Dog, Pencil, Sprout, Trash2 } from "lucide-react-native";
 import { palette, radius, space, type } from "../theme";
 import { PageHeader } from "../components/PageHeader";
 import { PaperBackground } from "../components/PaperBackground";
@@ -10,6 +10,7 @@ import { LocationSearchInput } from "../components/LocationSearchInput";
 import { LocationMapPicker } from "../components/LocationMapPicker";
 import { ObservationSheet } from "../components/ObservationSheet";
 import { NamePromptModal } from "../components/NamePromptModal";
+import { WatchdogSheet } from "../components/WatchdogSheet";
 import { useSavedLocations, type SavedLocation } from "../SavedLocationsContext";
 import { useLocation, type AppLocation } from "../LocationContext";
 import { useSubscription } from "../SubscriptionContext";
@@ -30,6 +31,18 @@ export default function MojeScreen() {
   const [observing, setObserving] = useState<SavedLocation | null>(null);
   const [pickingOnMap, setPickingOnMap] = useState(false);
   const [renaming, setRenaming] = useState<SavedLocation | null>(null);
+  const [watchdogFor, setWatchdogFor] = useState<SavedLocation | null>(null);
+
+  // Plus-only, same as every other saved-location alert (see
+  // useNotificationGenerator.ts) - a free account sees the paywall instead
+  // of the sheet, matching how addLocationGated already gates a second place.
+  function openWatchdog(loc: SavedLocation) {
+    if (!isPremium) {
+      openPaywall("Chcete, ať vás houbařský pes upozorní e-mailem, až šance na tomhle místě vyroste?");
+      return;
+    }
+    setWatchdogFor(loc);
+  }
 
   // Free tier: one saved place, enough to actually use the app (your own
   // backyard/nearest forest) - more than one is the "I go to several
@@ -86,6 +99,13 @@ export default function MojeScreen() {
                     <BellOff size={19} strokeWidth={1.8} color={palette.inkFaint} />
                   )}
                 </Pressable>
+                <Pressable onPress={() => openWatchdog(loc)} hitSlop={6} style={styles.iconBtn}>
+                  <Dog
+                    size={19}
+                    strokeWidth={1.8}
+                    color={loc.watchdogThresholdPct != null ? palette.primary : palette.inkFaint}
+                  />
+                </Pressable>
                 <Pressable onPress={() => setObserving(loc)} hitSlop={6} style={styles.iconBtn}>
                   <MushroomQuestionIcon size={19} color={palette.secondary} />
                 </Pressable>
@@ -104,10 +124,12 @@ export default function MojeScreen() {
       <Text style={styles.note}>
         Klepnutím na místo ho nastavíte jako aktuální - Domů a Mapa se přepnou na něj. Zvoneček
         zapne/vypne upozornění pro dané místo (i na houby, které tam mají začít růst až v příštích dnech).
+        Pejsek je houbařský pes - pošle e-mail, jakmile šance na místě přeleze vámi zvolenou hranici.
         Ikonka se zaškrtnutím zapíše, jestli tam houby fakt rostly - pomáhá to zpřesňovat model.
       </Text>
 
       {observing && <ObservationSheet location={observing} onClose={() => setObserving(null)} />}
+      {watchdogFor && <WatchdogSheet location={watchdogFor} onClose={() => setWatchdogFor(null)} />}
       {renaming && (
         <NamePromptModal
           title="Přejmenovat místo"

@@ -11,3 +11,6 @@ data-prep/test-*.json
 # version control. Only its processed output (lib/data/forest-grid.*) is
 # tracked - that's the actual deploy artifact.
 data-prep/osm/
+
+.vercel
+.env*

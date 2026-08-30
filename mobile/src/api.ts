@@ -106,7 +106,7 @@ export async function getForecast(lat: number, lon: number): Promise<ForecastRes
 export interface GridResponse {
   generated_at: string;
   gridSpacingM: number;
-  speciesList: { id: string; name_cz: string }[];
+  speciesList: { id: string; name_cz: string; host_trees: string[] }[];
   points: { lat: number; lon: number; overall: number; scores: Record<string, number> }[];
 }
 

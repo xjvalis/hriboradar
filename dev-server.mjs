@@ -13,8 +13,10 @@ const routes = {
   "/api/forest": (await import("./api/forest.ts")).default,
   "/api/geocode": (await import("./api/geocode.ts")).default,
   "/api/feedback": (await import("./api/feedback.ts")).default,
+  "/api/push-token": (await import("./api/push-token.ts")).default,
   "/api/account-delete": (await import("./api/account-delete.ts")).default,
   "/api/cron/recalibrate": (await import("./api/cron/recalibrate.ts")).default,
+  "/api/cron/watchdog": (await import("./api/cron/watchdog.ts")).default,
   "/api/webhooks/revenuecat": (await import("./api/webhooks/revenuecat.ts")).default,
 };
 

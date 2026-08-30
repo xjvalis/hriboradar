@@ -69,3 +69,34 @@ export function billingIssueEmail(): { subject: string; html: string } {
     ${WRAPPER_END}`,
   };
 }
+
+// Houbařský pes - api/cron/watchdog.ts sends this once a saved location's
+// watchdog crosses its threshold. speciesName is null for a "kterýkoli
+// druh" watchdog, where topSpeciesName carries whichever species actually
+// drove the score up (see overallScore() in lib/grid.ts).
+export function watchdogEmail(opts: {
+  locationLabel: string;
+  speciesName: string | null;
+  topSpeciesName: string | null;
+  score: number;
+  thresholdPct: number;
+}): { subject: string; html: string } {
+  const { locationLabel, speciesName, topSpeciesName, score, thresholdPct } = opts;
+  const subject = speciesName
+    ? `🐕 ${speciesName} na "${locationLabel}" má teď ${score} %`
+    : `🐕 "${locationLabel}" má teď ${score} % šanci na houby`;
+  const bodyLine = speciesName
+    ? `<strong>${speciesName}</strong> má teď na místě „${locationLabel}“ odhadovanou šanci <strong>${score} %</strong> - to je nad vaší hranicí ${thresholdPct} %.`
+    : `Místo „${locationLabel}“ má teď odhadovanou šanci na houby <strong>${score} %</strong>${
+        topSpeciesName ? ` (nejlépe na tom je <strong>${topSpeciesName}</strong>)` : ""
+      } - to je nad vaší hranicí ${thresholdPct} %.`;
+  return {
+    subject,
+    html: `${WRAPPER_START}
+      <h1 style="font-size:20px">🐕 Houbařský pes hlásí</h1>
+      <p>${bodyLine}</p>
+      <p>Otevřete appku a mrkněte na detail, jestli se vyplatí vyrazit.</p>
+      <p style="color:#8C8A6E;font-size:13px">Tohle hlídání se ozve zase, až šance nejdřív klesne pod hranici a pak ji znovu překročí - ne znovu zítra, pokud zůstane stejně vysoká.</p>
+    ${WRAPPER_END}`,
+  };
+}

@@ -9,6 +9,12 @@ export interface SavedLocation extends AppLocation {
   // Undefined means "on" - older saved entries predate this field and
   // should default to alerting rather than silently going quiet.
   alertsEnabled?: boolean;
+  // Houbařský pes - null species means "kterýkoli druh" (server applies
+  // the same weighted-top-3 "overall" logic as the map, see
+  // overallScore() in lib/grid.ts). null threshold means the watchdog is
+  // off - see api/cron/watchdog.ts, which actually evaluates these.
+  watchdogSpeciesId: string | null;
+  watchdogThresholdPct: number | null;
 }
 
 // Pre-auth on-device locations (AsyncStorage) - migrated into the signed-in
@@ -22,10 +28,20 @@ interface SavedLocationRow {
   lon: number;
   label: string;
   alerts_enabled: boolean;
+  watchdog_species_id: string | null;
+  watchdog_threshold_pct: number | null;
 }
 
 function rowToLocation(row: SavedLocationRow): SavedLocation {
-  return { id: String(row.id), lat: row.lat, lon: row.lon, label: row.label, alertsEnabled: row.alerts_enabled };
+  return {
+    id: String(row.id),
+    lat: row.lat,
+    lon: row.lon,
+    label: row.label,
+    alertsEnabled: row.alerts_enabled,
+    watchdogSpeciesId: row.watchdog_species_id,
+    watchdogThresholdPct: row.watchdog_threshold_pct,
+  };
 }
 
 interface SavedLocationsContextValue {
@@ -35,6 +51,11 @@ interface SavedLocationsContextValue {
   removeLocation: (id: string) => void;
   toggleLocationAlerts: (id: string) => void;
   renameLocation: (id: string, label: string) => void;
+  // Houbařský pes - speciesId null means "kterýkoli druh"; thresholdPct
+  // null turns the watchdog off entirely. Clears watchdog_notified_at on
+  // every change so editing an active watchdog's threshold doesn't leave
+  // it stuck "already notified" against the old value.
+  setWatchdog: (id: string, speciesId: string | null, thresholdPct: number | null) => void;
 }
 
 const SavedLocationsContext = createContext<SavedLocationsContextValue | null>(null);
@@ -74,7 +95,7 @@ export function SavedLocationsProvider({ children }: { children: ReactNode }) {
 
       const { data } = await supabase
         .from("hriboradar_saved_locations")
-        .select("id, lat, lon, label, alerts_enabled")
+        .select("id, lat, lon, label, alerts_enabled, watchdog_species_id, watchdog_threshold_pct")
         .order("created_at", { ascending: true });
       if (!cancelled) {
         setLocations((data ?? []).map(rowToLocation));
@@ -104,7 +125,7 @@ export function SavedLocationsProvider({ children }: { children: ReactNode }) {
         supabase
           .from("hriboradar_saved_locations")
           .insert({ lat: location.lat, lon: location.lon, label: location.label, alerts_enabled: true })
-          .select("id, lat, lon, label, alerts_enabled")
+          .select("id, lat, lon, label, alerts_enabled, watchdog_species_id, watchdog_threshold_pct")
           .single()
           .then(({ data }) => {
             if (data) setLocations((prev) => [...prev, rowToLocation(data)]);
@@ -126,6 +147,16 @@ export function SavedLocationsProvider({ children }: { children: ReactNode }) {
         if (!trimmed) return;
         setLocations((prev) => prev.map((p) => (p.id === id ? { ...p, label: trimmed } : p)));
         supabase.from("hriboradar_saved_locations").update({ label: trimmed }).eq("id", id).then(() => {});
+      },
+      setWatchdog: (id: string, speciesId: string | null, thresholdPct: number | null) => {
+        setLocations((prev) =>
+          prev.map((p) => (p.id === id ? { ...p, watchdogSpeciesId: speciesId, watchdogThresholdPct: thresholdPct } : p))
+        );
+        supabase
+          .from("hriboradar_saved_locations")
+          .update({ watchdog_species_id: speciesId, watchdog_threshold_pct: thresholdPct, watchdog_notified_at: null })
+          .eq("id", id)
+          .then(() => {});
       },
     }),
     [locations, loaded, user]

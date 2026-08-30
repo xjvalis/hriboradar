@@ -26,7 +26,7 @@ export function resolveNotificationAction(
   if (prefix === "species" && parts[1]) {
     return { type: "species", speciesId: parts[1] };
   }
-  if (prefix === "location" && parts[1]) {
+  if ((prefix === "location" || prefix === "watchdog") && parts[1]) {
     const loc = saved.find((l) => l.id === parts[1]);
     // The saved location may have been deleted since this notification was
     // generated - falling back to the atlas rather than doing nothing on

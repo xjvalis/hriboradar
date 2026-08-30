@@ -52,6 +52,13 @@
         {
           "locationWhenInUsePermission": "Hřiboradar potřebuje vaši polohu, abyste mohli rychle nastavit aktuální místo jako výchozí bod pro předpověď."
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#33482C"
+        }
       ]
     ],
     "extra": {

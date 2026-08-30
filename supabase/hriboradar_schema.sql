@@ -55,6 +55,14 @@ create table if not exists public.hriboradar_saved_locations (
   lon double precision not null,
   label text not null,
   alerts_enabled boolean not null default true,
+  -- Houbařský pes (watchdog) - null species_id means "kterýkoli druh"
+  -- (the same weighted-top-3 "overall" logic as lib/grid.ts), null
+  -- threshold_pct means the watchdog is off. notified_at tracks an
+  -- in-progress streak above threshold (see migrations/002_add_watchdog.sql
+  -- for why), not a history log - api/cron/watchdog.ts reads/writes it.
+  watchdog_species_id text,
+  watchdog_threshold_pct integer check (watchdog_threshold_pct between 1 and 100),
+  watchdog_notified_at date,
   created_at timestamptz not null default now()
 );
 
@@ -231,3 +239,29 @@ alter table public.hriboradar_subscriptions enable row level security;
 drop policy if exists "Hriboradar read own subscription" on public.hriboradar_subscriptions;
 create policy "Hriboradar read own subscription" on public.hriboradar_subscriptions
   for select using (auth.uid() = user_id);
+
+-- Expo push tokeny - jeden řádek na (uživatel, zařízení). Zápisové jen z
+-- pohledu klienta (insert/update/delete vlastních řádků) - appka si svůj
+-- token nikdy nepotřebuje číst zpět, jen ho poslat. api/cron/watchdog.ts
+-- čte napříč uživateli přes service_role klíč (obchází RLS).
+create table if not exists public.hriboradar_push_tokens (
+  id bigint generated always as identity primary key,
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  token text not null unique,
+  platform text not null check (platform in ('ios', 'android')),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.hriboradar_push_tokens enable row level security;
+
+drop policy if exists "Hriboradar insert own push token" on public.hriboradar_push_tokens;
+create policy "Hriboradar insert own push token" on public.hriboradar_push_tokens
+  for insert with check (auth.uid() = user_id);
+
+drop policy if exists "Hriboradar update own push token" on public.hriboradar_push_tokens;
+create policy "Hriboradar update own push token" on public.hriboradar_push_tokens
+  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+drop policy if exists "Hriboradar delete own push token" on public.hriboradar_push_tokens;
+create policy "Hriboradar delete own push token" on public.hriboradar_push_tokens
+  for delete using (auth.uid() = user_id);
