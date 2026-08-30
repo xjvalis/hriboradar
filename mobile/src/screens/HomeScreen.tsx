@@ -29,7 +29,17 @@ function topSpeciesOf(data: ForecastResponse) {
     .sort((a, b) => b.today.probability_pct - a.today.probability_pct);
 }
 
+// A low score caused by standing in a built-up area (see URBAN_PENALTY in
+// lib/scoring.ts) reads as a non-sequitur next to "špatné podmínky" - the
+// weather/season factors can be perfectly fine, it's just that a train
+// station concourse isn't a forest. Worth its own copy rather than the
+// generic weather explanation, with the obvious next step spelled out.
+function urbanExplanation(indexValue: number): string {
+  return `${scoreFlavor(indexValue)} - jste spíš v zástavbě než v lese. Zkuste to o pár kilometrů dál, tam mají houby lepší podmínky k růstu než na chodníku.`;
+}
+
 function buildExplanation(data: ForecastResponse, top: ReturnType<typeof topSpeciesOf>, indexValue: number) {
+  if (data.terrain.isUrban) return urbanExplanation(indexValue);
   const names = top.slice(0, 2).map((x) => x.sp.name_cz).join(" a ");
   const since = top[0]?.today.factors.days_since_rain;
   const rainPart =
