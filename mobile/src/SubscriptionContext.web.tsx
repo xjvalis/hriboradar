@@ -16,12 +16,19 @@ interface PackageInfo {
   priceString: string;
 }
 
+export interface ActiveEntitlementInfo {
+  productIdentifier: string;
+  willRenew: boolean;
+  expirationDate: string | null;
+}
+
 interface SubscriptionContextValue {
   isPremium: boolean;
   loading: boolean;
   available: boolean;
   monthly: PackageInfo | null;
   annual: PackageInfo | null;
+  activeEntitlement: ActiveEntitlementInfo | null;
   purchase: (period: BillingPeriod) => Promise<{ error: string | null }>;
   restore: () => Promise<{ error: string | null }>;
 }
@@ -36,6 +43,7 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
       available: false,
       monthly: null,
       annual: null,
+      activeEntitlement: null,
       purchase: async () => ({ error: "Předplatné na webu zatím není k dispozici - stáhněte si appku." }),
       restore: async () => ({ error: "Obnovení na webu zatím není k dispozici - stáhněte si appku." }),
     }),

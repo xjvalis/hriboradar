@@ -35,7 +35,7 @@ ExpoNotifications?.setNotificationHandler({
  * device's Expo push token against the signed-in user - see api/push-token.ts
  * and api/cron/watchdog.ts, which is what actually sends to it.
  *
- * Called contextually from WatchdogSheet.tsx when someone turns a watchdog
+ * Called contextually from LocationAlertsSheet.tsx when someone turns a watchdog
  * on, not unconditionally at app launch - asking for notification
  * permission before the user has done anything notification-related reads
  * as a cold-open nag, not a feature. Safe to call again on a later launch

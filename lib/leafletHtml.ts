@@ -248,11 +248,13 @@ export function buildGridMapHtml(opts: {
       color: #24261D; }
     .mapy-attribution { position: absolute; bottom: 10px; right: 10px; z-index: 1000; background: #F7F2E7ee;
       border-radius: 6px; padding: 2px 6px; }
-    .hotspot { position: relative; }
+    .hotspot { position: relative; overflow: visible; }
     .hotspot-dot { position: absolute; top: 4px; left: 4px; width: 6px; height: 6px; border-radius: 50%;
       box-shadow: 0 0 0 1.5px #F7F2E7; }
     .hotspot-ring { position: absolute; top: 0; left: 0; width: 14px; height: 14px; border-radius: 50%;
       opacity: 0.65; animation: hotspot-pulse 2s ease-out infinite; }
+    .hotspot-emoji { position: absolute; top: -17px; left: 50%; transform: translateX(-50%);
+      font-size: 13px; line-height: 1; white-space: nowrap; filter: drop-shadow(0 1px 1px #00000055); }
     @keyframes hotspot-pulse {
       0% { transform: scale(0.5); opacity: 0.6; }
       100% { transform: scale(2.4); opacity: 0; }
@@ -516,18 +518,23 @@ export function buildGridMapHtml(opts: {
       // deliberately NOT subtle (opacity 0.55, not a faint 0.2ish tint) -
       // an earlier pass started too transparent, so zoomed-out it looked
       // like "nothing here" even where real green cover existed, only
-      // revealing itself on zoom-in. From there it ramps fast (front-loaded,
-      // not linear): solidly green by 65%, yellowing from ~70%, orange by
-      // 80%, red by 90-100%.
+      // revealing itself on zoom-in.
+      //
+      // Colors are the EXACT palette.success / palette.accent /
+      // palette.danger triples from theme.ts (2026-08-31) - previously
+      // close-but-different hand-picked RGB, which meant the map's green at
+      // 55% didn't quite match a ProbabilityBadge's green for the same
+      // score. The map still escalates further than a flat badge does
+      // (accent partway through the tier, danger at the very top) - that
+      // extra step is deliberate (a spatial map benefits from separating
+      // "the best of the best" from merely "good" the way one badge never
+      // needs to), just anchored on real app colors now, not invented ones.
       var OVERALL_STOPS = [
-        [0, 130, 180, 90, 0],
-        [50, 130, 180, 90, 0],
-        [55, 110, 175, 70, 0.55],
-        [65, 90, 165, 55, 0.78],
-        [70, 150, 180, 50, 0.82],
-        [80, 225, 195, 55, 0.85],
-        [90, 205, 65, 50, 0.9],
-        [100, 175, 45, 42, 0.92]
+        [0, 79, 122, 61, 0],
+        [50, 79, 122, 61, 0],
+        [55, 79, 122, 61, 0.55],
+        [75, 181, 101, 46, 0.75],
+        [100, 162, 59, 46, 0.92]
       ];
       // Was a single-hue light-green -> dark-green ramp (deliberate, see
       // "Map: separate overall-conditions mode from single-species mode") -
@@ -822,6 +829,35 @@ export function buildGridMapHtml(opts: {
         return 'Nízká šance na nález';
       }
 
+      // Monochrome, not colored emoji - a tiny colored 🌲🌳 on top of an
+      // already-colored (score) ring/dot competed with it for attention and
+      // looked like a sticker, not a UI glyph. TreePine for conifer; the
+      // rounded TreeDeciduous canopy shape read as a bell at 13px (found
+      // 2026-08-31), so broadleaf uses lucide's plain Leaf glyph instead -
+      // unambiguous at this size, and still the same "leaf = broadleaf"
+      // association SpeciesDetailSheet's "Vázaná na" text already uses.
+      var TREE_PINE_SVG = '<path d="m17 14 3 3.3a1 1 0 0 1-.7 1.7H4.7a1 1 0 0 1-.7-1.7L7 14h-.3a1 1 0 0 1-.7-1.7L9 9h-.2A1 1 0 0 1 8 7.3L12 3l4 4.3a1 1 0 0 1-.8 1.7H15l3 3.3a1 1 0 0 1-.7 1.7H17Z"/><path d="M12 22v-3"/>';
+      var LEAF_SVG = '<path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/>';
+      function svgIcon(paths, size) {
+        return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="none" ' +
+          'stroke="#24261D" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">' + paths + '</svg>';
+      }
+
+      // Same forest-type distinction as SpeciesDetailSheet's "Vázaná na" -
+      // a quick "why here" at a glance, before even tapping the dot.
+      // dominantType already picks the best available signal server-side
+      // (real ÚHÚL genus when known, plain leaf_type otherwise), so this
+      // doesn't need its own fallback logic.
+      function treeIconHtml(terrain) {
+        if (!terrain || !terrain.dominantType) return '';
+        if (terrain.dominantType === 'jehličnatý') return svgIcon(TREE_PINE_SVG, 13);
+        if (terrain.dominantType === 'listnatý') return svgIcon(LEAF_SVG, 13);
+        if (terrain.dominantType === 'smíšený') {
+          return '<span style="display:flex;gap:1px">' + svgIcon(LEAF_SVG, 11) + svgIcon(TREE_PINE_SVG, 11) + '</span>';
+        }
+        return '';
+      }
+
       // A handful of pulsing markers at the best-scoring forests, on top of
       // whichever fill mode is active - the fill answers "where's decent
       // vs not," this answers "no really, look HERE first" without making
@@ -835,9 +871,11 @@ export function buildGridMapHtml(opts: {
         var top = scored.slice().sort(function (a, b) { return b.score - a.score; }).slice(0, HOTSPOT_COUNT);
         top.forEach(function (entry) {
           var color = 'rgb(' + entry.rgba[0] + ',' + entry.rgba[1] + ',' + entry.rgba[2] + ')';
+          var treeIcon = treeIconHtml(entry.poly.terrain);
           var icon = L.divIcon({
             className: 'hotspot',
             html:
+              (treeIcon ? '<span class="hotspot-emoji">' + treeIcon + '</span>' : '') +
               '<span class="hotspot-ring" style="background:' + color + '"></span>' +
               '<span class="hotspot-dot" style="background:' + color + '"></span>',
             iconSize: [14, 14],

@@ -7,6 +7,10 @@ import { palette, radius, space, type } from "../theme";
 import { BrandMark } from "./BrandMark";
 import type { ScreenName } from "./TopBar";
 
+// BottomTabBar duplicates Domů/Mapa/Předpověď/Houby as a faster path to
+// the 4 daily-glance screens - deliberately kept here too (not trimmed
+// out), so the drawer stays "everything, in one place" and the tab bar
+// stays "the shortcuts" - two different jobs, not a replaced/removed one.
 const ITEMS: { name: ScreenName; Icon: typeof Home; label: string }[] = [
   { name: "Domů", Icon: Home, label: "Domů" },
   { name: "Mapa", Icon: Map, label: "Mapa" },
@@ -75,7 +79,7 @@ export function DrawerMenu({
       <Animated.View style={[styles.drawer, { width: drawerWidth, transform: [{ translateX }] }]}>
         <View style={[styles.header, { paddingTop: insets.top + space.sm }]}>
           <BrandMark size="sm" />
-          <Pressable onPress={onClose} hitSlop={8}>
+          <Pressable onPress={onClose} hitSlop={8} accessibilityRole="button" accessibilityLabel="Zavřít menu">
             <X size={20} strokeWidth={1.8} color={palette.inkFaint} />
           </Pressable>
         </View>
@@ -88,8 +92,11 @@ export function DrawerMenu({
                 key={name}
                 onPress={() => onNavigate(name)}
                 style={[styles.item, isActive && styles.itemActive]}
+                accessibilityRole="button"
+                accessibilityLabel={label}
+                accessibilityState={{ selected: isActive }}
               >
-                <Icon size={19} strokeWidth={1.8} color={isActive ? palette.primary : palette.wood} />
+                <Icon size={19} strokeWidth={isActive ? 2.2 : 1.8} color={isActive ? palette.primary : palette.wood} />
                 <Text style={[styles.itemText, isActive && styles.itemTextActive]}>{label}</Text>
               </Pressable>
             );

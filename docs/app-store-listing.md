@@ -82,12 +82,14 @@ rating.
 
 ## Copyright
 ```
-(need the legal name/entity to put here - "© 2026 <name>")
+© 2026 Jan Valis
 ```
+(Apple Developer account is registered Individual, not a company - Apple
+Team 357U5BFK39 "Jan Valis (Individual)", confirmed via eas build output -
+so this is just the developer's own legal name, no entity/IČO needed.)
 
 ---
 
 ## Still open (not filled in above - need your input)
-- Copyright holder name
 - Screenshots (need a real device/simulator build - can't produce these
   without running the actual app, which this environment can't do)

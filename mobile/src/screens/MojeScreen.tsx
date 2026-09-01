@@ -1,16 +1,16 @@
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { Bell, BellOff, Dog, Pencil, Sprout, Trash2 } from "lucide-react-native";
+import { Bell, BellOff, Dog, MoreVertical, Sprout } from "lucide-react-native";
 import { palette, radius, space, type } from "../theme";
 import { PageHeader } from "../components/PageHeader";
 import { PaperBackground } from "../components/PaperBackground";
 import { EmptyState } from "../components/EmptyState";
-import { MushroomQuestionIcon } from "../components/MushroomQuestionIcon";
 import { LocationSearchInput } from "../components/LocationSearchInput";
 import { LocationMapPicker } from "../components/LocationMapPicker";
 import { ObservationSheet } from "../components/ObservationSheet";
 import { NamePromptModal } from "../components/NamePromptModal";
-import { WatchdogSheet } from "../components/WatchdogSheet";
+import { LocationAlertsSheet } from "../components/LocationAlertsSheet";
+import { LocationActionsSheet } from "../components/LocationActionsSheet";
 import { useSavedLocations, type SavedLocation } from "../SavedLocationsContext";
 import { useLocation, type AppLocation } from "../LocationContext";
 import { useSubscription } from "../SubscriptionContext";
@@ -31,18 +31,8 @@ export default function MojeScreen() {
   const [observing, setObserving] = useState<SavedLocation | null>(null);
   const [pickingOnMap, setPickingOnMap] = useState(false);
   const [renaming, setRenaming] = useState<SavedLocation | null>(null);
-  const [watchdogFor, setWatchdogFor] = useState<SavedLocation | null>(null);
-
-  // Plus-only, same as every other saved-location alert (see
-  // useNotificationGenerator.ts) - a free account sees the paywall instead
-  // of the sheet, matching how addLocationGated already gates a second place.
-  function openWatchdog(loc: SavedLocation) {
-    if (!isPremium) {
-      openPaywall("Chcete, ať vás houbařský pes upozorní e-mailem, až šance na tomhle místě vyroste?");
-      return;
-    }
-    setWatchdogFor(loc);
-  }
+  const [alertsFor, setAlertsFor] = useState<SavedLocation | null>(null);
+  const [actionsFor, setActionsFor] = useState<SavedLocation | null>(null);
 
   // Free tier: one saved place, enough to actually use the app (your own
   // backyard/nearest forest) - more than one is the "I go to several
@@ -86,34 +76,51 @@ export default function MojeScreen() {
             const alertsOn = loc.alertsEnabled !== false;
             return (
               <View key={loc.id} style={styles.card}>
-                <Pressable style={{ flex: 1 }} onPress={() => setLocation(loc)}>
+                <Pressable
+                  style={{ flex: 1 }}
+                  onPress={() => setLocation(loc)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Nastavit ${loc.label} jako aktuální místo`}
+                >
                   <Text style={styles.cardLabel}>{loc.label}</Text>
                   <Text style={styles.cardCoords}>
                     {loc.lat.toFixed(4)}, {loc.lon.toFixed(4)}
                   </Text>
                 </Pressable>
-                <Pressable onPress={() => toggleLocationAlerts(loc.id)} hitSlop={6} style={styles.iconBtn}>
+                <Pressable
+                  onPress={() => toggleLocationAlerts(loc.id)}
+                  hitSlop={6}
+                  style={styles.iconBtn}
+                  accessibilityRole="button"
+                  accessibilityLabel={alertsOn ? "Vypnout obecná upozornění na místo" : "Zapnout obecná upozornění na místo"}
+                >
                   {alertsOn ? (
                     <Bell size={19} strokeWidth={1.8} color={palette.primary} />
                   ) : (
                     <BellOff size={19} strokeWidth={1.8} color={palette.inkFaint} />
                   )}
                 </Pressable>
-                <Pressable onPress={() => openWatchdog(loc)} hitSlop={6} style={styles.iconBtn}>
+                <Pressable
+                  onPress={() => setAlertsFor(loc)}
+                  hitSlop={6}
+                  style={styles.iconBtn}
+                  accessibilityRole="button"
+                  accessibilityLabel="Upozornění na místo - obecné i houbařský pes"
+                >
                   <Dog
                     size={19}
                     strokeWidth={1.8}
                     color={loc.watchdogThresholdPct != null ? palette.primary : palette.inkFaint}
                   />
                 </Pressable>
-                <Pressable onPress={() => setObserving(loc)} hitSlop={6} style={styles.iconBtn}>
-                  <MushroomQuestionIcon size={19} color={palette.secondary} />
-                </Pressable>
-                <Pressable onPress={() => setRenaming(loc)} hitSlop={6} style={styles.iconBtn}>
-                  <Pencil size={18} strokeWidth={1.8} color={palette.inkFaint} />
-                </Pressable>
-                <Pressable onPress={() => removeLocation(loc.id)} hitSlop={6} style={styles.iconBtn}>
-                  <Trash2 size={19} strokeWidth={1.8} color={palette.inkFaint} />
+                <Pressable
+                  onPress={() => setActionsFor(loc)}
+                  hitSlop={6}
+                  style={styles.iconBtn}
+                  accessibilityRole="button"
+                  accessibilityLabel="Další možnosti - zapsat pozorování, přejmenovat, smazat"
+                >
+                  <MoreVertical size={19} strokeWidth={1.8} color={palette.inkFaint} />
                 </Pressable>
               </View>
             );
@@ -123,13 +130,22 @@ export default function MojeScreen() {
 
       <Text style={styles.note}>
         Klepnutím na místo ho nastavíte jako aktuální - Domů a Mapa se přepnou na něj. Zvoneček
-        zapne/vypne upozornění pro dané místo (i na houby, které tam mají začít růst až v příštích dnech).
-        Pejsek je houbařský pes - pošle e-mail, jakmile šance na místě přeleze vámi zvolenou hranici.
-        Ikonka se zaškrtnutím zapíše, jestli tam houby fakt rostly - pomáhá to zpřesňovat model.
+        rychle zapne/vypne obecná upozornění. Pejsek otevře podrobné nastavení upozornění pro tohle
+        místo - obecná i houbařského psa. Přes "…" jde zapsat pozorování, přejmenovat nebo místo
+        smazat.
       </Text>
 
       {observing && <ObservationSheet location={observing} onClose={() => setObserving(null)} />}
-      {watchdogFor && <WatchdogSheet location={watchdogFor} onClose={() => setWatchdogFor(null)} />}
+      {alertsFor && <LocationAlertsSheet location={alertsFor} onClose={() => setAlertsFor(null)} />}
+      {actionsFor && (
+        <LocationActionsSheet
+          locationLabel={actionsFor.label}
+          onObserve={() => setObserving(actionsFor)}
+          onRename={() => setRenaming(actionsFor)}
+          onDelete={() => removeLocation(actionsFor.id)}
+          onClose={() => setActionsFor(null)}
+        />
+      )}
       {renaming && (
         <NamePromptModal
           title="Přejmenovat místo"

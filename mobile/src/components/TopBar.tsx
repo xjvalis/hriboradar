@@ -11,13 +11,31 @@ export function TopBar({ onMenuPress, onBrandPress }: { onMenuPress: () => void;
 
   return (
     <View style={styles.bar}>
-      <Pressable onPress={onMenuPress} hitSlop={8} style={styles.iconBtn}>
+      <Pressable
+        onPress={onMenuPress}
+        hitSlop={8}
+        style={styles.iconBtn}
+        accessibilityRole="button"
+        accessibilityLabel="Otevřít menu - Moje místa a Nastavení"
+      >
         <Menu size={22} strokeWidth={1.8} color={palette.wood} />
       </Pressable>
-      <Pressable onPress={onBrandPress} hitSlop={8} style={styles.center}>
+      <Pressable
+        onPress={onBrandPress}
+        hitSlop={8}
+        style={styles.center}
+        accessibilityRole="button"
+        accessibilityLabel="Přejít na Domů"
+      >
         <BrandMark size="sm" />
       </Pressable>
-      <Pressable onPress={openSheet} hitSlop={8} style={styles.iconBtn}>
+      <Pressable
+        onPress={openSheet}
+        hitSlop={8}
+        style={styles.iconBtn}
+        accessibilityRole="button"
+        accessibilityLabel={unreadCount > 0 ? `Upozornění, ${unreadCount} nepřečtených` : "Upozornění"}
+      >
         <Bell size={21} strokeWidth={1.8} color={palette.wood} />
         {unreadCount > 0 && (
           <View style={styles.badge}>

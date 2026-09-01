@@ -1,6 +1,11 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Platform } from "react-native";
 import { useAuth } from "./AuthContext";
+// Type-only import - erased at compile time, so it can't trigger the same
+// native-module-not-linked crash the guarded require() below protects
+// against. Just gives applyCustomerInfo below a real shape instead of a
+// hand-rolled partial one.
+import type { CustomerInfo } from "react-native-purchases";
 
 // react-native-purchases has native code on iOS/Android - same crash risk
 // as expo-location had (see LocationPickerSheet.tsx): a static import
@@ -67,10 +72,32 @@ function findPackage(
   return pkgs.find((p) => p.packageType === wantType || p.identifier.toLowerCase() === wantId);
 }
 
+function extractEntitlement(info: CustomerInfo): ActiveEntitlementInfo | null {
+  const entitlement = info.entitlements.active[ENTITLEMENT_ID];
+  if (!entitlement) return null;
+  return {
+    productIdentifier: entitlement.productIdentifier,
+    willRenew: entitlement.willRenew,
+    expirationDate: entitlement.expirationDate,
+  };
+}
+
 export type BillingPeriod = "monthly" | "annual";
 
 interface PackageInfo {
   priceString: string;
+}
+
+// Surfaced in the Plus settings section so "Spravovat nebo zrušit
+// předplatné" isn't a bare link with zero context above it - which plan,
+// what it costs, and whether/when it renews. willRenew:false with a real
+// expirationDate means "canceled, but still active until that date" (the
+// only way that combination happens - RevenueCat doesn't hand back an
+// expired entitlement as active at all).
+export interface ActiveEntitlementInfo {
+  productIdentifier: string;
+  willRenew: boolean;
+  expirationDate: string | null;
 }
 
 interface SubscriptionContextValue {
@@ -80,6 +107,8 @@ interface SubscriptionContextValue {
   /** null while offerings are still loading, or if that period isn't configured in RevenueCat yet */
   monthly: PackageInfo | null;
   annual: PackageInfo | null;
+  /** null while not premium, or before the first customerInfo response arrives */
+  activeEntitlement: ActiveEntitlementInfo | null;
   purchase: (period: BillingPeriod) => Promise<{ error: string | null }>;
   restore: () => Promise<{ error: string | null }>;
 }
@@ -98,6 +127,7 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [monthly, setMonthly] = useState<PackageInfo | null>(null);
   const [annual, setAnnual] = useState<PackageInfo | null>(null);
+  const [activeEntitlement, setActiveEntitlement] = useState<ActiveEntitlementInfo | null>(null);
   // Starts true (optimistic) and flips to false the moment any real native
   // call throws - which is exactly what happens under Expo Go: the JS
   // module require()s fine (guarded above), but every actual bridge call
@@ -157,9 +187,11 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     }
     let cancelled = false;
 
-    function applyCustomerInfo(info: { entitlements: { active: Record<string, unknown> } }) {
+    function applyCustomerInfo(info: CustomerInfo) {
       if (cancelled) return;
-      setIsPremium(ENTITLEMENT_ID in info.entitlements.active);
+      const entitlement = extractEntitlement(info);
+      setIsPremium(!!entitlement);
+      setActiveEntitlement(entitlement);
       setLoading(false);
     }
 
@@ -198,6 +230,7 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
       available,
       monthly,
       annual,
+      activeEntitlement,
       purchase: async (period: BillingPeriod) => {
         if (!available || !RNPurchases) return { error: "Nákup teď není k dispozici." };
         try {
@@ -206,7 +239,9 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
           const pkg = findPackage(pkgs, period);
           if (!pkg) return { error: "Tahle varianta předplatného momentálně není k dispozici." };
           const { customerInfo } = await RNPurchases.purchasePackage(pkg);
-          setIsPremium(ENTITLEMENT_ID in customerInfo.entitlements.active);
+          const entitlement = extractEntitlement(customerInfo);
+          setIsPremium(!!entitlement);
+          setActiveEntitlement(entitlement);
           return { error: null };
         } catch (e: unknown) {
           const err = e as { userCancelled?: boolean; message?: string };
@@ -218,14 +253,16 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
         if (!available || !RNPurchases) return { error: "Obnovení teď není k dispozici." };
         try {
           const info = await RNPurchases.restorePurchases();
-          setIsPremium(ENTITLEMENT_ID in info.entitlements.active);
+          const entitlement = extractEntitlement(info);
+          setIsPremium(!!entitlement);
+          setActiveEntitlement(entitlement);
           return { error: null };
         } catch (e: unknown) {
           return { error: (e as Error).message ?? "Obnovení se nepodařilo." };
         }
       },
     }),
-    [isPremium, loading, available, monthly, annual]
+    [isPremium, loading, available, monthly, annual, activeEntitlement]
   );
 
   return <SubscriptionContext.Provider value={value}>{children}</SubscriptionContext.Provider>;

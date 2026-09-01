@@ -7,6 +7,7 @@ import { palette } from "./src/theme";
 import { LoadingScreen } from "./src/components/LoadingScreen";
 import { TopBar, type ScreenName } from "./src/components/TopBar";
 import { DrawerMenu } from "./src/components/DrawerMenu";
+import { BottomTabBar } from "./src/components/BottomTabBar";
 import { AppNavigationProvider, useAppNavigation } from "./src/AppNavigationContext";
 import { LocationProvider } from "./src/LocationContext";
 import { SavedLocationsProvider } from "./src/SavedLocationsContext";
@@ -105,14 +106,21 @@ function AppShell() {
           Domů). See AppNavigationContext for how Mapa's one-shot "jump to
           this species/region" requests still work now that it isn't
           guaranteed to remount on every visit. */}
-      {(Object.keys(SCREENS) as ScreenName[]).map((name) => {
-        const Screen = SCREENS[name];
-        return (
-          <View key={name} style={active === name ? styles.activeScreen : styles.hiddenScreen}>
-            <Screen />
-          </View>
-        );
-      })}
+      {/* Its own flex:1 wrapper (not a direct child of the SafeAreaView) so
+          BottomTabBar below takes its own space in normal flow instead of
+          overlapping the last bit of scrollable content - no per-screen
+          padding changes needed for any of the 6 screens above. */}
+      <View style={styles.screensArea}>
+        {(Object.keys(SCREENS) as ScreenName[]).map((name) => {
+          const Screen = SCREENS[name];
+          return (
+            <View key={name} style={active === name ? styles.activeScreen : styles.hiddenScreen}>
+              <Screen />
+            </View>
+          );
+        })}
+      </View>
+      <BottomTabBar active={active} onNavigate={setActive} />
       <SpeciesDetailSheet />
       <NotificationsSheet />
       <LocationPickerSheet />
@@ -160,6 +168,7 @@ export default function App() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: palette.bg },
+  screensArea: { flex: 1 },
   activeScreen: { flex: 1 },
   hiddenScreen: { display: "none" },
 });
