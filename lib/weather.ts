@@ -3,9 +3,25 @@ import { cached, roundCoord } from "./cache";
 const OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast";
 
 // How far back we look for a "qualifying rain" event when computing
-// days-since-rain. Must cover the largest days_after_rain window in
-// species.json (currently max 14) with margin.
-const PAST_DAYS = 16;
+// days-since-rain, and for the antecedent-precipitation decay window below.
+// Must cover both the largest days_after_rain window in species.json
+// (currently max 14) and the 30-day antecedent-precipitation index with
+// margin for its own decay tail.
+const PAST_DAYS = 35;
+
+// Recession constant for the antecedent precipitation index (see
+// antecedentPrecip below) - each day back contributes ANTECEDENT_DECAY^n of
+// its rainfall. 0.9 sits in the middle of the 0.85-0.98 range typically used
+// for API-type indices (see e.g. the "estimation of soil moisture using
+// modified antecedent precipitation index" literature); ČHMI's own API30
+// (the model this mirrors - "sumace denních úhrnů srážek za sledované
+// období s klesající vahou směrem do minulosti") doesn't publish its exact
+// constant, so this is a reasonable literature-typical default rather than
+// a reproduction of their tuned value. Downstream calibration
+// (api/cron/recalibrate.ts) corrects for whatever bias this introduces once
+// real feedback accumulates under lib/scoring.ts's MODEL_VERSION.
+const ANTECEDENT_DECAY = 0.9;
+const ANTECEDENT_WINDOW_DAYS = 30;
 // How far forward we forecast - covers the "za N dní upozornění" use case.
 const FORECAST_DAYS = 7;
 // Weather changes slowly relative to our daily-resolution model - safe to
@@ -22,6 +38,8 @@ export interface DayWeather {
   precipMm: number;
   tempAvgC: number;
   soilMoisturePct: number; // volumetric water content 0-9cm depth, as %
+  antecedentPrecipMm: number; // 30-day decay-weighted rainfall sum, see ANTECEDENT_DECAY
+  avgTemp7dC: number; // trailing 7-day avg temp, for the evaporation correction in lib/scoring.ts
   isForecast: boolean;
 }
 
@@ -88,6 +106,27 @@ async function fetchWeatherUncached(lat: number, lon: number): Promise<DayWeathe
 
   const todayStr = new Date().toISOString().slice(0, 10);
 
+  // Decay-weighted sum of the trailing ANTECEDENT_WINDOW_DAYS of rainfall,
+  // looking back from index i - the actual API30-style index, as opposed to
+  // the single day's precipMm or the same-day soilMoisturePct snapshot.
+  function antecedentPrecipAt(i: number): number {
+    let sum = 0;
+    for (let j = 0; j <= ANTECEDENT_WINDOW_DAYS && i - j >= 0; j++) {
+      sum += (data.daily.precipitation_sum[i - j] ?? 0) * ANTECEDENT_DECAY ** j;
+    }
+    return Math.round(sum * 10) / 10;
+  }
+
+  function avgTemp7dAt(i: number): number {
+    let sum = 0;
+    let n = 0;
+    for (let j = 0; j <= 6 && i - j >= 0; j++) {
+      sum += (data.daily.temperature_2m_max[i - j] + data.daily.temperature_2m_min[i - j]) / 2;
+      n++;
+    }
+    return n > 0 ? Math.round((sum / n) * 10) / 10 : 0;
+  }
+
   return data.daily.time.map((date, i) => {
     const soilValues = soilByDate.get(date) ?? [];
     const soilAvg =
@@ -99,6 +138,8 @@ async function fetchWeatherUncached(lat: number, lon: number): Promise<DayWeathe
       precipMm: data.daily.precipitation_sum[i] ?? 0,
       tempAvgC:
         (data.daily.temperature_2m_max[i] + data.daily.temperature_2m_min[i]) / 2,
+      antecedentPrecipMm: antecedentPrecipAt(i),
+      avgTemp7dC: avgTemp7dAt(i),
       soilMoisturePct: Math.round(soilAvg * 1000) / 10, // m3/m3 -> %
       isForecast: date > todayStr,
     };

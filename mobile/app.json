@@ -13,7 +13,13 @@
       "bundleIdentifier": "cz.hriboradar.app",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSLocationWhenInUseUsageDescription": "Hřiboradar potřebuje vaši polohu, abyste mohli rychle nastavit aktuální místo jako výchozí bod pro předpověď."
+        "NSLocationWhenInUseUsageDescription": "Hřiboradar potřebuje vaši polohu, abyste mohli rychle nastavit aktuální místo jako výchozí bod pro předpověď.",
+        "UISupportedInterfaceOrientations~ipad": [
+          "UIInterfaceOrientationPortrait",
+          "UIInterfaceOrientationPortraitUpsideDown",
+          "UIInterfaceOrientationLandscapeLeft",
+          "UIInterfaceOrientationLandscapeRight"
+        ]
       }
     },
     "android": {

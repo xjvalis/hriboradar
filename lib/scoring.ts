@@ -7,7 +7,7 @@ import { terrainMatchFactor, type TerrainInfo } from "./terrain";
 // scoring formula below starts its own calibration cohort instead of
 // silently mixing with data the old formula produced. Bump this whenever
 // scoreSpeciesDay's math changes in a way that shifts probabilities.
-export const MODEL_VERSION = "1.2.0";
+export const MODEL_VERSION = "1.4.0";
 
 export interface Species {
   id: string;
@@ -63,10 +63,32 @@ function seasonFactor(month: number, species: Species): number {
   return 0.05; // small residual - off-season stragglers do happen
 }
 
+// Shared design point for every continuous weather factor below (2026-09-01
+// rework): the old versions were flat plateaus - "1.0 anywhere inside the
+// ideal range/window", "1.0 once past the ideal threshold and flat forever
+// after". Under real conditions that plateau is easy to land on (a single
+// big rain event, a mild September day) and every factor pinning to
+// literal 1.0 at once produces a literal 100% forecast - a claim of
+// certainty no honest biological model should make. EDGE_FACTOR (temp/rain
+// timing) and the asymptotic `saturating()` curve (moisture) both replace
+// "flat 1.0 region" with "peaks near but never at 1.0, keeps differentiating
+// past the old threshold" - a genuinely better day still scores higher than
+// a merely adequate one, and no combination of real inputs can multiply out
+// to exactly 100%.
+const EDGE_FACTOR = 0.8; // factor value at the boundary of an ideal range/window - still a good day, just not the literal optimum
+
 function tempFactor(avgTempC: number, [tmin, tmax]: number[]): number {
-  if (avgTempC >= tmin && avgTempC <= tmax) return 1;
-  const dist = avgTempC < tmin ? tmin - avgTempC : avgTempC - tmax;
-  return clamp(1 - dist / 8, 0, 1);
+  const mid = (tmin + tmax) / 2;
+  const halfRange = (tmax - tmin) / 2;
+  if (halfRange <= 0) {
+    return avgTempC === tmin ? 1 : clamp(1 - Math.abs(avgTempC - tmin) / 8, 0, 1);
+  }
+  const d = Math.abs(avgTempC - mid);
+  if (d <= halfRange) {
+    // Raised cosine: 1.0 at the range's center, EDGE_FACTOR right at tmin/tmax.
+    return EDGE_FACTOR + (1 - EDGE_FACTOR) * 0.5 * (1 + Math.cos((Math.PI * d) / halfRange));
+  }
+  return clamp(EDGE_FACTOR - (d - halfRange) / 8, 0, 1);
 }
 
 function rainTimingFactor(
@@ -74,14 +96,84 @@ function rainTimingFactor(
   [dmin, dmax]: number[]
 ): number {
   if (since === null) return 0.1; // no qualifying rain found in lookback window
-  if (since < dmin) return clamp(0.3 + (since / dmin) * 0.7, 0, 1); // too soon, ramping up
-  if (since <= dmax) return 1;
-  return clamp(1 - (since - dmax) * 0.08, 0.1, 1); // drying out
+  const mid = (dmin + dmax) / 2;
+  const halfRange = (dmax - dmin) / 2;
+  if (halfRange <= 0) {
+    return since === dmin ? 1 : clamp(EDGE_FACTOR - Math.abs(since - dmin) * 0.08, 0.1, EDGE_FACTOR);
+  }
+  const d = Math.abs(since - mid);
+  if (d <= halfRange) {
+    return EDGE_FACTOR + (1 - EDGE_FACTOR) * 0.5 * (1 + Math.cos((Math.PI * d) / halfRange));
+  }
+  if (since < dmin) return clamp(0.3 + (since / dmin) * (EDGE_FACTOR - 0.3), 0, EDGE_FACTOR); // too soon, ramping up
+  return clamp(EDGE_FACTOR - (since - dmax) * 0.08, 0.1, EDGE_FACTOR); // drying out
 }
 
-function moistureFactor(soilMoisturePct: number, need: string): number {
+// Asymptotic approach to 1 rather than a linear ramp to a hard ceiling -
+// reaching `target` (the old idealPct/idealMm threshold) now reads as a
+// solid 0.85, not "done, maxed out forever". Meaningfully more rain/soil
+// moisture past that point still keeps nudging the score up (a proper
+// saturating response curve, the same shape ecological niche models use
+// for a resource that helps up to a point and then has diminishing
+// returns), rather than being indistinguishable from "just barely enough".
+function saturating(x: number, target: number, targetFactor = 0.85): number {
+  if (target <= 0) return x > 0 ? 1 : 0;
+  const k = target / -Math.log(1 - targetFactor);
+  return 1 - Math.exp(-x / k);
+}
+
+function soilMoistureFactor(soilMoisturePct: number, need: string): number {
   const idealPct = need === "vysoká" ? 20 : need === "střední" ? 14 : 12;
-  return clamp(soilMoisturePct / idealPct, 0, 1);
+  return saturating(soilMoisturePct, idealPct);
+}
+
+// Same idea as ČHMI's API30 temperature coefficient: the same accumulated
+// rainfall is worth less in a hot month than a cool one, because more of it
+// evaporates before it can reach/stay in the mycelium's rooting zone. 12°C
+// (roughly a typical Czech September night-day average, peak mushroom
+// season) is the reference point where a day's rain counts at face value;
+// warmer days scale it down, cooler days scale it up slightly, both capped
+// so a single cold or heat-wave day can't swing the correction to an
+// extreme. Linear rather than a full Penman-Monteith evapotranspiration
+// model - the literature-grounded coefficient ČHMI uses isn't published,
+// and this app's calibration loop (api/cron/recalibrate.ts) corrects
+// residual bias once feedback accumulates under this MODEL_VERSION.
+function evapCorrection(avgTemp7dC: number): number {
+  return clamp(1 - (avgTemp7dC - 12) * 0.035, 0.35, 1.15);
+}
+
+// idealMm thresholds for the decay-weighted antecedent precipitation index
+// (lib/weather.ts's antecedentPrecipMm, ANTECEDENT_DECAY=0.9 over 30 days) -
+// same role as soilMoistureFactor's idealPct, but scaled to "effective mm
+// of accumulated rain" instead of volumetric soil-moisture %. Order of
+// magnitude estimated from typical central European growing-season
+// rainfall (~2-4mm/day average decaying to an effective sum of roughly
+// 8-38mm under this decay constant), not measured against real ground
+// truth - same calibration-loop caveat as evapCorrection above. A single
+// large storm (e.g. 40-50mm) can still push effectiveMm to 2-3x idealMm -
+// saturating() lets that read as meaningfully wetter (~0.9-0.95) than a
+// day that just barely cleared the threshold (~0.85), instead of both
+// being indistinguishable flat 1.0s the way the old linear-clamp version
+// treated them.
+function antecedentFactor(effectiveMm: number, need: string): number {
+  const idealMm = need === "vysoká" ? 16 : need === "střední" ? 11 : 8;
+  return saturating(effectiveMm, idealMm);
+}
+
+// The moisture signal blends two genuinely different things rather than
+// picking one: the decay-weighted antecedent index carries the multi-week
+// "memory" ČHMI's API30 has and our old same-day-only snapshot didn't (see
+// 2026-09-01 investigation - a single wet day after a dry August could
+// saturate the old factor to 1.0 even though the antecedent month was dry).
+// The same-day modeled soil moisture stays in the blend rather than being
+// replaced outright - the mushroom-yield literature (e.g. Mediterranean
+// pine sporocarp studies) found remote-sensed soil moisture rivals raw
+// precipitation as a predictor on its own, so dropping it would throw away
+// a real independent signal, not just redundant noise.
+function moistureFactor(day: DayWeather, need: string): number {
+  const antecedent = antecedentFactor(day.antecedentPrecipMm * evapCorrection(day.avgTemp7dC), need);
+  const soil = soilMoistureFactor(day.soilMoisturePct, need);
+  return clamp(antecedent * 0.55 + soil * 0.45, 0, 1);
 }
 
 interface WeatherFactors {
@@ -111,7 +203,7 @@ function weatherFactors(days: DayWeather[], dayIndex: number, species: Species):
   const season = seasonFactor(month, species);
   const temp = tempFactor(day.tempAvgC, species.temp_range_c);
   const rain = rainTimingFactor(since, species.days_after_rain);
-  const moisture = moistureFactor(day.soilMoisturePct, species.moisture_need);
+  const moisture = moistureFactor(day, species.moisture_need);
   const weighted = temp * 0.3 + rain * 0.4 + moisture * 0.3;
 
   return { season, temp, rain, moisture, weighted, daysSinceRainValue: since };
