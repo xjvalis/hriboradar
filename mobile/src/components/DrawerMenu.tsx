@@ -3,7 +3,7 @@ import { Animated, Image, Pressable, StyleSheet, Text, View, useWindowDimensions
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BlurView } from "expo-blur";
 import { CalendarDays, Home, Leaf, Map, MapPin, Settings, X } from "lucide-react-native";
-import { palette, radius, space, type } from "../theme";
+import { IS_TABLET, palette, radius, space, ts, type } from "../theme";
 import { BrandMark } from "./BrandMark";
 import type { ScreenName } from "./TopBar";
 
@@ -42,7 +42,11 @@ export function DrawerMenu({
 }) {
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const drawerWidth = Math.min(300, width * 0.8);
+  // Phone's fixed 300pt cap left the drawer feeling cramped once icons/
+  // labels inside it scale up 20% on tablet - a bigger flat cap (still
+  // capped as a fraction of width, so it doesn't take over a narrower
+  // split-view iPad window) gives that bigger content room to breathe.
+  const drawerWidth = IS_TABLET ? Math.min(380, width * 0.5) : Math.min(300, width * 0.8);
   // Computed explicitly rather than via the `aspectRatio` style - that
   // style didn't constrain height on web here and the image rendered at
   // its full natural size instead of scaling down with its width.
@@ -78,7 +82,7 @@ export function DrawerMenu({
         <View style={[styles.header, { paddingTop: insets.top + space.sm }]}>
           <BrandMark size="sm" />
           <Pressable onPress={onClose} hitSlop={8} accessibilityRole="button" accessibilityLabel="Zavřít menu">
-            <X size={20} strokeWidth={1.8} color={palette.inkFaint} />
+            <X size={ts(20)} strokeWidth={1.8} color={palette.inkFaint} />
           </Pressable>
         </View>
 
@@ -94,7 +98,7 @@ export function DrawerMenu({
                 accessibilityLabel={label}
                 accessibilityState={{ selected: isActive }}
               >
-                <Icon size={19} strokeWidth={isActive ? 2.2 : 1.8} color={isActive ? palette.primary : palette.wood} />
+                <Icon size={ts(19)} strokeWidth={isActive ? 2.2 : 1.8} color={isActive ? palette.primary : palette.wood} />
                 <Text style={[styles.itemText, isActive && styles.itemTextActive]}>{label}</Text>
               </Pressable>
             );

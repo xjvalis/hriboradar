@@ -8,6 +8,7 @@
 // call in mobile/src/PushNotificationContext.tsx).
 const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
 const EXPO_PUSH_BATCH_SIZE = 100; // Expo's documented per-request cap
+const FETCH_TIMEOUT_MS = 8000;
 
 export interface PushMessage {
   to: string; // Expo push token, e.g. "ExponentPushToken[...]"
@@ -39,6 +40,7 @@ export async function sendPushNotifications(messages: PushMessage[]): Promise<nu
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify(batch.map((m) => ({ to: m.to, title: m.title, body: m.body, data: m.data, sound: "default" }))),
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
       });
       if (!res.ok) {
         console.error("[push] Expo push endpoint returned", res.status, await res.text());

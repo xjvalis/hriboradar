@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { cached, roundCoord } from "../lib/cache";
+import { parseLatLon } from "../lib/validate";
 
 /**
  * GET /api/geocode?q=<text>
@@ -59,12 +60,12 @@ async function fetchNominatimReverse(lat: number, lon: number): Promise<GeocodeR
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  const lat = req.query.lat != null ? Number(req.query.lat) : undefined;
-  const lon = req.query.lon != null ? Number(req.query.lon) : undefined;
-  if (Number.isFinite(lat) && Number.isFinite(lon)) {
+  const parsed = req.query.lat != null || req.query.lon != null ? parseLatLon(req.query) : null;
+  if (parsed) {
+    const { lat, lon } = parsed;
     try {
-      const result = await cached(`rgeocode:${roundCoord(lat as number)},${roundCoord(lon as number)}`, GEOCODE_CACHE_TTL_MS, () =>
-        fetchNominatimReverse(lat as number, lon as number)
+      const result = await cached(`rgeocode:${roundCoord(lat)},${roundCoord(lon)}`, GEOCODE_CACHE_TTL_MS, () =>
+        fetchNominatimReverse(lat, lon)
       );
       res.status(200).json({ results: [result] });
     } catch {

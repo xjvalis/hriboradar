@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { buildPinPickerHtml } from "../lib/leafletHtml";
+import { parseLatLon } from "../lib/validate";
 
 /**
  * GET /api/map-pin?lat=&lon=&zoom=
@@ -10,14 +11,13 @@ import { buildPinPickerHtml } from "../lib/leafletHtml";
  * (from a name search or the default location), fast to load.
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  const lat = Number(req.query.lat);
-  const lon = Number(req.query.lon);
-  const zoom = req.query.zoom != null ? Number(req.query.zoom) : undefined;
-
-  if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+  const parsed = parseLatLon(req.query);
+  if (!parsed) {
     res.status(400).json({ error: "Chybí nebo je neplatné lat/lon." });
     return;
   }
+  const { lat, lon } = parsed;
+  const zoom = req.query.zoom != null ? Number(req.query.zoom) : undefined;
 
   const mapApiKey = process.env.MAPY_CZ_API_KEY ?? "";
   const html = buildPinPickerHtml({ lat, lon, zoom: Number.isFinite(zoom) ? zoom : undefined, mapApiKey });

@@ -21,7 +21,7 @@ export default function MapScreen() {
   const { location } = useLocation();
   const { consumeMapSpeciesRequest, consumeMapFocusRequest, active } = useAppNavigation();
   const { locations: savedLocations } = useSavedLocations();
-  const { isPremium } = useSubscription();
+  const { isPremium, loading: subscriptionLoading } = useSubscription();
   const { openPaywall } = usePaywall();
   const [grid, setGrid] = useState<GridResponse | null>(null);
   const [gridProgress, setGridProgress] = useState(0);
@@ -108,8 +108,11 @@ export default function MapScreen() {
     if (active !== "Mapa" || !mapReady) return;
     const pendingSpecies = consumeMapSpeciesRequest();
     if (pendingSpecies) {
+      // See MapScreen.tsx's matching comment - skip the paywall while
+      // subscriptionLoading is still unsettled rather than falsely gating
+      // a genuinely premium account on a fresh app open.
       if (isPremium) setMode({ type: "species", id: pendingSpecies });
-      else openPaywall("Chcete vidět mapu podle konkrétní houby?");
+      else if (!subscriptionLoading) openPaywall("Chcete vidět mapu podle konkrétní houby?");
     }
     const pendingFocus = consumeMapFocusRequest();
     if (pendingFocus) {
@@ -161,11 +164,10 @@ export default function MapScreen() {
             key={sp.id}
             label={sp.name_cz}
             active={mode.type === "species" && mode.id === sp.id}
-            onPress={() =>
-              isPremium
-                ? setMode({ type: "species", id: sp.id })
-                : openPaywall("Chcete vidět mapu podle konkrétní houby?")
-            }
+            onPress={() => {
+              if (isPremium) setMode({ type: "species", id: sp.id });
+              else if (!subscriptionLoading) openPaywall("Chcete vidět mapu podle konkrétní houby?");
+            }}
           />
         ))}
       </ScrollView>

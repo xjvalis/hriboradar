@@ -32,7 +32,7 @@ export function MushroomCard({
           {edibility ? <Text style={styles.edibility}>{edibility}</Text> : null}
           {info && <SeasonSparkline seasonMonths={info.season_months} peakMonths={info.season_peak_months} />}
         </View>
-        {probabilityPct != null && <ProbabilityBadge pct={probabilityPct} />}
+        {probabilityPct != null && <ProbabilityBadge pct={probabilityPct} style={{ alignSelf: "center" }} />}
       </Card>
     </Pressable>
   );

@@ -18,12 +18,15 @@ export function SettingsNotificationsSection() {
   const { monthlyTipsEnabled, setMonthlyTipsEnabled, terrainSuggestionsEnabled, setTerrainSuggestionsEnabled } =
     useNotificationPrefs();
   const { locations: savedLocations } = useSavedLocations();
-  const { isPremium } = useSubscription();
+  const { isPremium, loading: subscriptionLoading } = useSubscription();
   const { openPaywall } = usePaywall();
   const [alertsFor, setAlertsFor] = useState<SavedLocation | null>(null);
   const [speciesExpanded, setSpeciesExpanded] = useState(false);
 
   function handleToggleSpecies(id: string) {
+    // subscriptionLoading: see SubscriptionContext.tsx - don't paywall a
+    // real Plus subscriber for the length of one RevenueCat round-trip.
+    if (subscriptionLoading) return;
     if (!isPremium) {
       openPaywall("Chcete sledovat konkrétní houby a dostávat upozornění na jejich sezónu?");
       return;

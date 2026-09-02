@@ -68,7 +68,10 @@ const styles = StyleSheet.create({
     borderColor: palette.line,
     borderRadius: radius.md,
     paddingHorizontal: space.md,
-    paddingVertical: space.sm + 2,
+    // Explicit height (not just vertical padding) so this lines up exactly
+    // with MojeScreen's "Najít na mapě" button sitting right below it -
+    // see that component's manualToggle comment.
+    height: 46,
     fontFamily: "Manrope-Regular",
     fontSize: 14,
     color: palette.ink,

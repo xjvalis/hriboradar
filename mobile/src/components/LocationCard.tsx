@@ -27,7 +27,7 @@ export function LocationCard({
         </Text>
         <Text style={styles.top}>Nejvíc: {topSpecies}</Text>
       </View>
-      <ProbabilityBadge pct={probabilityPct} />
+      <ProbabilityBadge pct={probabilityPct} style={{ alignSelf: "center" }} />
     </Pressable>
   );
 }

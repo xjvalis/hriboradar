@@ -20,7 +20,7 @@ import { usePaywall } from "../PaywallContext";
 export default function PredpovedScreen() {
   const { location } = useLocation();
   const { locations: saved } = useSavedLocations();
-  const { isPremium } = useSubscription();
+  const { isPremium, loading: subscriptionLoading } = useSubscription();
   const { openPaywall } = usePaywall();
 
   // Excludes a saved place that's also the current location (e.g. after
@@ -158,7 +158,10 @@ export default function PredpovedScreen() {
             // feature - still shown (with a real score, not blurred out)
             // so it's obvious there's something worth unlocking, just
             // locked behind the paywall instead of the usual day-select.
-            const locked = !isPremium && d.date !== detail.today;
+            // subscriptionLoading guard: see SubscriptionContext.tsx -
+            // without it, a real Plus subscriber sees the whole week
+            // lock icons for as long as RevenueCat's fetch is in flight.
+            const locked = !subscriptionLoading && !isPremium && d.date !== detail.today;
             return (
               <Pressable
                 key={d.date}

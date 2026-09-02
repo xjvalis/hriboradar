@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Bell, Menu } from "lucide-react-native";
-import { palette, radius, space, type } from "../theme";
+import { palette, radius, space, ts, type } from "../theme";
 import { BrandMark } from "./BrandMark";
 import { useNotifications } from "../NotificationContext";
 
@@ -18,7 +18,7 @@ export function TopBar({ onMenuPress, onBrandPress }: { onMenuPress: () => void;
         accessibilityRole="button"
         accessibilityLabel="Otevřít menu - Moje místa a Nastavení"
       >
-        <Menu size={22} strokeWidth={1.8} color={palette.wood} />
+        <Menu size={ts(22)} strokeWidth={1.8} color={palette.wood} />
       </Pressable>
       <Pressable
         onPress={onBrandPress}
@@ -36,7 +36,7 @@ export function TopBar({ onMenuPress, onBrandPress }: { onMenuPress: () => void;
         accessibilityRole="button"
         accessibilityLabel={unreadCount > 0 ? `Upozornění, ${unreadCount} nepřečtených` : "Upozornění"}
       >
-        <Bell size={21} strokeWidth={1.8} color={palette.wood} />
+        <Bell size={ts(21)} strokeWidth={1.8} color={palette.wood} />
         {unreadCount > 0 && (
           <View style={styles.badge}>
             <Text style={styles.badgeText}>{unreadCount > 9 ? "9+" : unreadCount}</Text>
@@ -58,14 +58,14 @@ const styles = StyleSheet.create({
     borderBottomColor: palette.line,
     backgroundColor: palette.bg,
   },
-  iconBtn: { width: 34, height: 34, alignItems: "center", justifyContent: "center" },
+  iconBtn: { width: ts(34), height: ts(34), alignItems: "center", justifyContent: "center" },
   center: { flex: 1, alignItems: "center" },
   badge: {
     position: "absolute",
     top: 3,
     right: 2,
-    minWidth: 15,
-    height: 15,
+    minWidth: ts(15),
+    height: ts(15),
     borderRadius: radius.pill,
     backgroundColor: palette.danger,
     alignItems: "center",
@@ -74,5 +74,5 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: palette.bg,
   },
-  badgeText: { ...type.caption, fontSize: 9, lineHeight: 10, color: palette.white, fontFamily: "Manrope-Bold" },
+  badgeText: { ...type.caption, fontSize: ts(9), lineHeight: ts(10), color: palette.white, fontFamily: "Manrope-Bold" },
 });

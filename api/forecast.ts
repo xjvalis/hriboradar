@@ -3,6 +3,7 @@ import { fetchWeather, fetchCurrentConditions } from "../lib/weather";
 import { scoreSpeciesDay, MODEL_VERSION, type Species } from "../lib/scoring";
 import { fetchTerrain } from "../lib/terrain";
 import { applyCalibratedProbability } from "../lib/calibration";
+import { parseLatLon } from "../lib/validate";
 import speciesData from "./data/species.json";
 
 /**
@@ -30,13 +31,12 @@ import speciesData from "./data/species.json";
  * request over).
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  const lat = parseFloat(String(req.query.lat));
-  const lon = parseFloat(String(req.query.lon));
-
-  if (Number.isNaN(lat) || Number.isNaN(lon)) {
+  const parsed = parseLatLon(req.query);
+  if (!parsed) {
     res.status(400).json({ error: "Chybí nebo je neplatné lat/lon." });
     return;
   }
+  const { lat, lon } = parsed;
 
   try {
     const [days, terrain, current] = await Promise.all([

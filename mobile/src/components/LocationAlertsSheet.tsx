@@ -25,7 +25,7 @@ const THRESHOLD_OPTIONS = [50, 60, 70, 80, 90];
 // rozkliknutelné a kvalitně nastavitelné" from the same place.
 export function LocationAlertsSheet({ location, onClose }: { location: SavedLocation; onClose: () => void }) {
   const { toggleLocationAlerts, setWatchdog } = useSavedLocations();
-  const { isPremium } = useSubscription();
+  const { isPremium, loading: subscriptionLoading } = useSubscription();
   const { openPaywall } = usePaywall();
   const [alertsOn, setAlertsOn] = useState(location.alertsEnabled !== false);
   const [watchdogOn, setWatchdogOn] = useState(location.watchdogThresholdPct != null);
@@ -38,6 +38,9 @@ export function LocationAlertsSheet({ location, onClose }: { location: SavedLoca
   // account can still open this to review/adjust general alerts without
   // hitting a paywall for something that was never gated to begin with.
   function handleWatchdogToggle(next: boolean) {
+    // subscriptionLoading: see SubscriptionContext.tsx - don't paywall a
+    // real Plus subscriber for the length of one RevenueCat round-trip.
+    if (next && subscriptionLoading) return;
     if (next && !isPremium) {
       openPaywall("Chcete, ať vás houbařský pes upozorní, až šance na tomhle místě vyroste?");
       return;

@@ -1,4 +1,4 @@
-import { Alert, Linking, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Linking, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { Sprout } from "lucide-react-native";
 import { palette, radius, space, type } from "../../theme";
 import { useSubscription } from "../../SubscriptionContext";
@@ -47,7 +47,20 @@ export function SettingsPlusSection() {
 
   return (
     <View style={styles.padded}>
-      {isPremium ? (
+      {loading ? (
+        // Genuinely unknown yet, not "free" - RevenueCat's customer info is
+        // one more network round-trip on every cold start, and isPremium
+        // defaults to false until it resolves. Rendering the free-upsell
+        // card here (as this used to) meant a real Plus subscriber saw
+        // "Přejít na Plus" flash on screen on every single app open, not
+        // just a fresh install (found 2026-09-02 - the fresh-install case
+        // is a separate race fixed in SubscriptionContext.tsx, but this
+        // brief loading window exists on every launch regardless).
+        <View style={[styles.plusCard, styles.plusCardLoading]}>
+          <ActivityIndicator color={palette.primary} />
+          <Text style={styles.toggleHint}>Načítám předplatné…</Text>
+        </View>
+      ) : isPremium ? (
         <>
           <View style={styles.plusCard}>
             <Sprout size={20} strokeWidth={1.8} color={palette.primary} />
@@ -110,6 +123,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     padding: space.md,
   },
+  plusCardLoading: { justifyContent: "center" },
   currentLabel: { ...type.headingSm, color: palette.ink },
   toggleHint: { ...type.caption, color: palette.inkFaint, marginTop: 2, lineHeight: 15 },
   renewalText: { ...type.caption, color: palette.primaryDeep, marginTop: 6, fontFamily: "Manrope-SemiBold" },

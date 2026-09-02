@@ -1,6 +1,12 @@
 import { cached, roundCoord } from "./cache";
 
 const OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast";
+// No default fetch timeout exists in Node/the Vercel runtime - a hung
+// connection would otherwise sit there until the platform's own function
+// timeout kills the whole request (a hard, ungraceful cutoff, not
+// something fetchWithRetry below gets a chance to react to). Same pattern
+// api/geocode.ts already uses for its Nominatim calls.
+const FETCH_TIMEOUT_MS = 8000;
 
 // How far back we look for a "qualifying rain" event when computing
 // days-since-rain, and for the antecedent-precipitation decay window below.
@@ -88,7 +94,7 @@ async function fetchWithRetry(url: string, attempts = 3): Promise<Response> {
   let lastErr: unknown;
   for (let i = 0; i < attempts; i++) {
     try {
-      const res = await fetch(url);
+      const res = await fetch(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
       if (!res.ok) throw new Error(`Open-Meteo request failed: ${res.status}`);
       return res;
     } catch (err) {
@@ -179,7 +185,7 @@ async function fetchCurrentConditionsUncached(lat: number, lon: number): Promise
   url.searchParams.set("current", "temperature_2m,precipitation");
   url.searchParams.set("timezone", "Europe/Prague");
 
-  const res = await fetch(url.toString());
+  const res = await fetch(url.toString(), { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
   if (!res.ok) {
     throw new Error(`Open-Meteo current-conditions request failed: ${res.status}`);
   }

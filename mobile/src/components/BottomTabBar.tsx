@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CalendarDays, Home, Leaf, Map } from "lucide-react-native";
-import { palette, space, type } from "../theme";
+import { IS_TABLET, palette, space, ts, type } from "../theme";
 import type { ScreenName } from "./TopBar";
 
 // The 4 screens someone actually reaches for daily - "is it worth going
@@ -21,37 +21,50 @@ const TABS: { name: ScreenName; Icon: typeof Home; label: string }[] = [
 export function BottomTabBar({ active, onNavigate }: { active: ScreenName; onNavigate: (screen: ScreenName) => void }) {
   const insets = useSafeAreaInsets();
   return (
-    <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, space.xs) }]}>
-      {TABS.map(({ name, Icon, label }) => {
-        const isActive = name === active;
-        return (
-          <Pressable
-            key={name}
-            onPress={() => onNavigate(name)}
-            style={styles.tab}
-            hitSlop={4}
-            accessibilityRole="tab"
-            accessibilityLabel={label}
-            accessibilityState={{ selected: isActive }}
-          >
-            <Icon size={22} strokeWidth={isActive ? 2.2 : 1.8} color={isActive ? palette.primary : palette.inkFaint} />
-            <Text style={[styles.label, isActive && styles.labelActive]}>{label}</Text>
-          </Pressable>
-        );
-      })}
+    <View style={[styles.barOuter, { paddingBottom: Math.max(insets.bottom, space.xs) }]}>
+      <View style={styles.bar}>
+        {TABS.map(({ name, Icon, label }) => {
+          const isActive = name === active;
+          return (
+            <Pressable
+              key={name}
+              onPress={() => onNavigate(name)}
+              style={styles.tab}
+              hitSlop={4}
+              accessibilityRole="tab"
+              accessibilityLabel={label}
+              accessibilityState={{ selected: isActive }}
+            >
+              <Icon size={ts(22)} strokeWidth={isActive ? 2.2 : 1.8} color={isActive ? palette.primary : palette.inkFaint} />
+              <Text style={[styles.label, isActive && styles.labelActive]}>{label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
     </View>
   );
 }
 
+// 4 icons spread with flex:1 across a full iPad-width bar leaves huge dead
+// gaps between them - capping and centering the row (same idea as
+// PaperBackground's reading-width column) keeps the tabs a comfortable
+// thumb-reach apart instead of spread thin across the whole screen.
+// Narrower than PaperBackground's 640 (text) since this is just 4 icons,
+// not a reading column - phone is untouched (IS_TABLET false there).
+const TABLET_BAR_MAX_WIDTH = 480;
+
 const styles = StyleSheet.create({
-  bar: {
-    flexDirection: "row",
+  barOuter: {
     borderTopWidth: 1,
     borderTopColor: palette.line,
     backgroundColor: palette.bg,
     paddingTop: space.xs,
+    alignItems: IS_TABLET ? "center" : undefined,
   },
+  bar: IS_TABLET
+    ? { flexDirection: "row", width: "100%", maxWidth: TABLET_BAR_MAX_WIDTH }
+    : { flexDirection: "row" },
   tab: { flex: 1, alignItems: "center", justifyContent: "center", gap: 2, paddingVertical: 2 },
-  label: { ...type.caption, fontSize: 10, color: palette.inkFaint },
+  label: { ...type.caption, fontSize: ts(10), color: palette.inkFaint },
   labelActive: { color: palette.primary, fontFamily: "Manrope-SemiBold" },
 });

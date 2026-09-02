@@ -36,7 +36,13 @@ async function fetchCalibrationStats(): Promise<Map<string, CalibrationStatsRow>
 }
 
 function loadCalibrationStats(): Promise<Map<string, CalibrationStatsRow>> {
-  return cached("calibration-stats", STATS_CACHE_TTL_MS, fetchCalibrationStats);
+  // Keyed by MODEL_VERSION even though fetchCalibrationStats() already
+  // filters its query by it on every cache miss (so a stale cache can't
+  // actually serve the wrong version's rows today) - this is a defensive
+  // belt-and-braces measure in case the caching layer ever changes (e.g.
+  // a move to Vercel KV or a longer-lived process), where a fixed key
+  // could otherwise let a warm cache outlive a version bump.
+  return cached(`calibration-stats:${MODEL_VERSION}`, STATS_CACHE_TTL_MS, fetchCalibrationStats);
 }
 
 /**
@@ -49,9 +55,10 @@ function loadCalibrationStats(): Promise<Map<string, CalibrationStatsRow>> {
  * must never be able to break a forecast response.
  */
 export async function applyCalibratedProbability(rawPct: number, speciesId: string): Promise<number> {
+  if (!Number.isFinite(rawPct)) return 0; // defensive - scoreSpeciesDay's own clamp() means this never happens today, but a NaN bucket key would otherwise silently pass NaN straight through to the client
   try {
     const stats = await loadCalibrationStats();
-    const bucket = Math.min(90, Math.floor(rawPct / 10) * 10);
+    const bucket = Math.min(90, Math.max(0, Math.floor(rawPct / 10) * 10));
     const row = stats.get(`${speciesId}:${bucket}`);
     if (!row || row.n < MIN_SAMPLE_N) return rawPct;
 

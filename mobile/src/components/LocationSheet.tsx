@@ -45,7 +45,7 @@ export function LocationSheet({
   const [detail, setDetail] = useState<ForecastResponse | null>(null);
   const { openSpecies } = useSpeciesDetail();
   const { locations: savedLocations, addLocation } = useSavedLocations();
-  const { isPremium } = useSubscription();
+  const { isPremium, loading: subscriptionLoading } = useSubscription();
   const { openPaywall } = usePaywall();
   const [justSaved, setJustSaved] = useState(false);
   const [naming, setNaming] = useState(false);
@@ -146,7 +146,7 @@ export function LocationSheet({
               <Text style={styles.filteredName}>{filteredSpeciesName}</Text>
             </View>
             {filteredToday ? (
-              <ProbabilityBadge pct={filteredToday.probability_pct} size="md" />
+              <ProbabilityBadge pct={filteredToday.probability_pct} size="md" style={{ alignSelf: "center" }} />
             ) : (
               <ActivityIndicator color={palette.primaryDeep} />
             )}
@@ -204,7 +204,8 @@ export function LocationSheet({
             label={alreadySaved || justSaved ? "Uloženo." : 'Uložit do "Mých míst"'}
             disabled={alreadySaved || justSaved}
             onPress={() => {
-              if (!isPremium && savedLocations.length >= FREE_SAVED_LOCATIONS_LIMIT) {
+              // See MojeScreen.tsx's matching comment on subscriptionLoading.
+              if (!subscriptionLoading && !isPremium && savedLocations.length >= FREE_SAVED_LOCATIONS_LIMIT) {
                 openPaywall("Chcete uložit víc než jedno místo?");
                 return;
               }

@@ -201,25 +201,30 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
   // to this app's own Supabase user id once known, the same identifier
   // the webhook (api/webhooks/revenuecat.ts) uses to update
   // hriboradar_subscriptions.
-  useEffect(() => {
-    if (!available || !RNPurchases) return;
-    try {
-      if (!user) {
-        RNPurchases.logOut().catch(() => {});
-        return;
-      }
-      RNPurchases.logIn(user.id).catch(() => {});
-    } catch {
-      setNativeOk(false);
-    }
-  }, [available, user]);
-
+  //
+  // Login and the customer-info fetch used to be two separate effects,
+  // both keyed only on `available` - which meant getCustomerInfo() could
+  // (and on a fresh install, reliably did) fire before logIn() finished
+  // switching RevenueCat off its default anonymous customer ID onto the
+  // real one. The anonymous ID has no purchase history, so a genuinely
+  // premium user briefly - sometimes not so briefly, if the login-complete
+  // update never got picked up - read as free until a full app restart
+  // (found 2026-09-02: a fresh TestFlight-style install showed the paywall
+  // on a real Plus account, self-corrected on relaunch). Sequencing
+  // logIn/logOut BEFORE the fetch below, in the same effect, makes that
+  // ordering guaranteed instead of a race.
   useEffect(() => {
     if (!available || !RNPurchases) {
       setLoading(false);
       return;
     }
     let cancelled = false;
+    // Re-running for a *changed* user (account switch) must not leave the
+    // previous account's isPremium/loading=false sitting there stale while
+    // the new logIn+fetch sequence is in flight - a real edge case, but the
+    // same underlying "briefly shows the wrong account's status" failure
+    // mode as the fresh-install race this effect merge fixes.
+    setLoading(true);
 
     function applyCustomerInfo(info: CustomerInfo) {
       if (cancelled) return;
@@ -229,23 +234,31 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     }
 
-    try {
-      RNPurchases.getCustomerInfo().then(applyCustomerInfo).catch(() => setLoading(false));
-      RNPurchases.getOfferings()
-        .then((o) => {
-          if (cancelled) return;
-          const pkgs = o.current?.availablePackages ?? [];
-          const monthlyPkg = findPackage(pkgs, "monthly");
-          const annualPkg = findPackage(pkgs, "annual");
-          setMonthly(monthlyPkg ? { priceString: monthlyPkg.product.priceString } : null);
-          setAnnual(annualPkg ? { priceString: annualPkg.product.priceString } : null);
-        })
-        .catch(() => {});
-      RNPurchases.addCustomerInfoUpdateListener(applyCustomerInfo);
-    } catch {
-      setNativeOk(false);
-      setLoading(false);
-    }
+    (async () => {
+      try {
+        if (user) await RNPurchases!.logIn(user.id).catch(() => {});
+        else await RNPurchases!.logOut().catch(() => {});
+        if (cancelled) return;
+
+        RNPurchases!.getCustomerInfo().then(applyCustomerInfo).catch(() => setLoading(false));
+        RNPurchases!.getOfferings()
+          .then((o) => {
+            if (cancelled) return;
+            const pkgs = o.current?.availablePackages ?? [];
+            const monthlyPkg = findPackage(pkgs, "monthly");
+            const annualPkg = findPackage(pkgs, "annual");
+            setMonthly(monthlyPkg ? { priceString: monthlyPkg.product.priceString } : null);
+            setAnnual(annualPkg ? { priceString: annualPkg.product.priceString } : null);
+          })
+          .catch(() => {});
+        RNPurchases!.addCustomerInfoUpdateListener(applyCustomerInfo);
+      } catch {
+        if (!cancelled) {
+          setNativeOk(false);
+          setLoading(false);
+        }
+      }
+    })();
 
     return () => {
       cancelled = true;
@@ -255,7 +268,7 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
         // already unavailable - nothing to clean up
       }
     };
-  }, [available]);
+  }, [available, user]);
 
   const value = useMemo<SubscriptionContextValue>(
     () => ({

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Bell, BellOff, Dog, Map, MoreVertical, Sprout } from "lucide-react-native";
 import { palette, radius, space, type } from "../theme";
@@ -11,11 +11,14 @@ import { ObservationSheet } from "../components/ObservationSheet";
 import { NamePromptModal } from "../components/NamePromptModal";
 import { LocationAlertsSheet } from "../components/LocationAlertsSheet";
 import { LocationActionsSheet } from "../components/LocationActionsSheet";
+import { ProbabilityBadge } from "../components/ProbabilityBadge";
 import { useSavedLocations, type SavedLocation } from "../SavedLocationsContext";
 import { useLocation, type AppLocation } from "../LocationContext";
 import { useSubscription } from "../SubscriptionContext";
 import { usePaywall } from "../PaywallContext";
 import { FREE_SAVED_LOCATIONS_LIMIT } from "../subscriptionLimits";
+import { getForecast } from "../api";
+import { computeDailyOverall } from "../forecastMath";
 
 function placesLabel(n: number): string {
   if (n === 1) return "1 uložené místo";
@@ -26,13 +29,43 @@ function placesLabel(n: number): string {
 export default function MojeScreen() {
   const { locations, addLocation, removeLocation, toggleLocationAlerts, renameLocation } = useSavedLocations();
   const { setLocation } = useLocation();
-  const { isPremium } = useSubscription();
+  const { isPremium, loading: subscriptionLoading } = useSubscription();
   const { openPaywall } = usePaywall();
   const [observing, setObserving] = useState<SavedLocation | null>(null);
   const [pickingOnMap, setPickingOnMap] = useState(false);
   const [renaming, setRenaming] = useState<SavedLocation | null>(null);
   const [alertsFor, setAlertsFor] = useState<SavedLocation | null>(null);
   const [actionsFor, setActionsFor] = useState<SavedLocation | null>(null);
+  const [indexByLocation, setIndexByLocation] = useState<Record<string, number>>({});
+
+  // Same houbový index every other screen shows (computeDailyOverall's
+  // weighted-top-3 "overall", mirroring api/grid.ts) - lets someone with a
+  // few saved spots see at a glance which one is actually worth a trip
+  // today, without opening each one. Keyed on the id list (not `locations`
+  // itself) so renaming/toggling alerts on an existing place doesn't
+  // re-fetch every saved location's forecast on every unrelated edit.
+  const locationIds = locations.map((l) => l.id).join(",");
+  useEffect(() => {
+    if (locations.length === 0) return;
+    let cancelled = false;
+    Promise.all(
+      locations.map((loc) =>
+        getForecast(loc.lat, loc.lon)
+          .then((res) => {
+            const overall = computeDailyOverall(res).find((d) => d.date === res.today)?.overall;
+            return overall != null ? ([loc.id, overall] as const) : null;
+          })
+          .catch(() => null)
+      )
+    ).then((results) => {
+      if (cancelled) return;
+      setIndexByLocation(Object.fromEntries(results.filter((r): r is [string, number] => r != null)));
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locationIds]);
 
   // Free tier: one saved place, enough to actually use the app (your own
   // backyard/nearest forest) - more than one is the "I go to several
@@ -40,7 +73,11 @@ export default function MojeScreen() {
   // an existing place is never gated, only *adding* a new one past the
   // limit.
   function addLocationGated(loc: AppLocation) {
-    if (!isPremium && locations.length >= FREE_SAVED_LOCATIONS_LIMIT) {
+    // subscriptionLoading: see SubscriptionContext.tsx - isPremium defaults
+    // false until RevenueCat's customer info actually resolves, so gating
+    // on it during that window would wrongly paywall a real Plus user's
+    // 2nd+ saved location for the length of one network round-trip.
+    if (!subscriptionLoading && !isPremium && locations.length >= FREE_SAVED_LOCATIONS_LIMIT) {
       openPaywall("Chcete uložit víc než jedno místo?");
       return;
     }
@@ -65,9 +102,10 @@ export default function MojeScreen() {
           accessibilityRole="button"
           accessibilityLabel="Najít místo na mapě"
         >
-          <Map size={17} strokeWidth={2} color={palette.primaryDeep} />
-          <Text style={styles.manualToggleText}>Najít na mapě</Text>
-          <Text style={styles.manualToggleHint}>chalupa, oblíbený lesík…</Text>
+          <Map size={16} strokeWidth={2} color={palette.primaryDeep} />
+          <Text style={styles.manualToggleText} numberOfLines={1}>
+            Najít na mapě
+          </Text>
         </Pressable>
       </View>
 
@@ -94,6 +132,9 @@ export default function MojeScreen() {
                     {loc.lat.toFixed(4)}, {loc.lon.toFixed(4)}
                   </Text>
                 </Pressable>
+                {indexByLocation[loc.id] != null && (
+                  <ProbabilityBadge pct={indexByLocation[loc.id]} size="sm" style={{ alignSelf: "center" }} />
+                )}
                 <Pressable
                   onPress={() => toggleLocationAlerts(loc.id)}
                   hitSlop={6}
@@ -193,6 +234,7 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: "row",
     alignItems: "center",
+    gap: space.xs,
     backgroundColor: palette.surface,
     borderWidth: 1,
     borderColor: palette.line,
@@ -213,15 +255,20 @@ const styles = StyleSheet.create({
     marginTop: space.sm,
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     gap: space.xs,
     alignSelf: "stretch",
     backgroundColor: palette.primary + "14",
     borderWidth: 1,
     borderColor: palette.primary + "33",
     borderRadius: radius.md,
-    paddingVertical: space.sm,
+    // Explicit height matching LocationSearchInput's own explicit height
+    // (see that component) - padding/line-height alone kept reading
+    // taller in practice (2026-09-02 feedback, twice), so this pins both
+    // to the same literal number instead of two separately-computed ones
+    // that happen to be close.
+    height: 46,
     paddingHorizontal: space.md,
   },
   manualToggleText: { ...type.headingSm, color: palette.primaryDeep },
-  manualToggleHint: { ...type.caption, color: palette.inkFaint, flexShrink: 1 },
 });

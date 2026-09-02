@@ -9,6 +9,7 @@
 // hriboradar.app hasn't been added/verified yet. Swap once that's done;
 // until then the display name alone carries the new brand.
 const RESEND_FROM = "Hřiboradar <noreply@rostou.app>";
+const FETCH_TIMEOUT_MS = 8000;
 
 export async function sendEmail(opts: { to: string; subject: string; html: string }): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY;
@@ -21,6 +22,7 @@ export async function sendEmail(opts: { to: string; subject: string; html: strin
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({ from: RESEND_FROM, to: opts.to, subject: opts.subject, html: opts.html }),
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     });
     if (!res.ok) console.error("[email] Resend returned", res.status, await res.text());
   } catch (err) {
