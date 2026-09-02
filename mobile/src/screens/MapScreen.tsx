@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { WebView } from "react-native-webview";
 import { Info } from "lucide-react-native";
 import { palette, radius, space, ts, type } from "../theme";
@@ -33,17 +33,24 @@ export default function MapScreen() {
   const [selected, setSelected] = useState<SelectedLocation | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const webviewRef = useRef<WebView>(null);
   // Captured once, not tracked live - see mapUri below.
   const initialLocationRef = useRef(location);
 
-  useEffect(() => {
-    fetchJsonWithProgress<GridResponse>(`${API_BASE}/api/grid`, setGridProgress)
+  function loadGrid() {
+    setGridError(null);
+    return fetchJsonWithProgress<GridResponse>(`${API_BASE}/api/grid`, setGridProgress)
       .then(setGrid)
       .catch((e) => {
         console.error("[MapScreen] Grid fetch error:", e);
         setGridError(String(e.message ?? e));
       });
+  }
+
+  useEffect(() => {
+    void loadGrid();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // App.tsx now keeps every screen mounted permanently (just hidden) so
@@ -124,7 +131,23 @@ export default function MapScreen() {
   }, [active, mapReady]);
 
   return (
-    <View style={styles.screen}>
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={{ flexGrow: 1 }}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={() => {
+            setRefreshing(true);
+            loadGrid().finally(() => {
+              webviewRef.current?.postMessage(JSON.stringify({ type: "refreshView" }));
+              setRefreshing(false);
+            });
+          }}
+          tintColor={palette.primary}
+        />
+      }
+    >
       <PageHeader
         eyebrow="celá ČR · dnes"
         title="Mapa"
@@ -226,7 +249,7 @@ export default function MapScreen() {
       </View>
       {selected && <LocationSheet selected={selected} mode={mode} onClose={() => setSelected(null)} />}
       {infoOpen && <MapInfoSheet onClose={() => setInfoOpen(false)} />}
-    </View>
+    </ScrollView>
   );
 }
 

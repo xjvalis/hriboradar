@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { Lock } from "lucide-react-native";
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Lock, RefreshCw } from "lucide-react-native";
 import { palette, radius, scoreColor, scoreFlavor, scoreLabel, space, ts, type } from "../theme";
 import { getForecast, type ForecastResponse } from "../api";
 import { useLocation } from "../LocationContext";
@@ -40,16 +40,21 @@ export default function PredpovedScreen() {
   const [detail, setDetail] = useState<ForecastResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  function loadDetail(resetSelectedDate: boolean) {
+    return getForecast(active.lat, active.lon)
+      .then((d) => {
+        setDetail(d);
+        if (resetSelectedDate) setSelectedDate(null); // reset to "let the data decide" for the new location
+      })
+      .catch((e) => setError(String(e.message ?? e)));
+  }
 
   useEffect(() => {
     setDetail(null);
     setError(null);
-    getForecast(active.lat, active.lon)
-      .then((d) => {
-        setDetail(d);
-        setSelectedDate(null); // reset to "let the data decide" for the new location
-      })
-      .catch((e) => setError(String(e.message ?? e)));
+    void loadDetail(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active.lat, active.lon]);
 
@@ -79,7 +84,20 @@ export default function PredpovedScreen() {
     : [];
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={{ flexGrow: 1 }}>
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={{ flexGrow: 1 }}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={() => {
+            setRefreshing(true);
+            loadDetail(false).finally(() => setRefreshing(false));
+          }}
+          tintColor={palette.primary}
+        />
+      }
+    >
       <PaperBackground style={styles.content}>
       <PageHeader
         eyebrow="7 dní dopředu"
@@ -107,9 +125,22 @@ export default function PredpovedScreen() {
       )}
 
       {error && (
-        <Text style={styles.error}>
-          Nepodařilo se načíst předpověď: {error}
-        </Text>
+        <View style={styles.errorRow}>
+          <Text style={styles.errorText}>Příliš mnoho požadavků - načtěte stránku znovu.</Text>
+          <Pressable
+            style={styles.errorRetryButton}
+            onPress={() => {
+              setError(null);
+              setRefreshing(true);
+              loadDetail(false).finally(() => setRefreshing(false));
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Načíst znovu"
+            hitSlop={8}
+          >
+            <RefreshCw size={ts(16)} strokeWidth={2} color={palette.surface} />
+          </Pressable>
+        </View>
       )}
 
       {!detail && !error && (
@@ -234,7 +265,27 @@ const styles = StyleSheet.create({
   content: { paddingBottom: space.xxl },
   padded: { paddingHorizontal: space.lg },
   locationRow: { flexGrow: 0, paddingHorizontal: space.lg, marginBottom: space.sm },
-  error: { ...type.bodySmall, color: palette.danger, paddingHorizontal: space.lg, marginTop: space.sm },
+  errorRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: space.sm,
+    backgroundColor: palette.danger,
+    borderRadius: radius.md,
+    paddingVertical: space.sm,
+    paddingHorizontal: space.base,
+    marginHorizontal: space.lg,
+    marginTop: space.sm,
+  },
+  errorText: { ...type.bodySmall, color: palette.surface, flex: 1 },
+  errorRetryButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#00000022",
+  },
   headline: {
     marginHorizontal: space.lg,
     marginTop: space.sm,

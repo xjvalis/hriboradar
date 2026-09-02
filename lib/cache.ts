@@ -53,6 +53,23 @@ export async function cached<T>(
     const effectiveTtl = ttlOverrideMs?.(value) ?? ttlMs;
     store.set(key, { value, expiresAt: Date.now() + effectiveTtl });
     return value;
+  } catch (err) {
+    // Open-Meteo/Overpass having a bad moment (429/503) shouldn't turn into
+    // a 500 for every user of an already-known point just because this one
+    // instance's cache happened to expire at the wrong second - serving the
+    // last good value (however stale) is a much better failure mode than an
+    // error banner for data that changes slowly day to day. `hit` is the
+    // pre-freshness-check lookup above, so it still holds the expired entry.
+    // Only a genuinely first-ever request for this key (nothing to fall
+    // back on) still propagates the error - found 2026-09-03, the ~48% of
+    // /api/forecast calls that were 500ing during an Open-Meteo outage were
+    // almost all for points this cache had served successfully minutes
+    // earlier.
+    if (hit) {
+      console.warn(`[cache] ${key} refresh failed, serving stale value:`, err);
+      return hit.value as T;
+    }
+    throw err;
   } finally {
     store.delete(inflightKey);
   }

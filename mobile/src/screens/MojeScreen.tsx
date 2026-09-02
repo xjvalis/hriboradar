@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Bell, BellOff, Dog, Map, MoreVertical, Sprout } from "lucide-react-native";
 import { palette, radius, space, ts, type } from "../theme";
 import { PageHeader } from "../components/PageHeader";
@@ -37,6 +37,7 @@ export default function MojeScreen() {
   const [alertsFor, setAlertsFor] = useState<SavedLocation | null>(null);
   const [actionsFor, setActionsFor] = useState<SavedLocation | null>(null);
   const [indexByLocation, setIndexByLocation] = useState<Record<string, number>>({});
+  const [refreshing, setRefreshing] = useState(false);
 
   // Same houbový index every other screen shows (computeDailyOverall's
   // weighted-top-3 "overall", mirroring api/grid.ts) - lets someone with a
@@ -45,10 +46,10 @@ export default function MojeScreen() {
   // itself) so renaming/toggling alerts on an existing place doesn't
   // re-fetch every saved location's forecast on every unrelated edit.
   const locationIds = locations.map((l) => l.id).join(",");
-  useEffect(() => {
-    if (locations.length === 0) return;
-    let cancelled = false;
-    Promise.all(
+
+  function loadIndex(onDone?: () => boolean) {
+    if (locations.length === 0) return Promise.resolve();
+    return Promise.all(
       locations.map((loc) =>
         getForecast(loc.lat, loc.lon)
           .then((res) => {
@@ -58,9 +59,14 @@ export default function MojeScreen() {
           .catch(() => null)
       )
     ).then((results) => {
-      if (cancelled) return;
+      if (onDone?.()) return;
       setIndexByLocation(Object.fromEntries(results.filter((r): r is [string, number] => r != null)));
     });
+  }
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadIndex(() => cancelled);
     return () => {
       cancelled = true;
     };
@@ -85,7 +91,20 @@ export default function MojeScreen() {
   }
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={{ flexGrow: 1 }}>
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={{ flexGrow: 1 }}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={() => {
+            setRefreshing(true);
+            loadIndex().finally(() => setRefreshing(false));
+          }}
+          tintColor={palette.primary}
+        />
+      }
+    >
       <PaperBackground style={styles.content}>
       <PageHeader
         eyebrow="chalupa, revír, les"
