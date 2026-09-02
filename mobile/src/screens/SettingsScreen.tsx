@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Bell, ChevronLeft, ChevronRight, MapPin, Sprout } from "lucide-react-native";
-import { palette, radius, space, type } from "../theme";
+import { palette, radius, space, ts, type } from "../theme";
 import { PageHeader } from "../components/PageHeader";
 import { PaperBackground } from "../components/PaperBackground";
 import { SettingsLocationSection } from "../components/settings/SettingsLocationSection";
@@ -52,7 +52,7 @@ export default function SettingsScreen() {
             accessibilityRole="button"
             accessibilityLabel="Zpět na Nastavení"
           >
-            <ChevronLeft size={22} strokeWidth={2} color={palette.ink} />
+            <ChevronLeft size={ts(22)} strokeWidth={2} color={palette.ink} />
           </Pressable>
           <Text style={styles.subHeaderTitle}>{meta.title}</Text>
         </View>
@@ -79,14 +79,14 @@ export default function SettingsScreen() {
                 accessibilityRole="button"
                 accessibilityLabel={meta.title}
               >
-                <Icon size={19} strokeWidth={1.8} color={palette.primary} />
+                <Icon size={ts(19)} strokeWidth={1.8} color={palette.primary} />
                 <Text style={styles.hubRowLabel}>{meta.title}</Text>
                 {meta.summary && (
                   <Text style={styles.hubRowSummary} numberOfLines={1}>
                     {meta.summary}
                   </Text>
                 )}
-                <ChevronRight size={18} strokeWidth={1.8} color={palette.inkFaint} />
+                <ChevronRight size={ts(18)} strokeWidth={1.8} color={palette.inkFaint} />
               </Pressable>
             );
           })}

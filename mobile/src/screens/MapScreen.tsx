@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { WebView } from "react-native-webview";
 import { Info } from "lucide-react-native";
-import { palette, radius, space, type } from "../theme";
+import { palette, radius, space, ts, type } from "../theme";
 import { API_BASE, type GridResponse } from "../api";
 import { fetchJsonWithProgress } from "../xhrProgress";
 import { useLocation } from "../LocationContext";
@@ -137,7 +137,7 @@ export default function MapScreen() {
               accessibilityRole="button"
               accessibilityLabel="Jak funguje mapa"
             >
-              <Info size={20} strokeWidth={1.8} color={palette.inkFaint} />
+              <Info size={ts(20)} strokeWidth={1.8} color={palette.inkFaint} />
             </Pressable>
             <CurrentLocationPill />
           </View>

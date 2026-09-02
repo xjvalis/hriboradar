@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { MushroomQuestionIcon } from "./MushroomQuestionIcon";
 import { Pencil, Trash2 } from "lucide-react-native";
-import { palette, radius, space, type } from "../theme";
+import { palette, radius, space, ts, type } from "../theme";
 import { BottomSheet } from "./BottomSheet";
 
 // The three less-frequent per-location actions (log a find, rename,
@@ -33,15 +33,15 @@ export function LocationActionsSheet({
       <View style={styles.content}>
         <Text style={styles.title}>{locationLabel}</Text>
         <Pressable style={styles.row} onPress={() => run(onObserve)} hitSlop={4}>
-          <MushroomQuestionIcon size={19} color={palette.secondary} />
+          <MushroomQuestionIcon size={ts(19)} color={palette.secondary} />
           <Text style={styles.rowText}>Zapsat pozorování</Text>
         </Pressable>
         <Pressable style={styles.row} onPress={() => run(onRename)} hitSlop={4}>
-          <Pencil size={19} strokeWidth={1.8} color={palette.inkFaint} />
+          <Pencil size={ts(19)} strokeWidth={1.8} color={palette.inkFaint} />
           <Text style={styles.rowText}>Přejmenovat</Text>
         </Pressable>
         <Pressable style={styles.row} onPress={() => run(onDelete)} hitSlop={4}>
-          <Trash2 size={19} strokeWidth={1.8} color={palette.danger} />
+          <Trash2 size={ts(19)} strokeWidth={1.8} color={palette.danger} />
           <Text style={[styles.rowText, styles.dangerText]}>Smazat místo</Text>
         </Pressable>
       </View>

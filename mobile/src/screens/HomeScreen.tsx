@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { RefreshCw } from "lucide-react-native";
-import { palette, radius, scoreFlavor, space, type } from "../theme";
+import { palette, radius, scoreFlavor, space, ts, type } from "../theme";
 import { getForecast, type ForecastResponse } from "../api";
 import { computeDailyOverall } from "../forecastMath";
 import { REGIONS } from "../regions";
@@ -148,7 +148,7 @@ export default function HomeScreen() {
               accessibilityLabel="Načíst znovu"
               hitSlop={8}
             >
-              <RefreshCw size={16} strokeWidth={2} color={palette.surface} />
+              <RefreshCw size={ts(16)} strokeWidth={2} color={palette.surface} />
             </Pressable>
           </View>
         )}

@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from "react-native";
 import { CloudRain, Droplets, Thermometer } from "lucide-react-native";
 import { Card } from "./Card";
-import { palette, space, type } from "../theme";
+import { palette, space, ts, type } from "../theme";
 
 export function WeatherSummary({
   tempC,
@@ -30,7 +30,7 @@ export function WeatherSummary({
     <Card style={styles.row}>
       {items.map(({ Icon, label, value }) => (
         <View key={label} style={styles.item}>
-          <Icon size={18} strokeWidth={1.6} color={palette.secondary} />
+          <Icon size={ts(18)} strokeWidth={1.6} color={palette.secondary} />
           <Text style={styles.value}>{value}</Text>
           <Text style={styles.label}>{label}</Text>
         </View>

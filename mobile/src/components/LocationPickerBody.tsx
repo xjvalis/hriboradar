@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { MapPin, LocateFixed } from "lucide-react-native";
-import { palette, radius, space, type } from "../theme";
+import { palette, radius, space, ts, type } from "../theme";
 import { LocationSearchInput } from "./LocationSearchInput";
 import { useLocation, PRESET_LOCATIONS, type AppLocation } from "../LocationContext";
 import { useSavedLocations } from "../SavedLocationsContext";
@@ -66,7 +66,7 @@ export function LocationPickerBody({ onChoose }: { onChoose: (loc: AppLocation) 
         {locating ? (
           <ActivityIndicator size="small" color={palette.primary} />
         ) : (
-          <LocateFixed size={18} strokeWidth={1.8} color={palette.primary} />
+          <LocateFixed size={ts(18)} strokeWidth={1.8} color={palette.primary} />
         )}
         <Text style={styles.currentRowText}>{locating ? "Zjišťuji polohu…" : "Aktuální poloha"}</Text>
       </Pressable>
@@ -82,7 +82,7 @@ export function LocationPickerBody({ onChoose }: { onChoose: (loc: AppLocation) 
               const isActive = loc.lat === location.lat && loc.lon === location.lon;
               return (
                 <Pressable key={loc.id} onPress={() => onChoose(loc)} style={[styles.row, isActive && styles.rowActive]}>
-                  <MapPin size={16} strokeWidth={1.8} color={isActive ? palette.primary : palette.inkFaint} />
+                  <MapPin size={ts(16)} strokeWidth={1.8} color={isActive ? palette.primary : palette.inkFaint} />
                   <Text style={[styles.rowText, isActive && styles.rowTextActive]}>{loc.label}</Text>
                 </Pressable>
               );

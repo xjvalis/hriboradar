@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Bell, BellOff, Dog, Map, MoreVertical, Sprout } from "lucide-react-native";
-import { palette, radius, space, type } from "../theme";
+import { palette, radius, space, ts, type } from "../theme";
 import { PageHeader } from "../components/PageHeader";
 import { PaperBackground } from "../components/PaperBackground";
 import { EmptyState } from "../components/EmptyState";
@@ -102,7 +102,7 @@ export default function MojeScreen() {
           accessibilityRole="button"
           accessibilityLabel="Najít místo na mapě"
         >
-          <Map size={16} strokeWidth={2} color={palette.primaryDeep} />
+          <Map size={ts(16)} strokeWidth={2} color={palette.primaryDeep} />
           <Text style={styles.manualToggleText} numberOfLines={1}>
             Najít na mapě
           </Text>
@@ -143,9 +143,9 @@ export default function MojeScreen() {
                   accessibilityLabel={alertsOn ? "Vypnout obecná upozornění na místo" : "Zapnout obecná upozornění na místo"}
                 >
                   {alertsOn ? (
-                    <Bell size={19} strokeWidth={1.8} color={palette.primary} />
+                    <Bell size={ts(19)} strokeWidth={1.8} color={palette.primary} />
                   ) : (
-                    <BellOff size={19} strokeWidth={1.8} color={palette.inkFaint} />
+                    <BellOff size={ts(19)} strokeWidth={1.8} color={palette.inkFaint} />
                   )}
                 </Pressable>
                 <Pressable
@@ -156,7 +156,7 @@ export default function MojeScreen() {
                   accessibilityLabel="Upozornění na místo - obecné i houbařský pes"
                 >
                   <Dog
-                    size={19}
+                    size={ts(19)}
                     strokeWidth={1.8}
                     color={loc.watchdogThresholdPct != null ? palette.primary : palette.inkFaint}
                   />
@@ -168,7 +168,7 @@ export default function MojeScreen() {
                   accessibilityRole="button"
                   accessibilityLabel="Další možnosti - zapsat pozorování, přejmenovat, smazat"
                 >
-                  <MoreVertical size={19} strokeWidth={1.8} color={palette.inkFaint} />
+                  <MoreVertical size={ts(19)} strokeWidth={1.8} color={palette.inkFaint} />
                 </Pressable>
               </View>
             );

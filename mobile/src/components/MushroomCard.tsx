@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { palette, space, type } from "../theme";
+import { palette, space, ts, type } from "../theme";
 import { Card } from "./Card";
 import { ProbabilityBadge } from "./ProbabilityBadge";
 import { SeasonSparkline } from "./SeasonSparkline";
@@ -25,7 +25,7 @@ export function MushroomCard({
   return (
     <Pressable onPress={() => openSpecies(id)}>
       <Card style={styles.card}>
-        <MushroomThumb id={id} name={nameCz} size={56} />
+        <MushroomThumb id={id} name={nameCz} size={ts(56)} />
         <View style={{ flex: 1, marginLeft: space.md }}>
           <Text style={styles.name}>{nameCz}</Text>
           <Text style={styles.latin}>{nameLatin}</Text>

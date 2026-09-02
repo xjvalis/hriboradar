@@ -1,6 +1,6 @@
 import { ActivityIndicator, Alert, Linking, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { Sprout } from "lucide-react-native";
-import { palette, radius, space, type } from "../../theme";
+import { palette, radius, space, ts, type } from "../../theme";
 import { useSubscription } from "../../SubscriptionContext";
 import { usePaywall } from "../../PaywallContext";
 import { FALLBACK_ANNUAL_PRICE, FALLBACK_MONTHLY_PRICE_CZK, FALLBACK_ANNUAL_PRICE_CZK } from "../../subscriptionLimits";
@@ -63,7 +63,7 @@ export function SettingsPlusSection() {
       ) : isPremium ? (
         <>
           <View style={styles.plusCard}>
-            <Sprout size={20} strokeWidth={1.8} color={palette.primary} />
+            <Sprout size={ts(20)} strokeWidth={1.8} color={palette.primary} />
             <View style={{ flex: 1 }}>
               <Text style={styles.currentLabel}>
                 {activeEntitlement ? planLabel(activeEntitlement.productIdentifier) : "Máte Hřiboradar Plus"}
@@ -88,7 +88,7 @@ export function SettingsPlusSection() {
           style={styles.plusCard}
           onPress={() => openPaywall(available ? undefined : "Hřiboradar Plus bude dostupné po další aktualizaci appky.")}
         >
-          <Sprout size={20} strokeWidth={1.8} color={palette.primary} />
+          <Sprout size={ts(20)} strokeWidth={1.8} color={palette.primary} />
           <View style={{ flex: 1 }}>
             <Text style={styles.currentLabel}>Přejít na Hřiboradar Plus</Text>
             <Text style={styles.toggleHint}>

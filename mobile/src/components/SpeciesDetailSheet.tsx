@@ -1,6 +1,6 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { AlertTriangle, Bell, BellOff, Map, MapPin } from "lucide-react-native";
-import { palette, radius, space, type } from "../theme";
+import { palette, radius, space, ts, type } from "../theme";
 import { MushroomThumb } from "../photos";
 import { SPECIES_BY_ID, groupLabel, monthsToLabel, siteFidelityTip } from "../speciesInfo";
 import { useSpeciesDetail } from "../SpeciesDetailContext";
@@ -23,7 +23,7 @@ export function SpeciesDetailSheet() {
     <BottomSheet onClose={closeSpecies} maxHeight="80%">
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.headerRow}>
-          <MushroomThumb id={info.id} name={info.name_cz} size={64} />
+          <MushroomThumb id={info.id} name={info.name_cz} size={ts(64)} />
           <View style={{ flex: 1, marginLeft: space.md }}>
             <Text style={styles.name}>{info.name_cz}</Text>
             <Text style={styles.latin}>{info.name_latin}</Text>
@@ -42,7 +42,7 @@ export function SpeciesDetailSheet() {
             style={styles.mapBtn}
             hitSlop={6}
           >
-            <Map size={14} strokeWidth={1.8} color={palette.white} />
+            <Map size={ts(14)} strokeWidth={1.8} color={palette.white} />
             <Text style={styles.mapBtnText}>Ukázat na mapě</Text>
           </Pressable>
           <View style={[styles.edibilityBadge, info.edibility.startsWith("jedlá po") && styles.edibilityWarn]}>
@@ -58,9 +58,9 @@ export function SpeciesDetailSheet() {
             hitSlop={6}
           >
             {isWatched ? (
-              <Bell size={14} strokeWidth={2} color={palette.white} />
+              <Bell size={ts(14)} strokeWidth={2} color={palette.white} />
             ) : (
-              <BellOff size={14} strokeWidth={1.8} color={palette.inkSoft} />
+              <BellOff size={ts(14)} strokeWidth={1.8} color={palette.inkSoft} />
             )}
             <Text style={[styles.watchBtnText, isWatched && styles.watchBtnTextActive]}>
               {isWatched ? "Sledováno" : "Upozornit na tento druh"}
@@ -70,7 +70,7 @@ export function SpeciesDetailSheet() {
 
         {info.safety_note && (
           <View style={styles.safetyBox}>
-            <AlertTriangle size={17} strokeWidth={1.8} color={palette.danger} style={{ marginTop: 1 }} />
+            <AlertTriangle size={ts(17)} strokeWidth={1.8} color={palette.danger} style={{ marginTop: 1 }} />
             <View style={{ flex: 1 }}>
               <Text style={styles.safetyTitle}>Nebezpečí záměny</Text>
               <Text style={styles.safetyText}>{info.safety_note}</Text>
@@ -100,7 +100,7 @@ export function SpeciesDetailSheet() {
 
         {fidelityTip && (
           <View style={styles.tipBox}>
-            <MapPin size={16} strokeWidth={1.8} color={palette.primary} style={{ marginTop: 1 }} />
+            <MapPin size={ts(16)} strokeWidth={1.8} color={palette.primary} style={{ marginTop: 1 }} />
             <Text style={styles.tipText}>{fidelityTip}</Text>
           </View>
         )}

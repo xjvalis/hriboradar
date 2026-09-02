@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from "react-native";
-import { palette, radius, type } from "../theme";
+import { palette, radius, ts, type } from "../theme";
 
 // Compact "which months does this grow in" strip for atlas cards - 12 small
 // bars, in-season ones lit up (peak months brighter than shoulder months),
@@ -45,10 +45,10 @@ const styles = StyleSheet.create({
   bars: { flexDirection: "row", gap: 2.5 },
   bar: {
     flex: 1,
-    height: 5,
+    height: ts(5),
     borderRadius: radius.sm,
     backgroundColor: palette.line,
   },
   labels: { flexDirection: "row", justifyContent: "space-between", marginTop: 2 },
-  labelText: { ...type.caption, fontSize: 9, lineHeight: 11, color: palette.inkFaint },
+  labelText: { ...type.caption, fontSize: ts(9), lineHeight: ts(11), color: palette.inkFaint },
 });

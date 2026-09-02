@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Animated, StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, G, Line, Path } from "react-native-svg";
-import { palette, type } from "../theme";
+import { palette, ts, type } from "../theme";
 
 const AnimatedG = Animated.createAnimatedComponent(G);
 
@@ -33,8 +33,8 @@ const TICK_VALUES = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
 // like a real instrument needle rather than a counter ticking up.
 export function ProbabilityGauge({
   value,
-  size = 132,
-  strokeWidth = 11,
+  size = ts(132),
+  strokeWidth = ts(11),
   color,
 }: {
   value: number;
@@ -131,6 +131,6 @@ export function ProbabilityGauge({
 
 const styles = StyleSheet.create({
   readout: { flexDirection: "row", alignItems: "flex-end", marginTop: -2 },
-  value: { ...type.displayLg, fontSize: 26, lineHeight: 28 },
+  value: { ...type.displayLg, fontSize: ts(26), lineHeight: ts(28) },
   max: { ...type.caption, color: palette.inkFaint, marginBottom: 3, marginLeft: 2 },
 });

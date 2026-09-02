@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { CheckCircle2, XCircle } from "lucide-react-native";
-import { palette, radius, space, type } from "../theme";
+import { palette, radius, space, ts, type } from "../theme";
 import { BottomSheet } from "./BottomSheet";
 import { Chip } from "./Chip";
 import { PrimaryButton } from "./PrimaryButton";
@@ -104,14 +104,14 @@ export function ObservationSheet({
             style={[styles.choice, found === true && styles.choiceActiveGood]}
             onPress={() => setFound(true)}
           >
-            <CheckCircle2 size={22} strokeWidth={1.8} color={found === true ? palette.success : palette.inkFaint} />
+            <CheckCircle2 size={ts(22)} strokeWidth={1.8} color={found === true ? palette.success : palette.inkFaint} />
             <Text style={[styles.choiceText, found === true && styles.choiceTextGood]}>Ano, rostly</Text>
           </Pressable>
           <Pressable
             style={[styles.choice, found === false && styles.choiceActiveBad]}
             onPress={() => setFound(false)}
           >
-            <XCircle size={22} strokeWidth={1.8} color={found === false ? palette.danger : palette.inkFaint} />
+            <XCircle size={ts(22)} strokeWidth={1.8} color={found === false ? palette.danger : palette.inkFaint} />
             <Text style={[styles.choiceText, found === false && styles.choiceTextBad]}>Ne, nic tam nebylo</Text>
           </Pressable>
         </View>

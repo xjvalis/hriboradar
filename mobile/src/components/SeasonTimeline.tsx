@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { palette, radius, space, type } from "../theme";
+import { palette, radius, space, ts, type } from "../theme";
 import { SPECIES_BY_ID, MONTH_NAMES_FULL_CZ } from "../speciesInfo";
 import { PaperBackground } from "./PaperBackground";
 import { useSpeciesDetail } from "../SpeciesDetailContext";
@@ -100,7 +100,7 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: space.lg, paddingTop: space.sm, paddingBottom: space.xxl },
   monthBlock: { marginTop: space.xl },
   monthHeaderRow: { flexDirection: "row", alignItems: "center", gap: space.sm },
-  monthName: { ...type.displayLg, fontSize: 22, lineHeight: 26, color: palette.ink },
+  monthName: { ...type.displayLg, fontSize: ts(22), lineHeight: ts(26), color: palette.ink },
   monthNowTag: {
     ...type.label,
     color: palette.white,

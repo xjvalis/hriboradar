@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Pressable, StyleSheet, Switch, Text, View } from "react-native";
 import { Bell, ChevronDown, ChevronUp, Dog } from "lucide-react-native";
-import { palette, radius, space, type } from "../../theme";
+import { palette, radius, space, ts, type } from "../../theme";
 import { Chip } from "../Chip";
 import { LocationAlertsSheet } from "../LocationAlertsSheet";
 import { useNotifications } from "../../NotificationContext";
@@ -94,10 +94,10 @@ export function SettingsNotificationsSection() {
                   {loc.label}
                 </Text>
                 <View style={styles.watchRowBadges}>
-                  {alertsOn && <Bell size={13} strokeWidth={1.8} color={palette.primary} />}
+                  {alertsOn && <Bell size={ts(13)} strokeWidth={1.8} color={palette.primary} />}
                   {watchdogOn && (
                     <View style={styles.watchdogBadge}>
-                      <Dog size={13} strokeWidth={1.8} color={palette.primaryDeep} />
+                      <Dog size={ts(13)} strokeWidth={1.8} color={palette.primaryDeep} />
                       <Text style={styles.watchdogBadgeText}>
                         {watchdogSpeciesName ?? "kterýkoli"} {loc.watchdogThresholdPct}%+
                       </Text>
@@ -128,9 +128,9 @@ export function SettingsNotificationsSection() {
           {watchedSpecies.length > 0 ? `${watchedSpecies.length} sledovaných druhů` : "Žádný druh zatím nesledujete"}
         </Text>
         {speciesExpanded ? (
-          <ChevronUp size={16} strokeWidth={1.8} color={palette.inkFaint} />
+          <ChevronUp size={ts(16)} strokeWidth={1.8} color={palette.inkFaint} />
         ) : (
-          <ChevronDown size={16} strokeWidth={1.8} color={palette.inkFaint} />
+          <ChevronDown size={ts(16)} strokeWidth={1.8} color={palette.inkFaint} />
         )}
       </Pressable>
       {speciesExpanded && (

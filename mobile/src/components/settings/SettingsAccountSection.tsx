@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { KeyRound, LogOut, Trash2 } from "lucide-react-native";
-import { palette, radius, space, type } from "../../theme";
+import { palette, radius, space, ts, type } from "../../theme";
 import { ChangePasswordSheet } from "../ChangePasswordSheet";
 import { useAuth } from "../../AuthContext";
 
@@ -40,17 +40,17 @@ export function SettingsAccountSection() {
       </View>
       {hasPasswordAuth && (
         <Pressable style={styles.changePasswordBtn} onPress={() => setChangingPassword(true)} hitSlop={4}>
-          <KeyRound size={16} strokeWidth={1.8} color={palette.ink} />
+          <KeyRound size={ts(16)} strokeWidth={1.8} color={palette.ink} />
           <Text style={styles.btnText}>Změnit heslo</Text>
         </Pressable>
       )}
       <View style={styles.accountActions}>
         <Pressable style={styles.signOutBtn} onPress={signOut} hitSlop={4}>
-          <LogOut size={16} strokeWidth={1.8} color={palette.ink} />
+          <LogOut size={ts(16)} strokeWidth={1.8} color={palette.ink} />
           <Text style={styles.btnText}>Odhlásit se</Text>
         </Pressable>
         <Pressable style={styles.deleteAccountBtn} onPress={confirmDeleteAccount} hitSlop={4}>
-          <Trash2 size={16} strokeWidth={1.8} color={palette.danger} />
+          <Trash2 size={ts(16)} strokeWidth={1.8} color={palette.danger} />
           <Text style={styles.deleteAccountBtnText}>Smazat účet</Text>
         </Pressable>
       </View>

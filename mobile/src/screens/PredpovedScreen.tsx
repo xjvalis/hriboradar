@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Lock } from "lucide-react-native";
-import { palette, radius, scoreColor, scoreFlavor, scoreLabel, space, type } from "../theme";
+import { palette, radius, scoreColor, scoreFlavor, scoreLabel, space, ts, type } from "../theme";
 import { getForecast, type ForecastResponse } from "../api";
 import { useLocation } from "../LocationContext";
 import { useSavedLocations } from "../SavedLocationsContext";
@@ -173,7 +173,7 @@ export default function PredpovedScreen() {
                 <Text style={styles.dayWeekday}>{weekdayLabel(d.date, detail.today)}</Text>
                 <View style={[styles.dayScoreDot, { borderColor: color }]}>
                   {locked ? (
-                    <Lock size={13} strokeWidth={2} color={palette.inkFaint} />
+                    <Lock size={ts(13)} strokeWidth={2} color={palette.inkFaint} />
                   ) : (
                     <Text style={[styles.dayScoreText, { color }]}>{d.overall}</Text>
                   )}
@@ -264,7 +264,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  dayScoreText: { ...type.headingSm, fontSize: 12.5 },
+  dayScoreText: { ...type.headingSm, fontSize: ts(12.5) },
   dayDate: { ...type.caption, color: palette.inkFaint },
   sectionTitle: {
     ...type.label,

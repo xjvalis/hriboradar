@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 import { Bell, Dog } from "lucide-react-native";
-import { palette, radius, space, type } from "../theme";
+import { palette, radius, space, ts, type } from "../theme";
 import { BottomSheet } from "./BottomSheet";
 import { Chip } from "./Chip";
 import { PrimaryButton } from "./PrimaryButton";
@@ -67,7 +67,7 @@ export function LocationAlertsSheet({ location, onClose }: { location: SavedLoca
         <Text style={styles.title}>{location.label}</Text>
 
         <View style={styles.toggleRow}>
-          <Bell size={19} strokeWidth={1.8} color={palette.ink} />
+          <Bell size={ts(19)} strokeWidth={1.8} color={palette.ink} />
           <View style={{ flex: 1 }}>
             <Text style={styles.toggleLabel}>Obecná upozornění</Text>
             <Text style={styles.toggleHint}>
@@ -84,7 +84,7 @@ export function LocationAlertsSheet({ location, onClose }: { location: SavedLoca
         </View>
 
         <View style={styles.toggleRow}>
-          <Dog size={19} strokeWidth={1.8} color={palette.ink} />
+          <Dog size={ts(19)} strokeWidth={1.8} color={palette.ink} />
           <View style={{ flex: 1 }}>
             <Text style={styles.toggleLabel}>Houbařský pes</Text>
             <Text style={styles.toggleHint}>

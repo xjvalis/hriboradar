@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from "react-native";
 import { type LucideIcon } from "lucide-react-native";
-import { palette, space, type } from "../theme";
+import { palette, space, ts, type } from "../theme";
 
 export function EmptyState({
   icon: Icon,
@@ -15,7 +15,7 @@ export function EmptyState({
 }) {
   return (
     <View style={styles.wrap}>
-      <Icon size={40} strokeWidth={1.4} color={palette.inkFaint} />
+      <Icon size={ts(40)} strokeWidth={1.4} color={palette.inkFaint} />
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.description}>{description}</Text>
       {action}

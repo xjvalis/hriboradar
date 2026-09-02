@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text } from "react-native";
 import { MapPin } from "lucide-react-native";
-import { palette, radius, space, type } from "../theme";
+import { palette, radius, space, ts, type } from "../theme";
 import { useLocation } from "../LocationContext";
 import { useLocationPicker } from "../LocationPickerContext";
 
@@ -15,7 +15,7 @@ export function CurrentLocationPill() {
 
   return (
     <Pressable onPress={openPicker} hitSlop={6} style={styles.pill}>
-      <MapPin size={13} strokeWidth={2.2} color={palette.primary} />
+      <MapPin size={ts(13)} strokeWidth={2.2} color={palette.primary} />
       <Text style={styles.pillText} numberOfLines={1}>
         {location.label}
       </Text>
@@ -28,9 +28,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    maxWidth: 130,
+    maxWidth: ts(130),
     paddingHorizontal: space.sm,
-    paddingVertical: 6,
+    paddingVertical: ts(6),
     borderRadius: radius.pill,
     borderWidth: 1,
     borderColor: palette.line,

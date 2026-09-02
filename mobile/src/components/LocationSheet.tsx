@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from "react-native";
-import { palette, radius, scoreColor, scoreLabel, space, type } from "../theme";
+import { palette, radius, scoreColor, scoreLabel, space, ts, type } from "../theme";
 import { PrimaryButton } from "./PrimaryButton";
 import { ProbabilityBadge } from "./ProbabilityBadge";
 import { BottomSheet } from "./BottomSheet";
@@ -238,7 +238,7 @@ const styles = StyleSheet.create({
   indexRow: { marginTop: space.md },
   eyebrow: { ...type.label, color: palette.inkFaint },
   scoreRow: { flexDirection: "row", alignItems: "flex-end", marginTop: 4 },
-  score: { ...type.displayLg, fontSize: 32, lineHeight: 32 },
+  score: { ...type.displayLg, fontSize: ts(32), lineHeight: ts(32) },
   scoreMax: { ...type.body, color: palette.inkFaint, marginLeft: 4, marginBottom: 2 },
   status: { ...type.bodySmall, marginTop: 2 },
   filteredRow: {

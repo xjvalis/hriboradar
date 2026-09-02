@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Alert, Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import { Check, Sparkles } from "lucide-react-native";
-import { palette, radius, space, type } from "../theme";
+import { palette, radius, space, ts, type } from "../theme";
 import { BottomSheet } from "./BottomSheet";
 import { PrimaryButton } from "./PrimaryButton";
 import { usePaywall } from "../PaywallContext";
@@ -74,7 +74,7 @@ export function PaywallModal() {
     <BottomSheet onClose={closePaywall} maxHeight="90%">
       <View style={styles.content}>
         <View style={styles.iconWrap}>
-          <Sparkles size={22} strokeWidth={2} color={palette.accent} />
+          <Sparkles size={ts(22)} strokeWidth={2} color={palette.accent} />
         </View>
         <Text style={styles.title}>Hřiboradar Plus</Text>
         {reason && <Text style={styles.reason}>{reason}</Text>}
@@ -82,7 +82,7 @@ export function PaywallModal() {
         <View style={styles.featureList}>
           {FEATURES.map((f) => (
             <View key={f} style={styles.featureRow}>
-              <Check size={16} strokeWidth={2.4} color={palette.success} />
+              <Check size={ts(16)} strokeWidth={2.4} color={palette.success} />
               <Text style={styles.featureText}>{f}</Text>
             </View>
           ))}
@@ -151,8 +151,8 @@ export function PaywallModal() {
 const styles = StyleSheet.create({
   content: { padding: space.lg, paddingTop: space.md, paddingBottom: space.xl, alignItems: "center" },
   iconWrap: {
-    width: 44,
-    height: 44,
+    width: ts(44),
+    height: ts(44),
     borderRadius: radius.pill,
     backgroundColor: palette.accent + "1a",
     alignItems: "center",
@@ -189,7 +189,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 2,
   },
-  savingsBadgeText: { ...type.caption, fontSize: 10, color: palette.white, fontFamily: "Manrope-Bold" },
+  savingsBadgeText: { ...type.caption, fontSize: ts(10), color: palette.white, fontFamily: "Manrope-Bold" },
   unavailable: { ...type.bodySmall, color: palette.inkFaint, textAlign: "center", marginVertical: space.md },
   restoreLink: { ...type.caption, color: palette.primary, marginTop: space.md, textAlign: "center" },
   legal: { ...type.caption, color: palette.inkFaint, textAlign: "center", marginTop: space.xl, lineHeight: 16 },

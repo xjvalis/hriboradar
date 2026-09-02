@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Eye, EyeOff } from "lucide-react-native";
 import * as AppleAuthentication from "expo-apple-authentication";
-import { palette, radius, space, type } from "../theme";
+import { palette, radius, space, ts, type } from "../theme";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { GoogleSignInButton } from "../components/GoogleSignInButton";
 import { PaperBackground } from "../components/PaperBackground";
@@ -151,9 +151,9 @@ export default function LoginScreen() {
               />
               <Pressable onPress={() => setShowPassword((v) => !v)} hitSlop={8} style={styles.eyeBtn}>
                 {showPassword ? (
-                  <EyeOff size={18} strokeWidth={1.8} color={palette.inkFaint} />
+                  <EyeOff size={ts(18)} strokeWidth={1.8} color={palette.inkFaint} />
                 ) : (
-                  <Eye size={18} strokeWidth={1.8} color={palette.inkFaint} />
+                  <Eye size={ts(18)} strokeWidth={1.8} color={palette.inkFaint} />
                 )}
               </Pressable>
             </View>

@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
-import { palette, radius, scoreColor, type } from "../theme";
+import { palette, radius, scoreColor, ts, type } from "../theme";
 
 // A structured badge, not a giant pill - small rounded-rect in the score
 // color, used consistently anywhere a probability % appears.
@@ -28,11 +28,11 @@ const styles = StyleSheet.create({
   badge: {
     borderWidth: 1.5,
     borderRadius: radius.sm,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingHorizontal: ts(8),
+    paddingVertical: ts(3),
     alignSelf: "flex-start",
   },
-  badgeSm: { paddingHorizontal: 6, paddingVertical: 2 },
-  text: { ...type.headingSm, fontSize: 13 },
-  textSm: { fontSize: 11 },
+  badgeSm: { paddingHorizontal: ts(6), paddingVertical: ts(2) },
+  text: { ...type.headingSm, fontSize: ts(13) },
+  textSm: { fontSize: ts(11) },
 });

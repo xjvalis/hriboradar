@@ -1,6 +1,6 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Bell, Leaf, MapPin, Sparkles, PlusCircle } from "lucide-react-native";
-import { palette, radius, space, type } from "../theme";
+import { palette, radius, space, ts, type } from "../theme";
 import { BottomSheet } from "./BottomSheet";
 import { useNotifications, type AppNotification } from "../NotificationContext";
 import { useSavedLocations } from "../SavedLocationsContext";
@@ -74,7 +74,7 @@ export function NotificationsSheet() {
 
       {notifications.length === 0 ? (
         <View style={styles.empty}>
-          <Bell size={32} strokeWidth={1.4} color={palette.inkFaint} />
+          <Bell size={ts(32)} strokeWidth={1.4} color={palette.inkFaint} />
           <Text style={styles.emptyTitle}>Zatím žádná upozornění</Text>
           <Text style={styles.emptyBody}>
             Tady se objeví zprávy o houbách ve vašich uložených místech, sledovaných druzích a sezónní tipy.
@@ -91,7 +91,7 @@ export function NotificationsSheet() {
                 style={[styles.item, !n.read && styles.itemUnread]}
               >
                 <View style={styles.itemIcon}>
-                  <Icon size={17} strokeWidth={1.8} color={palette.primary} />
+                  <Icon size={ts(17)} strokeWidth={1.8} color={palette.primary} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <View style={styles.itemTitleRow}>
@@ -136,8 +136,8 @@ const styles = StyleSheet.create({
   },
   itemUnread: { backgroundColor: palette.bg, borderColor: palette.secondary },
   itemIcon: {
-    width: 32,
-    height: 32,
+    width: ts(32),
+    height: ts(32),
     borderRadius: radius.pill,
     backgroundColor: palette.primary + "14",
     alignItems: "center",

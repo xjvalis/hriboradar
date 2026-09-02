@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Animated, StyleSheet, Text, View } from "react-native";
-import { palette, radius, space, type } from "../theme";
+import { palette, radius, space, ts, type } from "../theme";
 
 // Some of this app's blocking waits DO have a real number behind them now
 // (the /api/forest and /api/grid fetches, tracked via XHR onprogress - see
@@ -46,8 +46,8 @@ export function LoadingProgress({ percent }: { percent?: number } = {}) {
 }
 
 const styles = StyleSheet.create({
-  wrap: { alignItems: "center", marginTop: space.sm, width: 160 },
-  pct: { ...type.displayLg, fontSize: 22, lineHeight: 26, color: palette.success, fontVariant: ["tabular-nums"] },
+  wrap: { alignItems: "center", marginTop: space.sm, width: ts(160) },
+  pct: { ...type.displayLg, fontSize: ts(22), lineHeight: ts(26), color: palette.success, fontVariant: ["tabular-nums"] },
   track: {
     width: "100%",
     height: 5,

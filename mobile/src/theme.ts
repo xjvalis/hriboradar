@@ -94,7 +94,12 @@ const isPad = (Platform as unknown as { isPad?: boolean }).isPad === true;
 // width on tablet (a phone-width column of text stretched edge-to-edge
 // across an iPad is the other half of "this doesn't feel designed for
 // tablet", not just small font).
-export const IS_TABLET = isPad || Math.min(SCREEN_W, SCREEN_H) >= 700;
+// Web is excluded from the physical-size fallback: a browser window's
+// width/height says nothing about the device it's running on (an ordinary
+// desktop window is routinely >700px on both axes), so on web this would
+// otherwise evaluate true almost universally instead of only on real
+// tablets - found 2026-09-02 testing localhost in a normal-sized window.
+export const IS_TABLET = isPad || (Platform.OS !== "web" && Math.min(SCREEN_W, SCREEN_H) >= 700);
 const FONT_SCALE = IS_TABLET ? 1.2 : 1;
 
 // Same scale, for raw numbers that aren't full `type.*` style objects -
