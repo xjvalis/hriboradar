@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
-import { palette, scoreFlavor, space, type } from "../theme";
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { RefreshCw } from "lucide-react-native";
+import { palette, radius, scoreFlavor, space, type } from "../theme";
 import { getForecast, type ForecastResponse } from "../api";
 import { computeDailyOverall } from "../forecastMath";
 import { REGIONS } from "../regions";
@@ -115,6 +116,7 @@ export default function HomeScreen() {
   return (
     <ScrollView
       style={styles.screen}
+      contentContainerStyle={{ flexGrow: 1 }}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
@@ -134,10 +136,21 @@ export default function HomeScreen() {
         <Text style={styles.headline}>Rostou?</Text>
 
         {error && (
-          <Text style={styles.error}>
-            Nepodařilo se načíst předpověď: {error}
-            {"\n"}Běží `npm run dev:api` v kořeni repa?
-          </Text>
+          <View style={styles.errorRow}>
+            <Text style={styles.errorText}>Příliš mnoho požadavků - načtěte stránku znovu.</Text>
+            <Pressable
+              style={styles.errorRetryButton}
+              onPress={() => {
+                setRefreshing(true);
+                Promise.all([loadMain(), loadRegions()]).finally(() => setRefreshing(false));
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Načíst znovu"
+              hitSlop={8}
+            >
+              <RefreshCw size={16} strokeWidth={2} color={palette.surface} />
+            </Pressable>
+          </View>
         )}
 
         {data && (
@@ -198,5 +211,24 @@ const styles = StyleSheet.create({
   eyebrowRow: { flexDirection: "row", alignItems: "center", gap: space.sm },
   eyebrow: { ...type.eyebrow, color: palette.secondary },
   headline: { ...type.displayXl, color: palette.ink, marginTop: 2 },
-  error: { ...type.bodySmall, color: palette.danger, marginTop: space.base },
+  errorRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: space.sm,
+    backgroundColor: palette.danger,
+    borderRadius: radius.md,
+    paddingVertical: space.sm,
+    paddingHorizontal: space.base,
+    marginTop: space.base,
+  },
+  errorText: { ...type.bodySmall, color: palette.surface, flex: 1 },
+  errorRetryButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#00000022",
+  },
 });

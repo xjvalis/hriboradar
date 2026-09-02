@@ -53,7 +53,16 @@ const CZ_BOUNDS: [[number, number], [number, number]] = [
 const MAP_MAX_ZOOM = 16; // "see trail names and forest boundaries" ceiling -
 // deliberately well short of building-level zoom, which this app has no use
 // for and would otherwise let anyone zoom into (Mapy.com bills per tile,
-// and finer zooms mean exponentially more tiles for the same area).
+// and finer zooms mean exponentially more tiles for the same area). Used
+// by buildPinPickerHtml, where precise zoom genuinely helps (pinning your
+// exact cottage/plot).
+
+// The forecast map (buildGridMapHtml) has a shallower ceiling than the pin
+// picker - "see a whole medium-sized forest at once", not street level.
+// z14 puts roughly 1-2km across a typical phone screen at Czech latitudes,
+// comfortably framing a real forest patch without needing to pan around it
+// (2026-09-02 direction: this map was reading as more zoomable than useful).
+const GRID_MAP_MAX_ZOOM = 14;
 
 function mapyTileUrl(mapApiKey: string, mapset: "outdoor" | "aerial") {
   return `https://api.mapy.com/v1/maptiles/${mapset}/256/{z}/{x}/{y}?apikey=${mapApiKey}&lang=cs`;
@@ -306,7 +315,7 @@ export function buildGridMapHtml(opts: {
       var mapEl = document.getElementById('map');
       console.log('[Map Init] Container size:', mapEl.clientWidth, 'x', mapEl.clientHeight);
       
-      var map = L.map('map', { zoomControl: true, maxZoom: ${MAP_MAX_ZOOM}, attributionControl: false });
+      var map = L.map('map', { zoomControl: true, maxZoom: ${GRID_MAP_MAX_ZOOM}, attributionControl: false });
       var initialView = ${initialViewJs};
       // App.tsx keeps every screen mounted permanently, just hidden via
       // display:none - which means this page can (and normally does) run
@@ -321,11 +330,33 @@ export function buildGridMapHtml(opts: {
       // sibling handlers below) redoes it exactly once a real size exists,
       // without disturbing the user's own pan/zoom on every later visit.
       var didInitialFit = !!initialView;
+      // Floor on how far out the user can zoom - "the whole Czech Republic
+      // fits on screen" is as far as this map should ever go, on any
+      // device/orientation (phone, tablet portrait, tablet landscape all
+      // need a different numeric zoom level for that same "CZ just fits"
+      // point, since it depends on the container's own aspect ratio - so
+      // this is computed from the real container size via getBoundsZoom,
+      // never hardcoded). Recomputed on every resize (orientation change,
+      // tablet rotation - Leaflet's own trackResize default already fires
+      // this map's 'resize' event on a container size change), not just
+      // once at load (2026-09-02 direction).
+      function applyMinZoom() {
+        // getBoundsZoom on a still-0x0 container (see the didInitialFit
+        // comment above - this page can init while display:none) returns
+        // Infinity/NaN, which would otherwise lock zooming entirely until
+        // the next recompute - skip those, the invalidateSize retry loop
+        // below calls this again once a real size exists.
+        if (!mapEl.clientWidth || !mapEl.clientHeight) return;
+        var z = map.getBoundsZoom(${JSON.stringify(CZ_BOUNDS)});
+        if (isFinite(z)) map.setMinZoom(z);
+      }
       function applyInitialView() {
         if (initialView) map.setView([initialView.lat, initialView.lon], initialView.zoom);
         else map.fitBounds(${JSON.stringify(CZ_BOUNDS)});
+        applyMinZoom();
       }
       applyInitialView();
+      map.on('resize', applyMinZoom);
 
       // Aggressive invalidation for native WebView - runs many times to catch size changes
       [10, 50, 100, 200, 400, 800, 1200].forEach(function (ms) {
@@ -345,11 +376,11 @@ export function buildGridMapHtml(opts: {
         notifyParent({ type: 'tileError' });
       }
       var outdoorLayer = L.tileLayer(${JSON.stringify(mapyTileUrl(mapApiKey, "outdoor"))}, {
-        maxZoom: ${MAP_MAX_ZOOM},
+        maxZoom: ${GRID_MAP_MAX_ZOOM},
         className: 'basemap-outdoor'
       }).on('tileerror', reportTileError);
       var aerialLayer = L.tileLayer(${JSON.stringify(mapyTileUrl(mapApiKey, "aerial"))}, {
-        maxZoom: ${MAP_MAX_ZOOM}
+        maxZoom: ${GRID_MAP_MAX_ZOOM}
       }).on('tileerror', reportTileError);
 
       var activeBaseLayer = outdoorLayer;
@@ -628,6 +659,7 @@ export function buildGridMapHtml(opts: {
       }
 
       var OVERALL_WEIGHTS = [0.5, 0.3, 0.2]; // must match lib/grid.ts's OVERALL_WEIGHTS
+      var MAX_UNGATED_IN_TOP = 1; // must match lib/grid.ts's MAX_UNGATED_IN_TOP
 
       // Combines interpolated (smooth, weather-only) potential with this
       // exact polygon's own precise terrain - the fix for hotspots/fills
@@ -646,10 +678,22 @@ export function buildGridMapHtml(opts: {
         for (var s = 0; s < SPECIES_IDS.length; s++) {
           var id = SPECIES_IDS[s];
           var tm2 = terrainMatchFactor(speciesHostTrees[id] || [], terrain);
-          perSpecies.push(weatherBySpecies[id] * tm2 * urban);
+          perSpecies.push({ id: id, ungated: (speciesHostTrees[id] || []).length === 0, v: weatherBySpecies[id] * tm2 * urban });
         }
-        perSpecies.sort(function (a, b) { return b - a; });
-        var top = perSpecies.slice(0, OVERALL_WEIGHTS.length);
+        perSpecies.sort(function (a, b) { return b.v - a.v; });
+        // See lib/grid.ts's UNGATED_SPECIES_IDS comment - a species with no
+        // host tree (bedla, václavka...) is never gated by terrain, so
+        // without this cap it crowds out every terrain-dependent species
+        // near the top on any decently-wet day.
+        var top = [], ungatedUsed = 0;
+        for (var p = 0; p < perSpecies.length && top.length < OVERALL_WEIGHTS.length; p++) {
+          var entry = perSpecies[p];
+          if (entry.ungated) {
+            if (ungatedUsed >= MAX_UNGATED_IN_TOP) continue;
+            ungatedUsed++;
+          }
+          top.push(entry.v);
+        }
         var weighted = 0, weightUsed = 0;
         for (var i = 0; i < top.length; i++) { weighted += top[i] * OVERALL_WEIGHTS[i]; weightUsed += OVERALL_WEIGHTS[i]; }
         return weightUsed > 0 ? Math.round(weighted / weightUsed) : 0;

@@ -1,5 +1,6 @@
 import type { ForecastResponse } from "./api";
 import { scoreTier } from "./theme";
+import speciesData from "./data/species.json";
 
 // Same "overall conditions" definition as api/grid.ts's overallScore() -
 // a weighted average of a location's own best 3 species, not the single
@@ -10,6 +11,17 @@ import { scoreTier } from "./theme";
 // does for "today" - this is the same shape of number applied across the
 // week instead of one snapshot.
 const OVERALL_WEIGHTS = [0.5, 0.3, 0.2];
+
+// See lib/grid.ts's UNGATED_SPECIES_IDS comment - bedla vysoká, václavka
+// obecná, čirůvka fialová and smrž obecný have no host tree, so they're
+// never gated by terrain and would otherwise crowd out every
+// terrain-dependent species near the top of "overall" on any decently wet
+// day. Kept in sync with the same cap grid.ts and leafletHtml.ts use, so
+// Domů's daily index and the map's "Všechny houby" tell the same story.
+const UNGATED_SPECIES_IDS = new Set(
+  speciesData.species.filter((s) => s.host_trees.length === 0).map((s) => s.id)
+);
+const MAX_UNGATED_IN_TOP = 1;
 
 export interface DayOverall {
   date: string;
@@ -22,10 +34,19 @@ export function computeDailyOverall(detail: ForecastResponse): DayOverall[] {
   return detail.weather
     .filter((w) => w.date >= detail.today)
     .map((w) => {
-      const scores = detail.species
-        .map((sp) => sp.days.find((d) => d.date === w.date)?.probability_pct ?? 0)
-        .sort((a, b) => b - a)
-        .slice(0, OVERALL_WEIGHTS.length);
+      const sorted = detail.species
+        .map((sp) => ({ id: sp.id, v: sp.days.find((d) => d.date === w.date)?.probability_pct ?? 0 }))
+        .sort((a, b) => b.v - a.v);
+      const scores: number[] = [];
+      let ungatedUsed = 0;
+      for (const entry of sorted) {
+        if (scores.length >= OVERALL_WEIGHTS.length) break;
+        if (UNGATED_SPECIES_IDS.has(entry.id)) {
+          if (ungatedUsed >= MAX_UNGATED_IN_TOP) continue;
+          ungatedUsed++;
+        }
+        scores.push(entry.v);
+      }
       const weightUsed = OVERALL_WEIGHTS.slice(0, scores.length).reduce((a, b) => a + b, 0);
       const weighted = scores.reduce((sum, v, i) => sum + v * OVERALL_WEIGHTS[i], 0);
       return { date: w.date, overall: weightUsed > 0 ? Math.round(weighted / weightUsed) : 0 };

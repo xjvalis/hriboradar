@@ -7,7 +7,7 @@ import { terrainMatchFactor, type TerrainInfo } from "./terrain";
 // scoring formula below starts its own calibration cohort instead of
 // silently mixing with data the old formula produced. Bump this whenever
 // scoreSpeciesDay's math changes in a way that shifts probabilities.
-export const MODEL_VERSION = "1.4.0";
+export const MODEL_VERSION = "1.6.0";
 
 export interface Species {
   id: string;
@@ -52,6 +52,18 @@ export interface DayScore {
 // polygon the 250m grid doesn't resolve, so a dramatic-but-nonzero
 // penalty is the honest choice (explicit user direction, 2026-08-27).
 const URBAN_PENALTY = 0.15;
+
+// Hard ceiling on any number actually shown to a user, on top of the
+// asymptotic curves above already making literal 100% mathematically
+// near-impossible - explicit product decision (2026-09-02), not a math
+// fix: even a forecast that's genuinely as good as this model gets
+// shouldn't visibly claim certainty. Applied at the two points every
+// user-facing percentage in the app derives from (weatherPotential and
+// scoreSpeciesDay's `probability` below) - everything downstream (the map,
+// Domů's daily index, "Všechny houby") only ever averages or multiplies
+// these by factors <=1, so capping here propagates everywhere without
+// needing a second clamp at each call site.
+const MAX_DISPLAY_PCT = 95;
 
 function clamp(v: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, v));
@@ -127,51 +139,36 @@ function soilMoistureFactor(soilMoisturePct: number, need: string): number {
   return saturating(soilMoisturePct, idealPct);
 }
 
-// Same idea as ČHMI's API30 temperature coefficient: the same accumulated
-// rainfall is worth less in a hot month than a cool one, because more of it
-// evaporates before it can reach/stay in the mycelium's rooting zone. 12°C
-// (roughly a typical Czech September night-day average, peak mushroom
-// season) is the reference point where a day's rain counts at face value;
-// warmer days scale it down, cooler days scale it up slightly, both capped
-// so a single cold or heat-wave day can't swing the correction to an
-// extreme. Linear rather than a full Penman-Monteith evapotranspiration
-// model - the literature-grounded coefficient ČHMI uses isn't published,
-// and this app's calibration loop (api/cron/recalibrate.ts) corrects
-// residual bias once feedback accumulates under this MODEL_VERSION.
-function evapCorrection(avgTemp7dC: number): number {
-  return clamp(1 - (avgTemp7dC - 12) * 0.035, 0.35, 1.15);
-}
-
-// idealMm thresholds for the decay-weighted antecedent precipitation index
-// (lib/weather.ts's antecedentPrecipMm, ANTECEDENT_DECAY=0.9 over 30 days) -
-// same role as soilMoistureFactor's idealPct, but scaled to "effective mm
-// of accumulated rain" instead of volumetric soil-moisture %. Order of
-// magnitude estimated from typical central European growing-season
-// rainfall (~2-4mm/day average decaying to an effective sum of roughly
-// 8-38mm under this decay constant), not measured against real ground
-// truth - same calibration-loop caveat as evapCorrection above. A single
-// large storm (e.g. 40-50mm) can still push effectiveMm to 2-3x idealMm -
-// saturating() lets that read as meaningfully wetter (~0.9-0.95) than a
-// day that just barely cleared the threshold (~0.85), instead of both
-// being indistinguishable flat 1.0s the way the old linear-clamp version
-// treated them.
+// idealMm thresholds for the decay-weighted net-water index
+// (lib/weather.ts's antecedentWaterMm - rain minus real ET0
+// evapotranspiration, ANTECEDENT_DECAY=0.9 over 30 days) - same role as
+// soilMoistureFactor's idealPct, but scaled to "effective mm of
+// accumulated water" instead of volumetric soil-moisture %. Order of
+// magnitude estimated from typical central European growing-season net
+// water balance, not measured against real ground truth - this app's
+// calibration loop (api/cron/recalibrate.ts) corrects residual bias once
+// feedback accumulates under this MODEL_VERSION. A single large storm
+// (e.g. 40-50mm) can still push effectiveMm to 2-3x idealMm - saturating()
+// lets that read as meaningfully wetter (~0.9-0.95) than a day that just
+// barely cleared the threshold (~0.85), instead of both being
+// indistinguishable flat 1.0s the way a linear-clamp version would.
 function antecedentFactor(effectiveMm: number, need: string): number {
   const idealMm = need === "vysoká" ? 16 : need === "střední" ? 11 : 8;
-  return saturating(effectiveMm, idealMm);
+  return saturating(Math.max(0, effectiveMm), idealMm);
 }
 
 // The moisture signal blends two genuinely different things rather than
-// picking one: the decay-weighted antecedent index carries the multi-week
-// "memory" ČHMI's API30 has and our old same-day-only snapshot didn't (see
-// 2026-09-01 investigation - a single wet day after a dry August could
-// saturate the old factor to 1.0 even though the antecedent month was dry).
-// The same-day modeled soil moisture stays in the blend rather than being
-// replaced outright - the mushroom-yield literature (e.g. Mediterranean
-// pine sporocarp studies) found remote-sensed soil moisture rivals raw
-// precipitation as a predictor on its own, so dropping it would throw away
-// a real independent signal, not just redundant noise.
+// picking one: the decay-weighted net-water index carries the multi-week
+// "memory" ČHMI's API30 has and a same-day-only snapshot doesn't (a single
+// wet day after a dry August could otherwise saturate a naive factor to
+// 1.0 even though the antecedent month was dry). The same-day modeled soil
+// moisture stays in the blend rather than being replaced outright - the
+// mushroom-yield literature (e.g. Mediterranean pine sporocarp studies)
+// found remote-sensed soil moisture rivals raw precipitation as a
+// predictor on its own, so dropping it would throw away a real
+// independent signal, not just redundant noise.
 function moistureFactor(day: DayWeather, need: string): number {
-  const antecedent = antecedentFactor(day.antecedentPrecipMm * evapCorrection(day.avgTemp7dC), need);
+  const antecedent = antecedentFactor(day.antecedentWaterMm, need);
   const soil = soilMoistureFactor(day.soilMoisturePct, need);
   return clamp(antecedent * 0.55 + soil * 0.45, 0, 1);
 }
@@ -217,7 +214,7 @@ function weatherFactors(days: DayWeather[], dayIndex: number, species: Species):
  */
 export function weatherPotential(days: DayWeather[], dayIndex: number, species: Species): number {
   const f = weatherFactors(days, dayIndex, species);
-  return clamp(Math.round(f.season * f.weighted * 100), 0, 100);
+  return clamp(Math.round(f.season * f.weighted * 100), 0, MAX_DISPLAY_PCT);
 }
 
 /**
@@ -235,15 +232,19 @@ export function scoreSpeciesDay(
   const terrainMatch = terrainMatchFactor(species.host_trees, terrain);
   const urban = terrain.isUrban ? URBAN_PENALTY : 1;
 
-  // Season, terrain, and urban are hard gates (multiplied) - wrong forest,
-  // wrong month, or a built-up area should crush the score, not just
-  // nudge it. Temp/rain-timing/moisture are weighted-averaged so
-  // decent-but-imperfect weather doesn't collapse to near-zero the way
-  // multiplying three sub-1 factors would.
+  // Season, terrain, and urban are multiplied in (not blended) - wrong
+  // forest, wrong month, or a built-up area should dominate the score, not
+  // just nudge it. "Multiplicative penalty" rather than literal "hard
+  // gate" though: season keeps a 0.05 residual for off-season stragglers,
+  // and terrainMatchFactor keeps 0.1-0.85 residuals for every case except
+  // literally no forest at all nearby - only that case and isUrban really
+  // are near-zero. Temp/rain-timing/moisture are weighted-averaged instead
+  // of multiplied so decent-but-imperfect weather doesn't collapse to
+  // near-zero the way multiplying three sub-1 factors would.
   const probability = clamp(
     Math.round(f.season * terrainMatch * urban * f.weighted * 100),
     0,
-    100
+    MAX_DISPLAY_PCT
   );
 
   return {

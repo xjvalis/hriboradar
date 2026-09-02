@@ -40,7 +40,7 @@ export function SeasonTimeline() {
   }, []);
 
   return (
-    <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false}>
+    <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1 }}>
       <PaperBackground style={styles.content}>
       {MONTH_NAMES_FULL_CZ.map((name, i) => {
         const month = i + 1;

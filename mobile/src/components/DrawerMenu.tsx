@@ -20,16 +20,14 @@ const ITEMS: { name: ScreenName; Icon: typeof Home; label: string }[] = [
   { name: "Nastavení", Icon: Settings, label: "Nastavení" },
 ];
 
-// One piece cut straight from the user's reference sheet (mobile/assets/
-// background.png) rather than several hand-placed cutouts - every prior
-// attempt at compositing individual sprites kept producing overlaps or
-// edge artifacts. This is a single rectangular region auto-selected so
-// no mushroom's linework touches its boundary (nothing is ever mid-cut),
-// with its flat paper background chroma-keyed to transparent so it blends
-// straight into the drawer's own surface color instead of showing a
-// mismatched panel underneath.
-const MUSHROOM_SHEET = require("../../assets/mushroom-sheet.png");
-const MUSHROOM_SHEET_ASPECT = 878 / 1019; // width / height
+// User-supplied reference sheet (mobile/assets/new_reference.png,
+// 2026-09-02) with its flat paper background chroma-keyed to transparent
+// (distance-from-background alpha ramp, same treatment as the original
+// sheet) so it blends straight into the drawer's own surface color
+// instead of showing a mismatched panel underneath. Saved separately as
+// mushroom-sheet-2.png rather than overwriting the original.
+const MUSHROOM_SHEET = require("../../assets/mushroom-sheet-2.png");
+const MUSHROOM_SHEET_ASPECT = 704 / 871; // width / height
 
 export function DrawerMenu({
   visible,

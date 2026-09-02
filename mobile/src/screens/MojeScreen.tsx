@@ -48,7 +48,7 @@ export default function MojeScreen() {
   }
 
   return (
-    <ScrollView style={styles.screen}>
+    <ScrollView style={styles.screen} contentContainerStyle={{ flexGrow: 1 }}>
       <PaperBackground style={styles.content}>
       <PageHeader
         eyebrow="chalupa, revír, les"

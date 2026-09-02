@@ -25,7 +25,15 @@ export function PaperBackground({
 }
 
 const styles = StyleSheet.create({
-  container: { width: "100%" },
+  // flexGrow (not just width) so the texture always reaches at least the
+  // full viewport height, not just its own content's natural height - a
+  // screen whose content doesn't fill the screen (common on Android's
+  // wider range of aspect ratios than iPhone) otherwise showed a visible
+  // seam where the textured area ended and the plain palette.bg behind it
+  // began. Needs the parent ScrollView's contentContainerStyle to also set
+  // flexGrow: 1 (see each screen using this component) - flexGrow alone on
+  // this View has nothing to grow within otherwise.
+  container: { width: "100%", flexGrow: 1 },
   texture: {
     ...StyleSheet.absoluteFillObject,
     opacity: 0.16,

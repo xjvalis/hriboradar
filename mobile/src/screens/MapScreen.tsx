@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { WebView } from "react-native-webview";
+import { Info } from "lucide-react-native";
 import { palette, radius, space, type } from "../theme";
 import { API_BASE, type GridResponse } from "../api";
 import { fetchJsonWithProgress } from "../xhrProgress";
@@ -13,6 +14,7 @@ import { Chip } from "../components/Chip";
 import { LocationSheet, type SelectedLocation } from "../components/LocationSheet";
 import { LoadingProgress } from "../components/LoadingProgress";
 import { CurrentLocationPill } from "../components/CurrentLocationPill";
+import { MapInfoSheet } from "../components/MapInfoSheet";
 import { useSubscription } from "../SubscriptionContext";
 import { usePaywall } from "../PaywallContext";
 
@@ -30,7 +32,10 @@ export default function MapScreen() {
   const [mode, setMode] = useState<MapMode>({ type: "overall" });
   const [selected, setSelected] = useState<SelectedLocation | null>(null);
   const [mapReady, setMapReady] = useState(false);
+  const [infoOpen, setInfoOpen] = useState(false);
   const webviewRef = useRef<WebView>(null);
+  // Captured once, not tracked live - see mapUri below.
+  const initialLocationRef = useRef(location);
 
   useEffect(() => {
     fetchJsonWithProgress<GridResponse>(`${API_BASE}/api/grid`, setGridProgress)
@@ -49,7 +54,22 @@ export default function MapScreen() {
   // second time reuses the same still-loaded page, that initial-mode-only
   // trick would just be silently ignored, so pending requests instead flow
   // through the same postMessage path every time (see the effect below).
-  const mapUri = useMemo(() => `${API_BASE}/api/map?lat=${location.lat}&lon=${location.lon}`, [location.lat, location.lon]);
+  //
+  // mapUri deliberately does NOT track `location` live (only its value at
+  // first mount, for the "Vaše poloha" marker) - it used to, which meant
+  // every location change (not just a fresh app boot) reloaded the whole
+  // WebView from scratch. That reload raced the very postMessage handshake
+  // this comment describes: "Kam dnes?" changes `location` and requests a
+  // map focus in the same tick, the reload flips mapReady back to false
+  // right as the focus-consuming effect below tries to fire, and the
+  // request was already drained from its one-shot ref by then - found
+  // 2026-09-01, regression from the mount-once refactor (711fcab) which
+  // moved centering to postMessage but left this useMemo watching
+  // location anyway.
+  const mapUri = useMemo(
+    () => `${API_BASE}/api/map?lat=${initialLocationRef.current.lat}&lon=${initialLocationRef.current.lon}`,
+    []
+  );
 
   // Same "wait for the page's own ready signal" reasoning as MapScreen.web -
   // /api/map is a public, unauthenticated endpoint, so it has no way to bake
@@ -104,7 +124,19 @@ export default function MapScreen() {
         eyebrow="celá ČR · dnes"
         title="Mapa"
         subtitle="Hustota mraku = pravděpodobnost. Klepni na mapu pro detail místa."
-        right={<CurrentLocationPill />}
+        right={
+          <View style={styles.headerRight}>
+            <Pressable
+              onPress={() => setInfoOpen(true)}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Jak funguje mapa"
+            >
+              <Info size={20} strokeWidth={1.8} color={palette.inkFaint} />
+            </Pressable>
+            <CurrentLocationPill />
+          </View>
+        }
       />
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filters} contentContainerStyle={{ gap: space.sm }}>
@@ -189,12 +221,14 @@ export default function MapScreen() {
         )}
       </View>
       {selected && <LocationSheet selected={selected} mode={mode} onClose={() => setSelected(null)} />}
+      {infoOpen && <MapInfoSheet onClose={() => setInfoOpen(false)} />}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
+  headerRight: { flexDirection: "row", alignItems: "center", gap: space.sm },
   filters: { flexGrow: 0, paddingHorizontal: space.lg, marginBottom: space.sm },
   mapCard: {
     flex: 1,

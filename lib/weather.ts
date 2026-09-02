@@ -38,8 +38,7 @@ export interface DayWeather {
   precipMm: number;
   tempAvgC: number;
   soilMoisturePct: number; // volumetric water content 0-9cm depth, as %
-  antecedentPrecipMm: number; // 30-day decay-weighted rainfall sum, see ANTECEDENT_DECAY
-  avgTemp7dC: number; // trailing 7-day avg temp, for the evaporation correction in lib/scoring.ts
+  antecedentWaterMm: number; // 30-day decay-weighted (precip - ET0) sum, see ANTECEDENT_DECAY
   isForecast: boolean;
 }
 
@@ -55,6 +54,7 @@ interface OpenMeteoResponse {
     precipitation_sum: number[];
     temperature_2m_max: number[];
     temperature_2m_min: number[];
+    et0_fao_evapotranspiration: number[];
   };
   hourly: {
     time: string[];
@@ -75,23 +75,44 @@ export function fetchWeather(lat: number, lon: number): Promise<DayWeather[]> {
   return cached(key, WEATHER_CACHE_TTL_MS, () => fetchWeatherUncached(lat, lon));
 }
 
+// A transient Open-Meteo hiccup (rate limit, one dropped connection) used
+// to surface immediately as this app's own red error banner - most
+// visible right after opening the app, when Domů fires ~9 concurrent
+// /api/forecast calls at once (the user's own location + all 8 "Kam dnes?"
+// regions) and lib/grid.ts's map fires ~350 for the same reason. Retrying
+// here, in the one place every caller (api/forecast.ts, lib/grid.ts,
+// api/feedback.ts) already goes through via fetchWeather, means a single
+// bad request self-heals instead of failing the whole screen - found
+// 2026-09-02, previously only lib/grid.ts had its own local copy of this.
+async function fetchWithRetry(url: string, attempts = 3): Promise<Response> {
+  let lastErr: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Open-Meteo request failed: ${res.status}`);
+      return res;
+    } catch (err) {
+      lastErr = err;
+      if (i < attempts - 1) await new Promise((r) => setTimeout(r, 250 * (i + 1)));
+    }
+  }
+  throw lastErr;
+}
+
 async function fetchWeatherUncached(lat: number, lon: number): Promise<DayWeather[]> {
   const url = new URL(OPEN_METEO_URL);
   url.searchParams.set("latitude", String(lat));
   url.searchParams.set("longitude", String(lon));
   url.searchParams.set(
     "daily",
-    "precipitation_sum,temperature_2m_max,temperature_2m_min"
+    "precipitation_sum,temperature_2m_max,temperature_2m_min,et0_fao_evapotranspiration"
   );
   url.searchParams.set("hourly", "soil_moisture_3_to_9cm");
   url.searchParams.set("past_days", String(PAST_DAYS));
   url.searchParams.set("forecast_days", String(FORECAST_DAYS));
   url.searchParams.set("timezone", "Europe/Prague");
 
-  const res = await fetch(url.toString());
-  if (!res.ok) {
-    throw new Error(`Open-Meteo request failed: ${res.status}`);
-  }
+  const res = await fetchWithRetry(url.toString());
   const data = (await res.json()) as OpenMeteoResponse;
 
   // Bucket hourly soil moisture into daily averages by date prefix.
@@ -106,25 +127,26 @@ async function fetchWeatherUncached(lat: number, lon: number): Promise<DayWeathe
 
   const todayStr = new Date().toISOString().slice(0, 10);
 
-  // Decay-weighted sum of the trailing ANTECEDENT_WINDOW_DAYS of rainfall,
-  // looking back from index i - the actual API30-style index, as opposed to
-  // the single day's precipMm or the same-day soilMoisturePct snapshot.
-  function antecedentPrecipAt(i: number): number {
+  // Decay-weighted sum of the trailing ANTECEDENT_WINDOW_DAYS of NET water
+  // (rain minus real evapotranspiration, not just rain) - each day nets its
+  // own precipitation against Open-Meteo's et0_fao_evapotranspiration (the
+  // standard FAO-56 Penman-Monteith reference value: temperature, humidity,
+  // wind and solar radiation combined), before decaying into the running
+  // sum. This replaced a cruder version (decay raw rain, then separately
+  // multiply the whole sum by a linear guess from 7-day avg temp) - that
+  // guess was admittedly a simplification of exactly this ET0 model, and
+  // ET0 is already sitting right there in the same API response. Can go
+  // negative (net water deficit on a long hot dry stretch) - deliberately
+  // not floored at 0 per-day so a genuinely parched multi-week stretch
+  // shows as a real deficit, not just "zero contribution"; lib/scoring.ts's
+  // saturating() floors the final index at 0 for the probability curve.
+  function antecedentWaterAt(i: number): number {
     let sum = 0;
     for (let j = 0; j <= ANTECEDENT_WINDOW_DAYS && i - j >= 0; j++) {
-      sum += (data.daily.precipitation_sum[i - j] ?? 0) * ANTECEDENT_DECAY ** j;
+      const net = (data.daily.precipitation_sum[i - j] ?? 0) - (data.daily.et0_fao_evapotranspiration[i - j] ?? 0);
+      sum += net * ANTECEDENT_DECAY ** j;
     }
     return Math.round(sum * 10) / 10;
-  }
-
-  function avgTemp7dAt(i: number): number {
-    let sum = 0;
-    let n = 0;
-    for (let j = 0; j <= 6 && i - j >= 0; j++) {
-      sum += (data.daily.temperature_2m_max[i - j] + data.daily.temperature_2m_min[i - j]) / 2;
-      n++;
-    }
-    return n > 0 ? Math.round((sum / n) * 10) / 10 : 0;
   }
 
   return data.daily.time.map((date, i) => {
@@ -138,8 +160,7 @@ async function fetchWeatherUncached(lat: number, lon: number): Promise<DayWeathe
       precipMm: data.daily.precipitation_sum[i] ?? 0,
       tempAvgC:
         (data.daily.temperature_2m_max[i] + data.daily.temperature_2m_min[i]) / 2,
-      antecedentPrecipMm: antecedentPrecipAt(i),
-      avgTemp7dC: avgTemp7dAt(i),
+      antecedentWaterMm: antecedentWaterAt(i),
       soilMoisturePct: Math.round(soilAvg * 1000) / 10, // m3/m3 -> %
       isForecast: date > todayStr,
     };

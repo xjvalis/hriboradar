@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Info } from "lucide-react-native";
 import { palette, radius, space, type } from "../theme";
 import { API_BASE, type GridResponse } from "../api";
 import { fetchJsonWithProgress } from "../xhrProgress";
@@ -12,6 +13,7 @@ import { Chip } from "../components/Chip";
 import { LocationSheet, type SelectedLocation } from "../components/LocationSheet";
 import { LoadingProgress } from "../components/LoadingProgress";
 import { CurrentLocationPill } from "../components/CurrentLocationPill";
+import { MapInfoSheet } from "../components/MapInfoSheet";
 import { useSubscription } from "../SubscriptionContext";
 import { usePaywall } from "../PaywallContext";
 
@@ -27,7 +29,10 @@ export default function MapScreen() {
   const [mode, setMode] = useState<MapMode>({ type: "overall" });
   const [selected, setSelected] = useState<SelectedLocation | null>(null);
   const [mapReady, setMapReady] = useState(false);
+  const [infoOpen, setInfoOpen] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  // Captured once, not tracked live - see the `html` useMemo below.
+  const initialLocationRef = useRef(location);
 
   useEffect(() => {
     fetchJsonWithProgress<GridResponse>(`${API_BASE}/api/grid`, setGridProgress)
@@ -59,17 +64,23 @@ export default function MapScreen() {
   // already-loaded iframe, so pending requests instead flow through the
   // postMessage effect below every time, the same way a mid-session chip
   // tap already did.
+  // Deliberately doesn't track `location` live - see MapScreen.tsx's mapUri
+  // comment for the reload/postMessage race this caused (2026-09-01) when
+  // it did: "Kam dnes?" changes `location` and requests a map focus in the
+  // same tick, and a live-tracked `html` here would rebuild the iframe's
+  // srcDoc right as the focus-consuming effect below tries to apply the
+  // pending request, dropping it.
   const html = useMemo(() => {
     if (!grid) return null;
     return buildGridMapHtml({
       points: grid.points,
       speciesList: grid.speciesList,
-      userLat: location.lat,
-      userLon: location.lon,
+      userLat: initialLocationRef.current.lat,
+      userLon: initialLocationRef.current.lon,
       apiBase: API_BASE,
       mapApiKey: process.env.EXPO_PUBLIC_MAPY_CZ_API_KEY ?? "",
     });
-  }, [grid, location.lat, location.lon]);
+  }, [grid]);
 
   // A fresh srcDoc means a fresh page - its own "ready" message hasn't
   // arrived yet, so posting setSavedLocations right away would race the
@@ -124,7 +135,19 @@ export default function MapScreen() {
         eyebrow="celá ČR · dnes"
         title="Mapa"
         subtitle="Hustota mraku = pravděpodobnost. Klepni na mapu pro detail místa."
-        right={<CurrentLocationPill />}
+        right={
+          <View style={styles.headerRight}>
+            <Pressable
+              onPress={() => setInfoOpen(true)}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Jak funguje mapa"
+            >
+              <Info size={20} strokeWidth={1.8} color={palette.inkFaint} />
+            </Pressable>
+            <CurrentLocationPill />
+          </View>
+        }
       />
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filters} contentContainerStyle={{ gap: space.sm }}>
@@ -160,12 +183,14 @@ export default function MapScreen() {
         )}
       </View>
       {selected && <LocationSheet selected={selected} mode={mode} onClose={() => setSelected(null)} />}
+      {infoOpen && <MapInfoSheet onClose={() => setInfoOpen(false)} />}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
+  headerRight: { flexDirection: "row", alignItems: "center", gap: space.sm },
   filters: { flexGrow: 0, paddingHorizontal: space.lg, marginBottom: space.sm },
   mapCard: {
     flex: 1,

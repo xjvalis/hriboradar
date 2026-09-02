@@ -39,7 +39,7 @@ export default function HoubyScreen() {
       {mode === "timeline" ? (
         <SeasonTimeline />
       ) : (
-        <ScrollView>
+        <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
           <PaperBackground style={styles.list}>
             {allSpecies.map((item) => (
               <MushroomCard

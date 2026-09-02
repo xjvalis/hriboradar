@@ -1,0 +1,51 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`scoreSpeciesDay (golden snapshot) > matches the exact-genus-match, non-urban case 1`] = `
+{
+  "date": "2026-09-09",
+  "factors": {
+    "days_since_rain": 3,
+    "moisture": 0.77,
+    "rain_timing": 0.8,
+    "season": 1,
+    "temp": 1,
+    "terrain": 1,
+    "urban": 1,
+  },
+  "probability_pct": 85,
+}
+`;
+
+exports[`scoreSpeciesDay (golden snapshot) > matches the unknown-forest-type case 1`] = `
+{
+  "date": "2026-09-09",
+  "factors": {
+    "days_since_rain": 3,
+    "moisture": 0.77,
+    "rain_timing": 0.8,
+    "season": 1,
+    "temp": 1,
+    "terrain": 0.5,
+    "urban": 1,
+  },
+  "probability_pct": 43,
+}
+`;
+
+exports[`scoreSpeciesDay (golden snapshot) > matches the urban-penalty case 1`] = `
+{
+  "date": "2026-09-09",
+  "factors": {
+    "days_since_rain": 3,
+    "moisture": 0.77,
+    "rain_timing": 0.8,
+    "season": 1,
+    "temp": 1,
+    "terrain": 1,
+    "urban": 0.15,
+  },
+  "probability_pct": 13,
+}
+`;
+
+exports[`scoreSpeciesDay (golden snapshot) > matches the weather-only potential used by the map grid 1`] = `85`;

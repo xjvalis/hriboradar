@@ -53,13 +53,38 @@ export interface GridData {
 // per-species numbers at that point (see leafletHtml.ts's overallAccessor).
 const OVERALL_WEIGHTS = [0.5, 0.3, 0.2];
 
+// Species with no host tree (bedla vysoká, václavka obecná, čirůvka
+// fialová, smrž obecný) never get gated by terrainMatchFactor - they score
+// on weather/season alone, so on a day with decent rain they land near the
+// top of literally every location's ranking regardless of what's actually
+// growing there. Left unchecked, "overall" (the map's default "Všechny
+// houby" mode) ends up mostly reporting on this one handful of
+// always-easy species rather than genuinely reflecting the forest at that
+// spot - found 2026-09-01 comparing against ČHMI's map, which only scores
+// mykorhizní species and reads noticeably more conservative on the same
+// days. MAX_UNGATED_IN_TOP keeps one of them eligible (still real,
+// genuinely useful information) without letting them crowd out every
+// terrain-dependent species in the blend.
+const UNGATED_SPECIES_IDS = new Set(
+  (speciesData.species as Species[]).filter((s) => s.host_trees.length === 0).map((s) => s.id)
+);
+const MAX_UNGATED_IN_TOP = 1;
+
 // Exported for api/cron/watchdog.ts, which needs the exact same "overall"
 // definition when a saved location's watchdog isn't scoped to one species -
 // duplicating this formula there would drift the moment one changed.
 export function overallScore(scores: Record<string, number>): number {
-  const top = Object.values(scores)
-    .sort((a, b) => b - a)
-    .slice(0, OVERALL_WEIGHTS.length);
+  const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+  const top: number[] = [];
+  let ungatedUsed = 0;
+  for (const [id, v] of sorted) {
+    if (top.length >= OVERALL_WEIGHTS.length) break;
+    if (UNGATED_SPECIES_IDS.has(id)) {
+      if (ungatedUsed >= MAX_UNGATED_IN_TOP) continue;
+      ungatedUsed++;
+    }
+    top.push(v);
+  }
   const weighted = top.reduce((sum, v, i) => sum + v * OVERALL_WEIGHTS[i], 0);
   const weightUsed = OVERALL_WEIGHTS.slice(0, top.length).reduce((a, b) => a + b, 0);
   return weightUsed > 0 ? Math.round(weighted / weightUsed) : 0;
@@ -78,6 +103,19 @@ export function overallScore(scores: Record<string, number>): number {
 // search radius) let real forest several km from a sample point get
 // credited to that point, producing pulsing "hotspot" markers that read
 // high on the map but a precise tap right next to them showed ~28%.
+// The full grid fires ~350 concurrent Open-Meteo requests in one
+// Promise.all (one per point, see below) - at that concurrency a handful
+// reliably hit a transient failure (rate limit, one slow/dropped
+// connection) even though the same point succeeds a moment later. Without
+// a retry those points silently vanished from the result (found
+// 2026-09-01: comparing two grid computations a minute apart showed 75
+// different points missing each time, in no consistent geographic
+// pattern), leaving real gaps in the map's forest-polygon interpolation -
+// not a genuine "no data here" area, just bad luck on that one fetch.
+// The retry itself now lives in lib/weather.ts's fetchWeather (moved there
+// 2026-09-02 so every caller benefits, not just this one) - this comment
+// stays here since this is still the highest-concurrency caller and the
+// reason the retry exists at all.
 export async function computeGrid(): Promise<GridData> {
   const species = speciesData.species as Species[];
   const points = buildGridPoints();

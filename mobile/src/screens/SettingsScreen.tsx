@@ -56,7 +56,7 @@ export default function SettingsScreen() {
           </Pressable>
           <Text style={styles.subHeaderTitle}>{meta.title}</Text>
         </View>
-        <ScrollView style={styles.screen}>
+        <ScrollView style={styles.screen} contentContainerStyle={{ flexGrow: 1 }}>
           <PaperBackground style={styles.sectionContent}>{meta.render()}</PaperBackground>
         </ScrollView>
       </View>
@@ -64,7 +64,7 @@ export default function SettingsScreen() {
   }
 
   return (
-    <ScrollView style={styles.screen}>
+    <ScrollView style={styles.screen} contentContainerStyle={{ flexGrow: 1 }}>
       <PaperBackground style={styles.hubContent}>
         <PageHeader title="Nastavení" />
         <View style={styles.hubList}>
