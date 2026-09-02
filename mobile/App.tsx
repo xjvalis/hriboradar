@@ -9,7 +9,7 @@ import { TopBar, type ScreenName } from "./src/components/TopBar";
 import { DrawerMenu } from "./src/components/DrawerMenu";
 import { BottomTabBar } from "./src/components/BottomTabBar";
 import { AppNavigationProvider, useAppNavigation } from "./src/AppNavigationContext";
-import { LocationProvider } from "./src/LocationContext";
+import { LocationProvider, useLocation } from "./src/LocationContext";
 import { SavedLocationsProvider } from "./src/SavedLocationsContext";
 import { AuthProvider, useAuth } from "./src/AuthContext";
 import LoginScreen from "./src/screens/LoginScreen";
@@ -55,6 +55,7 @@ function AppShell() {
   const { active, setActive } = useAppNavigation();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const { user, loading: authLoading, passwordRecovery } = useAuth();
+  const { resolved: locationResolved } = useLocation();
   useNotificationGenerator();
 
   if (!fontsLoaded || authLoading) {
@@ -86,6 +87,19 @@ function AppShell() {
       <SafeAreaView style={styles.screen} edges={["top", "left", "right"]}>
         <StatusBar style="dark" />
         <LoginScreen />
+      </SafeAreaView>
+    );
+  }
+
+  // Held only for a logged-in user, and only briefly (LocationContext caps
+  // this at GPS_RESOLVE_TIMEOUT_MS) - see LocationContext.tsx's `resolved`
+  // comment for why: without this, Domů/Mapa/Předpověď all render against
+  // the Smržovka default first and then visibly jump to the user's real
+  // GPS position a moment later, mid-read.
+  if (!locationResolved) {
+    return (
+      <SafeAreaView style={styles.screen}>
+        <LoadingScreen />
       </SafeAreaView>
     );
   }

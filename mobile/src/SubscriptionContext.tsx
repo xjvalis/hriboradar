@@ -72,6 +72,40 @@ function findPackage(
   return pkgs.find((p) => p.packageType === wantType || p.identifier.toLowerCase() === wantId);
 }
 
+// RevenueCat's PurchasesError.message is the raw underlying StoreKit/Play
+// Billing string ("There was a problem with your App Store transaction"
+// and worse) - fine for a support ticket, not something to show a user
+// mid-purchase. .code is the stable, RevenueCat-defined enum
+// (@revenuecat/purchases-typescript-internal/dist/generated/error-codes)
+// and is what this maps instead, so a wording change or localization on
+// the native SDK side can't silently break the mapping. Codes not listed
+// here (CONFIGURATION_ERROR, UNKNOWN_BACKEND_ERROR, etc.) are genuinely
+// rare/internal-setup problems a user can't act on - the fallback message
+// covers those.
+const PURCHASE_ERROR_MESSAGES: Record<string, string> = {
+  "1": "Nákup byl zrušen.", // PURCHASE_CANCELLED_ERROR - purchase()'s userCancelled check already short-circuits this to no alert at all; kept here as a safety net for restore() or an edge case that reaches this path anyway
+  "2": "Obchod je teď nedostupný. Zkuste to prosím za chvíli.", // STORE_PROBLEM_ERROR
+  "3": "Nákupy jsou na tomhle zařízení zakázané (rodičovský zámek nebo omezení).", // PURCHASE_NOT_ALLOWED_ERROR
+  "5": "Tahle varianta předplatného momentálně není k dispozici.", // PRODUCT_NOT_AVAILABLE_FOR_PURCHASE_ERROR
+  "6": "Tohle předplatné už máte aktivní.", // PRODUCT_ALREADY_PURCHASED_ERROR
+  "7": "Tenhle nákup je už přiřazený k jinému účtu.", // RECEIPT_ALREADY_IN_USE_ERROR
+  "10": "Nepodařilo se spojit s obchodem. Zkontrolujte internetové připojení a zkuste to znovu.", // NETWORK_ERROR
+  "13": "Tenhle nákup je už přiřazený k jinému účtu.", // RECEIPT_IN_USE_BY_OTHER_SUBSCRIBER_ERROR
+  "20": "Platba čeká na schválení (např. rodičovský souhlas) - jakmile projde, předplatné se aktivuje samo.", // PAYMENT_PENDING_ERROR
+  "32": "Obchod teď neodpovídá. Zkuste to prosím za chvíli.", // PRODUCT_REQUEST_TIMED_OUT_ERROR
+  "35": "Vypadá to, že nejste připojení k internetu.", // OFFLINE_CONNECTION_ERROR
+};
+const PURCHASE_ERROR_FALLBACK = "Nákup se nepodařilo dokončit. Zkuste to prosím znovu.";
+
+function friendlyPurchaseError(e: unknown): string {
+  const err = e as { code?: string | number; message?: string };
+  if (err.code != null) {
+    const mapped = PURCHASE_ERROR_MESSAGES[String(err.code)];
+    if (mapped) return mapped;
+  }
+  return PURCHASE_ERROR_FALLBACK;
+}
+
 function extractEntitlement(info: CustomerInfo): ActiveEntitlementInfo | null {
   const entitlement = info.entitlements.active[ENTITLEMENT_ID];
   if (!entitlement) return null;
@@ -244,9 +278,9 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
           setActiveEntitlement(entitlement);
           return { error: null };
         } catch (e: unknown) {
-          const err = e as { userCancelled?: boolean; message?: string };
+          const err = e as { userCancelled?: boolean };
           if (err.userCancelled) return { error: null };
-          return { error: err.message ?? "Nákup se nepodařilo dokončit." };
+          return { error: friendlyPurchaseError(e) };
         }
       },
       restore: async () => {
@@ -256,9 +290,10 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
           const entitlement = extractEntitlement(info);
           setIsPremium(!!entitlement);
           setActiveEntitlement(entitlement);
+          if (!entitlement) return { error: "Nenašli jsme žádné dřívější předplatné k obnovení." };
           return { error: null };
         } catch (e: unknown) {
-          return { error: (e as Error).message ?? "Obnovení se nepodařilo." };
+          return { error: friendlyPurchaseError(e) };
         }
       },
     }),

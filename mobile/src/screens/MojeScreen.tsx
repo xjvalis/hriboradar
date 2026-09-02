@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { Bell, BellOff, Dog, MoreVertical, Sprout } from "lucide-react-native";
+import { Bell, BellOff, Dog, Map, MoreVertical, Sprout } from "lucide-react-native";
 import { palette, radius, space, type } from "../theme";
 import { PageHeader } from "../components/PageHeader";
 import { PaperBackground } from "../components/PaperBackground";
@@ -59,8 +59,15 @@ export default function MojeScreen() {
       <Text style={styles.sectionTitle}>Přidat místo</Text>
       <View style={styles.padded}>
         <LocationSearchInput onSelect={addLocationGated} />
-        <Pressable onPress={() => setPickingOnMap(true)} hitSlop={6} style={styles.manualToggle}>
-          <Text style={styles.manualToggleText}>+ Najít na mapě (chalupa, oblíbený lesík…)</Text>
+        <Pressable
+          onPress={() => setPickingOnMap(true)}
+          style={styles.manualToggle}
+          accessibilityRole="button"
+          accessibilityLabel="Najít místo na mapě"
+        >
+          <Map size={17} strokeWidth={2} color={palette.primaryDeep} />
+          <Text style={styles.manualToggleText}>Najít na mapě</Text>
+          <Text style={styles.manualToggleHint}>chalupa, oblíbený lesík…</Text>
         </Pressable>
       </View>
 
@@ -202,6 +209,19 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
   },
   note: { ...type.caption, color: palette.inkFaint, marginTop: space.xl, paddingHorizontal: space.lg, lineHeight: 16 },
-  manualToggle: { marginTop: space.sm, alignSelf: "flex-start" },
-  manualToggleText: { ...type.bodySmall, color: palette.primary },
+  manualToggle: {
+    marginTop: space.sm,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.xs,
+    alignSelf: "stretch",
+    backgroundColor: palette.primary + "14",
+    borderWidth: 1,
+    borderColor: palette.primary + "33",
+    borderRadius: radius.md,
+    paddingVertical: space.sm,
+    paddingHorizontal: space.md,
+  },
+  manualToggleText: { ...type.headingSm, color: palette.primaryDeep },
+  manualToggleHint: { ...type.caption, color: palette.inkFaint, flexShrink: 1 },
 });

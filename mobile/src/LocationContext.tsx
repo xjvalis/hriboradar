@@ -23,6 +23,16 @@ export const PRESET_LOCATIONS: AppLocation[] = [
 interface LocationContextValue {
   location: AppLocation;
   setLocation: (location: AppLocation) => void;
+  // False until the initial GPS attempt settles (or GPS_RESOLVE_TIMEOUT_MS
+  // elapses) - App.tsx holds the loading screen on this so most users go
+  // straight to their real position instead of seeing Smržovka rendered
+  // first and then jumping to their real spot a few seconds later once GPS
+  // resolves (found 2026-09-02: "poloha se občas divně skáče" - every
+  // screen reading `location` re-renders the instant the async effect
+  // below calls setLocation, and that swap could land well after the
+  // screen was already on screen and being read). Bounded, not unbounded -
+  // a denied/slow GPS still can't hang the app forever.
+  resolved: boolean;
 }
 
 const LocationContext = createContext<LocationContextValue | null>(null);
@@ -38,8 +48,17 @@ try {
   ExpoLocation = null;
 }
 
+// How long App.tsx's loading screen waits for a real GPS fix before moving
+// on with whatever's available (real position if it won the race, Smržovka
+// otherwise). GPS on a warm device is usually well under this; a slow/
+// denied fix still resolves in the background afterward and updates
+// `location` for real once it does - this only bounds how long the loading
+// screen blocks, not the GPS attempt itself.
+const GPS_RESOLVE_TIMEOUT_MS = 1500;
+
 export function LocationProvider({ children }: { children: ReactNode }) {
   const [location, setLocation] = useState<AppLocation>(DEFAULT_LOCATION);
+  const [resolved, setResolved] = useState(false);
   // Once the user has picked anything (including tapping "Smržovka" itself
   // as a deliberate choice), the auto-locate effect below must never
   // silently overwrite it - it only gets to set the very first location.
@@ -58,8 +77,12 @@ export function LocationProvider({ children }: { children: ReactNode }) {
   // not a user-initiated action - a denial or failure just means Smržovka
   // stays the default, exactly like before this existed.
   useEffect(() => {
-    if (!ExpoLocation) return;
+    if (!ExpoLocation) {
+      setResolved(true);
+      return;
+    }
     let cancelled = false;
+    const resolveTimer = setTimeout(() => setResolved(true), GPS_RESOLVE_TIMEOUT_MS);
     (async () => {
       try {
         const { status } = await ExpoLocation!.getForegroundPermissionsAsync();
@@ -77,15 +100,18 @@ export function LocationProvider({ children }: { children: ReactNode }) {
         });
       } catch {
         // GPS unavailable/denied/errored - Smržovka stays the default
+      } finally {
+        if (!cancelled) setResolved(true);
       }
     })();
     return () => {
       cancelled = true;
+      clearTimeout(resolveTimer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const value = useMemo(() => ({ location, setLocation: chooseLocation }), [location]);
+  const value = useMemo(() => ({ location, setLocation: chooseLocation, resolved }), [location, resolved]);
   return <LocationContext.Provider value={value}>{children}</LocationContext.Provider>;
 }
 

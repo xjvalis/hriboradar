@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import { palette, radius, scoreColor, scoreLabel, space, type } from "../theme";
 import { PrimaryButton } from "./PrimaryButton";
 import { ProbabilityBadge } from "./ProbabilityBadge";
@@ -14,6 +14,7 @@ import { usePaywall } from "../PaywallContext";
 import { FREE_SAVED_LOCATIONS_LIMIT } from "../subscriptionLimits";
 import type { MapMode } from "../leafletHtml";
 import { nearestTouristArea } from "../touristAreas";
+import { SPECIES_BY_ID } from "../speciesInfo";
 
 export interface SelectedLocation {
   lat: number;
@@ -100,7 +101,15 @@ export function LocationSheet({
   // When the map's chip filter is set to a single species (not "Všechny
   // houby"), that's the reason the user is looking at this exact spot - the
   // ranked "Co tu roste" list alone doesn't say anything about it if it
-  // didn't happen to place in the top 3.
+  // didn't happen to place in the top 3. The full per-species forecast
+  // (`detail`) is a real /api/forecast round-trip and can take a few
+  // seconds - filteredSpeciesName comes from the static species list so
+  // this row can show up immediately (species name known from the filter
+  // chip alone), with a spinner standing in for the percentage until
+  // `detail` arrives, rather than the whole row just not existing yet and
+  // silently reading as "this species isn't here" (found 2026-09-02: a
+  // slow load looked identical to the row being permanently absent).
+  const filteredSpeciesName = mode?.type === "species" ? SPECIES_BY_ID[mode.id]?.name_cz : undefined;
   const filteredSpecies =
     mode?.type === "species"
       ? detail?.species.find((sp) => sp.id === mode.id)
@@ -126,13 +135,21 @@ export function LocationSheet({
           <Text style={[styles.status, { color }]}>{scoreLabel(pct)}</Text>
         </View>
 
-        {filteredSpecies && filteredToday && (
-          <Pressable style={styles.filteredRow} onPress={() => openSpecies(filteredSpecies.id)}>
+        {filteredSpeciesName && (
+          <Pressable
+            style={styles.filteredRow}
+            onPress={() => filteredSpecies && openSpecies(filteredSpecies.id)}
+            disabled={!filteredSpecies}
+          >
             <View style={{ flex: 1 }}>
               <Text style={styles.filteredEyebrow}>Vybraný filtr</Text>
-              <Text style={styles.filteredName}>{filteredSpecies.name_cz}</Text>
+              <Text style={styles.filteredName}>{filteredSpeciesName}</Text>
             </View>
-            <ProbabilityBadge pct={filteredToday.probability_pct} size="md" />
+            {filteredToday ? (
+              <ProbabilityBadge pct={filteredToday.probability_pct} size="md" />
+            ) : (
+              <ActivityIndicator color={palette.primaryDeep} />
+            )}
           </Pressable>
         )}
 
@@ -147,17 +164,25 @@ export function LocationSheet({
             ))}
           </View>
         ) : (
-          selected.topSpeciesName && (
-            <Pressable
-              style={styles.speciesRow}
-              onPress={() => selected.topSpeciesId && openSpecies(selected.topSpeciesId)}
-            >
-              <Text style={styles.speciesName}>{selected.topSpeciesName}</Text>
-              {selected.probabilityPct != null && (
-                <ProbabilityBadge pct={selected.probabilityPct} size="sm" />
-              )}
-            </Pressable>
-          )
+          <>
+            {selected.topSpeciesName && (
+              <Pressable
+                style={styles.speciesRow}
+                onPress={() => selected.topSpeciesId && openSpecies(selected.topSpeciesId)}
+              >
+                <Text style={styles.speciesName}>{selected.topSpeciesName}</Text>
+                {selected.probabilityPct != null && (
+                  <ProbabilityBadge pct={selected.probabilityPct} size="sm" />
+                )}
+              </Pressable>
+            )}
+            {!detail && (
+              <View style={styles.loadingMoreRow}>
+                <ActivityIndicator size="small" color={palette.inkFaint} />
+                <Text style={styles.loadingMoreText}>Načítám další druhy…</Text>
+              </View>
+            )}
+          </>
         )}
 
         {first && todayWeather && (
@@ -238,6 +263,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.sm,
   },
   speciesName: { ...type.body, color: palette.ink },
+  loadingMoreRow: { flexDirection: "row", alignItems: "center", gap: space.xs, paddingVertical: space.xs, paddingHorizontal: space.sm },
+  loadingMoreText: { ...type.bodySmall, color: palette.inkFaint },
   why: { ...type.bodySmall, color: palette.inkSoft, marginTop: space.md },
   mapyLink: { marginTop: space.md, alignItems: "center" },
   mapyLinkText: { ...type.bodySmall, color: palette.primaryDeep, textDecorationLine: "underline" },

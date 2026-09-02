@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { Alert } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { supabase } from "./supabase";
 import { useAuth } from "./AuthContext";
@@ -127,28 +128,67 @@ export function SavedLocationsProvider({ children }: { children: ReactNode }) {
           .insert({ lat: location.lat, lon: location.lon, label: location.label, alerts_enabled: true })
           .select("id, lat, lon, label, alerts_enabled, watchdog_species_id, watchdog_threshold_pct")
           .single()
-          .then(({ data }) => {
+          .then(({ data, error }) => {
             if (data) setLocations((prev) => [...prev, rowToLocation(data)]);
+            else if (error) Alert.alert("Nepodařilo se uložit místo", "Zkuste to prosím znovu.");
           });
       },
+      // Every mutation below is optimistic (instant UI feedback), but each
+      // used to fire-and-forget its Supabase call with `.then(() => {})` -
+      // any transient network failure meant the local state silently
+      // diverged from the database with zero indication anything went
+      // wrong, until the next app restart re-fetched the real (unchanged)
+      // rows and the edit/delete/rename just reverted with no explanation
+      // ("I deleted this place and it came back"). Every call below now
+      // reverts its own optimistic update and tells the user, on error.
       removeLocation: (id: string) => {
+        const removed = locations.find((p) => p.id === id);
         setLocations((prev) => prev.filter((p) => p.id !== id));
-        supabase.from("hriboradar_saved_locations").delete().eq("id", id).then(() => {});
+        supabase
+          .from("hriboradar_saved_locations")
+          .delete()
+          .eq("id", id)
+          .then(({ error }) => {
+            if (error && removed) {
+              setLocations((prev) => (prev.some((p) => p.id === id) ? prev : [...prev, removed]));
+              Alert.alert("Nepodařilo se smazat místo", "Zkuste to prosím znovu.");
+            }
+          });
       },
       toggleLocationAlerts: (id: string) => {
         const target = locations.find((p) => p.id === id);
         if (!target) return;
         const next = !(target.alertsEnabled ?? true);
         setLocations((prev) => prev.map((p) => (p.id === id ? { ...p, alertsEnabled: next } : p)));
-        supabase.from("hriboradar_saved_locations").update({ alerts_enabled: next }).eq("id", id).then(() => {});
+        supabase
+          .from("hriboradar_saved_locations")
+          .update({ alerts_enabled: next })
+          .eq("id", id)
+          .then(({ error }) => {
+            if (error) {
+              setLocations((prev) => prev.map((p) => (p.id === id ? { ...p, alertsEnabled: !next } : p)));
+              Alert.alert("Nepodařilo se uložit změnu", "Zkuste to prosím znovu.");
+            }
+          });
       },
       renameLocation: (id: string, label: string) => {
         const trimmed = label.trim();
         if (!trimmed) return;
+        const previousLabel = locations.find((p) => p.id === id)?.label;
         setLocations((prev) => prev.map((p) => (p.id === id ? { ...p, label: trimmed } : p)));
-        supabase.from("hriboradar_saved_locations").update({ label: trimmed }).eq("id", id).then(() => {});
+        supabase
+          .from("hriboradar_saved_locations")
+          .update({ label: trimmed })
+          .eq("id", id)
+          .then(({ error }) => {
+            if (error && previousLabel != null) {
+              setLocations((prev) => prev.map((p) => (p.id === id ? { ...p, label: previousLabel } : p)));
+              Alert.alert("Nepodařilo se přejmenovat místo", "Zkuste to prosím znovu.");
+            }
+          });
       },
       setWatchdog: (id: string, speciesId: string | null, thresholdPct: number | null) => {
+        const previous = locations.find((p) => p.id === id);
         setLocations((prev) =>
           prev.map((p) => (p.id === id ? { ...p, watchdogSpeciesId: speciesId, watchdogThresholdPct: thresholdPct } : p))
         );
@@ -156,7 +196,18 @@ export function SavedLocationsProvider({ children }: { children: ReactNode }) {
           .from("hriboradar_saved_locations")
           .update({ watchdog_species_id: speciesId, watchdog_threshold_pct: thresholdPct, watchdog_notified_at: null })
           .eq("id", id)
-          .then(() => {});
+          .then(({ error }) => {
+            if (error && previous) {
+              setLocations((prev) =>
+                prev.map((p) =>
+                  p.id === id
+                    ? { ...p, watchdogSpeciesId: previous.watchdogSpeciesId, watchdogThresholdPct: previous.watchdogThresholdPct }
+                    : p
+                )
+              );
+              Alert.alert("Nepodařilo se uložit nastavení", "Zkuste to prosím znovu.");
+            }
+          });
       },
     }),
     [locations, loaded, user]
