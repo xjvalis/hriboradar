@@ -1,6 +1,10 @@
 {
   "crons": [
     {
+      "path": "/api/cron/refresh-weather",
+      "schedule": "0 2 * * *"
+    },
+    {
       "path": "/api/cron/recalibrate",
       "schedule": "0 3 * * *"
     },
@@ -12,6 +16,9 @@
   "functions": {
     "api/**/*.ts": {
       "includeFiles": "lib/data/forest-grid.*"
+    },
+    "api/cron/refresh-weather.ts": {
+      "maxDuration": 60
     }
   }
 }

@@ -1,6 +1,6 @@
 import { fetchWeather } from "./weather";
 import { weatherPotential, type Species } from "./scoring";
-import { isInsideCzechia } from "./geo";
+import { buildGridPoints, GRID_SPACING_M } from "./gridPoints";
 import speciesData from "../api/data/species.json";
 
 // Shared by api/grid.ts (JSON, for the app's own map screen) and api/map.ts
@@ -8,23 +8,7 @@ import speciesData from "../api/data/species.json";
 // today's-probability-per-point data, just presented differently. Splitting
 // this out avoids running the (expensive - two external fetches per point)
 // computation twice or letting the two endpoints drift apart.
-
-const BOUNDS = { latMin: 48.55, latMax: 51.06, lonMin: 12.09, lonMax: 18.87 };
-const LAT_STEP = 0.14;
-const LON_STEP = 0.2;
-export const GRID_SPACING_M = 15000; // for the client to size interpolation falloff
-
-function buildGridPoints(): { lat: number; lon: number }[] {
-  const points: { lat: number; lon: number }[] = [];
-  for (let lat = BOUNDS.latMin; lat <= BOUNDS.latMax; lat += LAT_STEP) {
-    for (let lon = BOUNDS.lonMin; lon <= BOUNDS.lonMax; lon += LON_STEP) {
-      const rlat = Math.round(lat * 100) / 100;
-      const rlon = Math.round(lon * 100) / 100;
-      if (isInsideCzechia(rlat, rlon)) points.push({ lat: rlat, lon: rlon });
-    }
-  }
-  return points;
-}
+export { GRID_SPACING_M };
 
 export interface GridPointResult {
   lat: number;

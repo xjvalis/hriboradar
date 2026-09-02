@@ -1,4 +1,6 @@
-import { cached, roundCoord } from "./cache";
+import { createClient } from "@supabase/supabase-js";
+import { cached } from "./cache";
+import { nearestGridPoint } from "./gridPoints";
 
 const OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast";
 // No default fetch timeout exists in Node/the Vercel runtime - a hung
@@ -30,14 +32,10 @@ const ANTECEDENT_DECAY = 0.9;
 const ANTECEDENT_WINDOW_DAYS = 30;
 // How far forward we forecast - covers the "za N dní upozornění" use case.
 const FORECAST_DAYS = 7;
-// Weather changes slowly relative to our daily-resolution model - safe to
-// cache for a while, and it's what stops the Home screen's 8 region calls
-// from re-fetching the same forecast on every load.
-const WEATHER_CACHE_TTL_MS = 30 * 60 * 1000; // 30 min
-// "Right now" is a different question from the daily avg(max,min) the
-// model runs on - on a hot day the two can differ by 5-6°C - so it gets
-// its own short-lived cache rather than reusing the daily one.
-const CURRENT_CACHE_TTL_MS = 10 * 60 * 1000; // 10 min
+// api/cron/refresh-weather.ts repopulates hriboradar_weather_grid once a
+// day - this only needs to survive between that job's runs, not protect
+// against a within-day repeat fetch the way the old live-fetch cache did.
+const WEATHER_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6h
 
 export interface DayWeather {
   date: string; // YYYY-MM-DD
@@ -46,12 +44,6 @@ export interface DayWeather {
   soilMoisturePct: number; // volumetric water content 0-9cm depth, as %
   antecedentWaterMm: number; // 30-day decay-weighted (precip - ET0) sum, see ANTECEDENT_DECAY
   isForecast: boolean;
-}
-
-export interface CurrentConditions {
-  tempC: number;
-  precipMm: number; // in the current ~15-min interval, not a daily total
-  time: string;
 }
 
 interface OpenMeteoResponse {
@@ -68,17 +60,48 @@ interface OpenMeteoResponse {
   };
 }
 
-interface OpenMeteoCurrentResponse {
-  current: {
-    time: string;
-    temperature_2m: number;
-    precipitation: number;
-  };
+// A dedicated read-only Supabase client (anon key - hriboradar_weather_grid
+// has an open select policy, same convention as hriboradar_calibration_stats)
+// rather than routing through the app's shared supabase.ts, which is a
+// mobile-only module (AsyncStorage session persistence etc.) that doesn't
+// belong in serverless API code.
+function gridTableClient() {
+  const url = process.env.SUPABASE_URL;
+  const anonKey = process.env.SUPABASE_ANON_KEY;
+  if (!url || !anonKey) return null;
+  return createClient(url, anonKey);
 }
 
+async function fetchWeatherFromGridTable(gridLat: number, gridLon: number): Promise<DayWeather[] | null> {
+  const supabase = gridTableClient();
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from("hriboradar_weather_grid")
+    .select("days")
+    .eq("grid_lat", gridLat)
+    .eq("grid_lon", gridLon)
+    .maybeSingle();
+  if (error || !data) return null;
+  return data.days as DayWeather[];
+}
+
+// Snaps to the nearest of the ~350 fixed grid points (see gridPoints.ts)
+// and reads api/cron/refresh-weather.ts's once-daily precomputed result
+// instead of hitting Open-Meteo live - see that cron's own comment for why
+// (a live per-request fetch here used to blow through Open-Meteo's rate
+// limit under real traffic, turning into user-facing 500s). Falls back to
+// a live fetch for the exact point only if the table has nothing yet
+// (fresh deploy, before the cron has ever run) or Supabase isn't
+// configured, so the app still works end to end without the cron - just
+// slower and exposed to the same rate limit it's meant to avoid.
 export function fetchWeather(lat: number, lon: number): Promise<DayWeather[]> {
-  const key = `weather:${roundCoord(lat)},${roundCoord(lon)}`;
-  return cached(key, WEATHER_CACHE_TTL_MS, () => fetchWeatherUncached(lat, lon));
+  const grid = nearestGridPoint(lat, lon);
+  const key = `weather-grid:${grid.lat},${grid.lon}`;
+  return cached(key, WEATHER_CACHE_TTL_MS, async () => {
+    const fromGrid = await fetchWeatherFromGridTable(grid.lat, grid.lon);
+    if (fromGrid) return fromGrid;
+    return fetchWeatherUncached(lat, lon);
+  });
 }
 
 // A transient Open-Meteo hiccup (rate limit, one dropped connection) used
@@ -105,7 +128,10 @@ async function fetchWithRetry(url: string, attempts = 3): Promise<Response> {
   throw lastErr;
 }
 
-async function fetchWeatherUncached(lat: number, lon: number): Promise<DayWeather[]> {
+// Exported for api/cron/refresh-weather.ts, which is the one caller that
+// legitimately wants a live Open-Meteo fetch for an exact grid point - it's
+// the job that populates hriboradar_weather_grid in the first place.
+export async function fetchWeatherUncached(lat: number, lon: number): Promise<DayWeather[]> {
   const url = new URL(OPEN_METEO_URL);
   url.searchParams.set("latitude", String(lat));
   url.searchParams.set("longitude", String(lon));
@@ -171,30 +197,6 @@ async function fetchWeatherUncached(lat: number, lon: number): Promise<DayWeathe
       isForecast: date > todayStr,
     };
   });
-}
-
-export function fetchCurrentConditions(lat: number, lon: number): Promise<CurrentConditions> {
-  const key = `current:${roundCoord(lat)},${roundCoord(lon)}`;
-  return cached(key, CURRENT_CACHE_TTL_MS, () => fetchCurrentConditionsUncached(lat, lon));
-}
-
-async function fetchCurrentConditionsUncached(lat: number, lon: number): Promise<CurrentConditions> {
-  const url = new URL(OPEN_METEO_URL);
-  url.searchParams.set("latitude", String(lat));
-  url.searchParams.set("longitude", String(lon));
-  url.searchParams.set("current", "temperature_2m,precipitation");
-  url.searchParams.set("timezone", "Europe/Prague");
-
-  const res = await fetch(url.toString(), { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
-  if (!res.ok) {
-    throw new Error(`Open-Meteo current-conditions request failed: ${res.status}`);
-  }
-  const data = (await res.json()) as OpenMeteoCurrentResponse;
-  return {
-    tempC: Math.round(data.current.temperature_2m * 10) / 10,
-    precipMm: data.current.precipitation,
-    time: data.current.time,
-  };
 }
 
 /**

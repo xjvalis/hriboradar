@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { fetchWeather, fetchCurrentConditions } from "../lib/weather";
+import { fetchWeather } from "../lib/weather";
 import { scoreSpeciesDay, MODEL_VERSION, type Species } from "../lib/scoring";
 import { fetchTerrain } from "../lib/terrain";
 import { applyCalibratedProbability } from "../lib/calibration";
@@ -22,13 +22,14 @@ import speciesData from "./data/species.json";
  * +N day entries are what the "za 5 dní by mohly růst..." notification
  * job should scan for threshold crossings.
  *
- * `weather[].tempC` is a daily avg(max,min) - the right input for the
- * model (mushroom growth responds to the day, not the instant), but the
- * wrong thing to show next to "right now" on the UI, which on a hot day
- * can genuinely be 5-6°C off from that average. `current` is the actual
- * live reading for exactly that purpose; may be null if Open-Meteo's
- * current-conditions endpoint failed (not worth failing the whole
- * request over).
+ * `current` is always null - it used to be a live "right now" Open-Meteo
+ * reading, dropped 2026-09-03. The scoring model only ever consumed daily
+ * avg(max,min) (mushroom growth responds to the day, not the instant), so
+ * that live call bought nothing but a UI nicety, at the cost of exactly
+ * the kind of per-request Open-Meteo dependency the rest of this file no
+ * longer has (see lib/weather.ts's fetchWeather). The mobile client
+ * already falls back to `weather[].tempC` with a "Průměrná denní teplota"
+ * label whenever `current` is null - see HomeScreen.tsx/PredpovedScreen.tsx.
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const parsed = parseLatLon(req.query);
@@ -39,11 +40,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { lat, lon } = parsed;
 
   try {
-    const [days, terrain, current] = await Promise.all([
-      fetchWeather(lat, lon),
-      fetchTerrain(lat, lon),
-      fetchCurrentConditions(lat, lon).catch(() => null), // "right now" is a nice-to-have, not worth failing the whole request over
-    ]);
+    const [days, terrain] = await Promise.all([fetchWeather(lat, lon), fetchTerrain(lat, lon)]);
+    const current = null;
     const species = speciesData.species as Species[];
 
     // Only score/output the recent-past + forecast window relevant to the
