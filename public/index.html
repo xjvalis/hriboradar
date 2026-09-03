@@ -3,49 +3,249 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Hřiboradar</title>
+<title>Hřiboradar - houbařská appka</title>
+<meta name="description" content="Hřiboradar odhaduje, kdy a kde by mohly růst houby - podle počasí, ročního období a typu okolního lesa. Mapa celé ČR, předpověď na 7 dní, houbařský pes a atlas druhů." />
+<link rel="icon" href="/app-icon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,500&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
 <style>
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    max-width: 420px;
-    margin: 0 auto;
-    padding: 64px 24px;
-    line-height: 1.6;
-    color: #24261D;
-    background: #EDE6D6;
-    text-align: center;
+  :root {
+    --bg: #EDE6D6;
+    --surface: #F7F2E7;
+    --ink: #24261D;
+    --ink-soft: #5A5847;
+    --ink-faint: #8C8A6E;
+    --line: #E4DCC6;
+    --primary: #33482C;
+    --primary-deep: #243420;
+    --accent: #B5652E;
   }
-  img { width: 72px; height: 72px; margin-bottom: 20px; }
-  h1 { font-size: 22px; margin: 0 0 8px; }
-  p { color: #5A5847; margin: 0 0 28px; }
-  .btn {
-    display: inline-block;
-    background: #33482C;
-    color: #F7F2E7;
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2 { font-family: "Fraunces", Georgia, serif; }
+  a { color: inherit; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+
+  header.top {
+    padding: 24px 0;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+  .brand img { width: 34px; height: 34px; }
+  .brand span { font-family: "Fraunces", serif; font-weight: 700; font-size: 20px; color: var(--ink); }
+
+  .hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 40px 0 72px;
+  }
+  .hero img.mark { width: 88px; height: 88px; margin-bottom: 20px; }
+  .hero h1 {
+    font-size: clamp(34px, 6vw, 56px);
+    font-weight: 700;
+    line-height: 1.08;
+    margin: 0 0 16px;
+    max-width: 720px;
+  }
+  .hero p.tagline {
+    font-size: 18px;
+    line-height: 1.6;
+    color: var(--ink-soft);
+    max-width: 520px;
+    margin: 0 0 32px;
+  }
+  .store-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--primary);
+    color: var(--surface);
     text-decoration: none;
-    padding: 12px 24px;
+    padding: 14px 28px;
     border-radius: 999px;
     font-weight: 600;
+    font-size: 16px;
+    transition: background 0.15s ease;
+  }
+  .store-btn:hover { background: var(--primary-deep); }
+  .store-btn svg { width: 20px; height: 20px; flex: none; }
+
+  section.feature {
+    display: flex;
+    align-items: center;
+    gap: 64px;
+    padding: 56px 0;
+    border-top: 1px solid var(--line);
+  }
+  section.feature:nth-of-type(even) { flex-direction: row-reverse; }
+  .feature-text { flex: 1; min-width: 0; }
+  .feature-text .eyebrow {
+    font-family: "Fraunces", serif;
+    font-style: italic;
+    font-weight: 500;
+    color: var(--primary);
+    font-size: 14px;
+    letter-spacing: 0.02em;
+    margin: 0 0 8px;
+  }
+  .feature-text h2 { font-size: 28px; font-weight: 600; line-height: 1.25; margin: 0 0 12px; }
+  .feature-text p { font-size: 16px; line-height: 1.65; color: var(--ink-soft); margin: 0; max-width: 420px; }
+  .feature-shot { flex: none; width: 260px; }
+  .feature-shot img {
+    width: 100%;
+    display: block;
+    border-radius: 24px;
+    border: 1px solid var(--line);
+    box-shadow: 0 24px 48px -24px rgba(36, 38, 29, 0.35);
+  }
+
+  footer {
+    border-top: 1px solid var(--line);
+    padding: 40px 0 56px;
+    margin-top: 24px;
+  }
+  footer .foot-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+  }
+  footer .brand span { font-size: 16px; }
+  footer nav { display: flex; gap: 20px; flex-wrap: wrap; }
+  footer nav a { font-size: 14px; color: var(--ink-soft); text-decoration: none; }
+  footer nav a:hover { color: var(--primary); text-decoration: underline; }
+  footer .copy { font-size: 13px; color: var(--ink-faint); margin-top: 24px; }
+
+  @media (max-width: 720px) {
+    section.feature, section.feature:nth-of-type(even) {
+      flex-direction: column;
+      text-align: center;
+      gap: 28px;
+      padding: 40px 0;
+    }
+    .feature-text p { margin: 0 auto; }
+    .feature-shot { width: 220px; }
   }
 </style>
 </head>
 <body>
-<img src="/logo-mark.png" alt="Hřiboradar" />
-<h1>Hřiboradar</h1>
-<p>Houbařská appka, která odhaduje, kdy a kde by mohly růst houby, podle počasí, ročního období a typu okolního lesa.</p>
-<a class="btn" href="hriboradar://">Otevřít appku</a>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="/">
+      <img src="/app-icon.png" alt="" />
+      <span>Hřiboradar</span>
+    </a>
+  </div>
+</header>
+
+<div class="wrap">
+  <section class="hero">
+    <!-- Supabase's auth redirects (email confirm, password reset, ...)
+         append "#access_token=...&type=..." to whatever URL they land on.
+         If Site URL in the dashboard is the bare domain instead of
+         /email-confirmed.html, this is where that lands - swapped by the
+         script below so it doesn't read as a random homepage right after
+         someone just confirmed their e-mail (found 2026-09-03). -->
+    <div id="confirmedBanner" style="display:none; background:var(--primary); color:var(--surface); border-radius:16px; padding:16px 24px; margin-bottom:32px; font-weight:600;">
+      ✓ E-mail potvrzen - appku teď můžete zavřít a přihlásit se v ní.
+    </div>
+    <h1 id="heroTitle">Kdy a kde dnes rostou houby?</h1>
+    <p class="tagline">
+      Hřiboradar to odhadne podle skutečného počasí, ročního období a typu lesa kolem vás - mapa celé ČR,
+      předpověď na 7 dní dopředu a houbařský pes, který vás upozorní, až se to vyplatí.
+    </p>
+    <a class="store-btn" href="https://apps.apple.com/app/id6805550756">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.53 4.08zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/></svg>
+      Stáhnout v App Store
+    </a>
+  </section>
+
+  <section class="feature">
+    <div class="feature-text">
+      <p class="eyebrow">houbový index</p>
+      <h2>Tak kam dnes na houby?</h2>
+      <p>Jedno číslo na první pohled - odhad podle aktuálního počasí, sezóny a lesa ve vašem okolí. Hned víte, jestli má cenu vzít košík.</p>
+    </div>
+    <div class="feature-shot"><img src="/screens/01-rostou.jpg" alt="Domovská obrazovka appky Hřiboradar s houbovým indexem" loading="lazy" /></div>
+  </section>
+
+  <section class="feature">
+    <div class="feature-text">
+      <p class="eyebrow">mapa česka</p>
+      <h2>Celá republika na mapě</h2>
+      <p>Projeďte mapu a najděte, kde budou mít houby nejlepší podmínky - podle druhu, kterého chcete najít.</p>
+    </div>
+    <div class="feature-shot"><img src="/screens/02-mapa.jpg" alt="Mapa Česka s hustotou pravděpodobnosti nálezu hub" loading="lazy" /></div>
+  </section>
+
+  <section class="feature">
+    <div class="feature-text">
+      <p class="eyebrow">plánujte výlet</p>
+      <h2>Předpověď na 7 dní dopředu</h2>
+      <p>Podívejte se, kde budou za pár dní nejlepší podmínky, a naplánujte výlet s předstihem - ne až v poslední chvíli.</p>
+    </div>
+    <div class="feature-shot"><img src="/screens/03-planujte-vylet.jpg" alt="Sedmidenní předpověď růstu hub v appce Hřiboradar" loading="lazy" /></div>
+  </section>
+
+  <section class="feature">
+    <div class="feature-text">
+      <p class="eyebrow">váš les</p>
+      <h2>Máte svůj flek? Hlídáme ho.</h2>
+      <p>Klepněte kamkoliv na mapě a zjistěte přesně, co by tam mohlo růst právě teď - podle skutečného lesa na tom místě.</p>
+    </div>
+    <div class="feature-shot"><img src="/screens/04-vas-les.jpg" alt="Detail vybraného místa na mapě s procenty jednotlivých druhů" loading="lazy" /></div>
+  </section>
+
+  <section class="feature">
+    <div class="feature-text">
+      <p class="eyebrow">houbařský pes</p>
+      <h2>Čmuchá za vás</h2>
+      <p>Vyberte houbu, nastavte hranici šance a nechte appku hlídat správný okamžik - upozorníme vás push notifikací i e-mailem.</p>
+    </div>
+    <div class="feature-shot"><img src="/screens/05-houbarsky-pes.jpg" alt="Nastavení houbařského psa - upozornění na konkrétní druh houby" loading="lazy" /></div>
+  </section>
+
+  <section class="feature">
+    <div class="feature-text">
+      <p class="eyebrow">vaše místa</p>
+      <h2>Chalupa, revír, tajný flek</h2>
+      <p>Uložte si všechna svoje oblíbená místa na jedno místo a mějte přehled, kde to dnes žije nejvíc.</p>
+    </div>
+    <div class="feature-shot"><img src="/screens/06-moje-mista.jpg" alt="Seznam uložených míst v appce Hřiboradar" loading="lazy" /></div>
+  </section>
+</div>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-row">
+      <a class="brand" href="/">
+        <img src="/app-icon.png" alt="" style="width:28px;height:28px;" />
+        <span>Hřiboradar</span>
+      </a>
+      <nav>
+        <a href="mailto:podpora@hriboradar.app">podpora@hriboradar.app</a>
+        <a href="/support.html">Podpora</a>
+        <a href="/privacy.html">Ochrana údajů</a>
+        <a href="/terms.html">Podmínky</a>
+      </nav>
+    </div>
+    <p class="copy">© 2026 Hřiboradar</p>
+  </div>
+</footer>
 
 <script>
-  // Supabase's auth redirects (email confirm, password reset, ...) append
-  // "#access_token=...&type=..." to whatever URL they land on. If Site URL
-  // in the Supabase dashboard is still the bare domain instead of
-  // /email-confirmed.html, this is where that lands - swapping the
-  // headline so it doesn't read as a random generic homepage right after
-  // someone just confirmed their e-mail (found 2026-09-03).
   if (location.hash.includes("access_token")) {
-    document.querySelector("h1").textContent = "E-mail potvrzen";
-    document.querySelector("p").textContent =
-      "Účet je aktivní - appku teď můžete zavřít a přihlásit se v ní e-mailem a heslem, které jste si zvolili.";
+    document.getElementById("confirmedBanner").style.display = "block";
   }
 </script>
 </body>
