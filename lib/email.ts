@@ -4,11 +4,11 @@
 // no-op with a console.error when RESEND_API_KEY isn't set (e.g. local
 // dev) rather than throwing - a failed/missing email should never be the
 // reason a webhook request fails and gets retried by RevenueCat.
-// Sender address still lives on the old rostou.app domain - Resend only
-// sends from a domain that's been verified there via DNS records, and
-// hriboradar.app hasn't been added/verified yet. Swap once that's done;
-// until then the display name alone carries the new brand.
-const RESEND_FROM = "Hřiboradar <noreply@rostou.app>";
+// hriboradar.app verified in Resend 2026-09-03 - every real send from
+// rostou.app before this was silently rejected by Resend itself (550 "domain
+// not verified"), caught the hard way via a failed signup confirmation
+// email, not a passing one.
+const RESEND_FROM = "Hřiboradar <noreply@hriboradar.app>";
 const FETCH_TIMEOUT_MS = 8000;
 
 export async function sendEmail(opts: { to: string; subject: string; html: string }): Promise<void> {
