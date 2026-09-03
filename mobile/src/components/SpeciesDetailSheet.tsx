@@ -6,12 +6,16 @@ import { SPECIES_BY_ID, groupLabel, monthsToLabel, siteFidelityTip } from "../sp
 import { useSpeciesDetail } from "../SpeciesDetailContext";
 import { useNotifications } from "../NotificationContext";
 import { useAppNavigation } from "../AppNavigationContext";
+import { useSubscription } from "../SubscriptionContext";
+import { usePaywall } from "../PaywallContext";
 import { BottomSheet } from "./BottomSheet";
 
 export function SpeciesDetailSheet() {
   const { selectedSpeciesId, closeSpecies } = useSpeciesDetail();
   const { watchedSpecies, toggleWatchedSpecies } = useNotifications();
   const { goToMapWithSpecies } = useAppNavigation();
+  const { isPremium, loading: subscriptionLoading } = useSubscription();
+  const { openPaywall } = usePaywall();
   const info = selectedSpeciesId ? SPECIES_BY_ID[selectedSpeciesId] : null;
 
   if (!info) return null;
@@ -53,7 +57,17 @@ export function SpeciesDetailSheet() {
             </Text>
           </View>
           <Pressable
-            onPress={() => toggleWatchedSpecies(info.id)}
+            onPress={() => {
+              // subscriptionLoading: see SubscriptionContext.tsx - don't
+              // paywall a real Plus subscriber for the length of one
+              // RevenueCat round-trip.
+              if (subscriptionLoading) return;
+              if (!isPremium) {
+                openPaywall("Chcete sledovat konkrétní houby a dostávat upozornění na jejich sezónu?");
+                return;
+              }
+              toggleWatchedSpecies(info.id);
+            }}
             style={[styles.watchBtn, isWatched && styles.watchBtnActive]}
             hitSlop={6}
           >
