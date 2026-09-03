@@ -3,7 +3,7 @@ import { Platform } from "react-native";
 import * as WebBrowser from "expo-web-browser";
 import * as AuthSession from "expo-auth-session";
 import * as AppleAuthentication from "expo-apple-authentication";
-import type { User } from "@supabase/supabase-js";
+import { isAuthRetryableFetchError, type User } from "@supabase/supabase-js";
 import { supabase, isSupabaseConfigured } from "./supabase";
 import { API_BASE } from "./api";
 
@@ -58,6 +58,23 @@ function translateAuthError(message: string): string {
   return hit ? hit[1] : message;
 }
 
+// A cold app launch's very first network call sometimes loses this race
+// (TLS/DNS still warming up on-device) even though the exact same request
+// succeeds an instant later - reported 2026-09-03 as "sign-in fails once,
+// then works on the very next tap with nothing else changed". supabase-js
+// already classifies that specific failure mode (as opposed to a real
+// auth error like a bad password) via isAuthRetryableFetchError, so this
+// retries once, silently, instead of making a real user re-tap through
+// what's actually just a cold start.
+async function withRetry<T extends { error: { message: string } | null }>(call: () => Promise<T>): Promise<T> {
+  const result = await call();
+  if (result.error && isAuthRetryableFetchError(result.error)) {
+    await new Promise((r) => setTimeout(r, 500));
+    return call();
+  }
+  return result;
+}
+
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 // Gates the whole app (see App.tsx) - nothing renders past the login
@@ -100,7 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function signInWithEmail(email: string, password: string): Promise<AuthResult> {
     if (!isSupabaseConfigured) return { error: NOT_CONFIGURED_ERROR };
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await withRetry(() => supabase.auth.signInWithPassword({ email, password }));
     return { error: error ? translateAuthError(error.message) : null };
   }
 
@@ -112,11 +129,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // bare localhost link (found 2026-09-03). This is a real, permanent
     // page instead (public/email-confirmed.html), independent of whatever
     // Site URL happens to be set in the dashboard.
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { emailRedirectTo: "https://hriboradar.app/email-confirmed.html" },
-    });
+    const { data, error } = await withRetry(() =>
+      supabase.auth.signUp({
+        email,
+        password,
+        options: { emailRedirectTo: "https://hriboradar.app/email-confirmed.html" },
+      })
+    );
     if (error) return { error: translateAuthError(error.message) };
     // signUp() succeeds (no error) even when email confirmation is
     // required - it just doesn't hand back a session yet. Without this

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Eye, EyeOff } from "lucide-react-native";
 import * as AppleAuthentication from "expo-apple-authentication";
 import { palette, radius, space, ts, type } from "../theme";
@@ -109,7 +109,18 @@ export default function LoginScreen() {
   const submitLabel = mode === "signin" ? "Přihlásit se" : mode === "signup" ? "Vytvořit účet" : "Odeslat odkaz";
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
+    // iOS doesn't resize/reposition anything on its own when the keyboard
+    // opens (same issue BottomSheet.tsx/NamePromptModal.tsx already work
+    // around) - without this, the password field or submit button could
+    // end up hidden behind the keyboard depending on which mode/field was
+    // focused. Android already resizes the window itself.
+    <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <ScrollView style={styles.screen} contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
+        {/* Tapping anywhere that isn't itself a focusable input/button
+            dismisses the keyboard - a nested Pressable/TextInput touch
+            claims the responder first, so this only fires for genuinely
+            empty space, not every tap inside the form. */}
+        <Pressable onPress={Keyboard.dismiss} accessible={false}>
       <PaperBackground style={styles.content}>
         <View style={styles.header}>
           <MorelLogo height={mode === "forgot" ? 56 : 72} />
@@ -216,7 +227,9 @@ export default function LoginScreen() {
           </>
         )}
       </PaperBackground>
-    </ScrollView>
+        </Pressable>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 

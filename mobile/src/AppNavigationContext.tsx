@@ -1,5 +1,6 @@
-import { createContext, useContext, useRef, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import type { ScreenName } from "./components/TopBar";
+import { useAuth } from "./AuthContext";
 
 export interface MapFocusRequest {
   lat: number;
@@ -39,6 +40,20 @@ export function AppNavigationProvider({ children }: { children: ReactNode }) {
   const pendingSpeciesId = useRef<string | null>(null);
   const pendingMapFocus = useRef<MapFocusRequest | null>(null);
   const pendingHoubyTimeline = useRef(false);
+
+  // This provider lives above App.tsx's `if (!user)` branch (so it doesn't
+  // remount across a sign-out/sign-in), which meant `active` just kept
+  // whatever screen was last open before signing out - signing back in
+  // landed you back on Nastavení instead of Domů if that's where you'd
+  // been (found 2026-09-03). A genuinely new sign-in (a new/different
+  // user id, not just this same session resuming) resets to Domů.
+  const prevUserId = useRef<string | null>(null);
+  const { user } = useAuth();
+  useEffect(() => {
+    const id = user?.id ?? null;
+    if (id && id !== prevUserId.current) setActive("Domů");
+    prevUserId.current = id;
+  }, [user]);
 
   function goToMapWithSpecies(speciesId: string) {
     pendingSpeciesId.current = speciesId;
