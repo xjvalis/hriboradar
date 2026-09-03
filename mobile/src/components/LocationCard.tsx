@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { palette, radius, space, type } from "../theme";
+import { palette, radius, space, ts, type } from "../theme";
 import { ProbabilityBadge } from "./ProbabilityBadge";
 
 export function LocationCard({
@@ -41,7 +41,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: palette.line,
     padding: space.md,
-    width: 220,
+    width: ts(220),
   },
   name: { ...type.headingSm, color: palette.ink },
   meta: { ...type.caption, color: palette.inkFaint, marginTop: 2 },

@@ -99,7 +99,12 @@ const isPad = (Platform as unknown as { isPad?: boolean }).isPad === true;
 // desktop window is routinely >700px on both axes), so on web this would
 // otherwise evaluate true almost universally instead of only on real
 // tablets - found 2026-09-02 testing localhost in a normal-sized window.
-export const IS_TABLET = isPad || (Platform.OS !== "web" && Math.min(SCREEN_W, SCREEN_H) >= 700);
+// EXPO_PUBLIC_FORCE_TABLET is the deliberate escape hatch for previewing
+// the tablet layout on web anyway (no iPad/Simulator on hand) - dev-only,
+// same guard pattern as EXPO_PUBLIC_FORCE_PREMIUM in SubscriptionContext.
+const FORCE_TABLET_DEV = __DEV__ && process.env.EXPO_PUBLIC_FORCE_TABLET === "true";
+export const IS_TABLET =
+  isPad || FORCE_TABLET_DEV || (Platform.OS !== "web" && Math.min(SCREEN_W, SCREEN_H) >= 700);
 const FONT_SCALE = IS_TABLET ? 1.2 : 1;
 
 // Same scale, for raw numbers that aren't full `type.*` style objects -

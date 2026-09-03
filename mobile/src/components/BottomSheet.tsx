@@ -1,6 +1,14 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { Animated, KeyboardAvoidingView, PanResponder, Platform, Pressable, StyleSheet, View } from "react-native";
-import { palette, radius, shadow, space } from "../theme";
+import { palette, radius, shadow, space, IS_TABLET } from "../theme";
+
+// Every bottom sheet in the app (location/species detail, observation,
+// paywall, ...) goes through this one component, so capping it here is
+// what actually stops a full-edge-to-edge sheet from reading as an
+// unreasonably long line length on a 13" iPad - same TABLET_MAX_WIDTH/
+// centering idea as PaperBackground.tsx, just anchored to the bottom
+// instead of scrolling content.
+const TABLET_MAX_WIDTH = 640;
 
 // Backdrop tap and swipe-down-to-dismiss, shared by every bottom sheet in
 // the app (location detail, species detail, ...) - previously only the
@@ -56,6 +64,7 @@ export function BottomSheet({
         style={[
           styles.sheet,
           shadow.sheet,
+          IS_TABLET && styles.sheetTablet,
           maxHeight != null && { maxHeight },
           { transform: [{ translateY: Animated.add(translateY, panY) }] },
         ]}
@@ -84,6 +93,11 @@ const styles = StyleSheet.create({
     backgroundColor: palette.surface,
     borderTopLeftRadius: radius.sheet,
     borderTopRightRadius: radius.sheet,
+  },
+  sheetTablet: {
+    width: "100%",
+    maxWidth: TABLET_MAX_WIDTH,
+    alignSelf: "center",
   },
   handleArea: { paddingTop: space.sm, paddingBottom: space.xs },
   handle: {

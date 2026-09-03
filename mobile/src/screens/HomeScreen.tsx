@@ -160,9 +160,13 @@ export default function HomeScreen() {
         )}
 
         <SectionHeader title="Kam dnes?" />
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.sm }}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ gap: space.sm, alignItems: "flex-start" }}
+        >
           {regionResults.length === 0
-            ? [0, 1, 2].map((i) => <View key={i} style={{ width: 220 }}><CardSkeleton /></View>)
+            ? [0, 1, 2].map((i) => <View key={i} style={{ width: ts(220) }}><CardSkeleton /></View>)
             : regionResults.map((r) => (
                 <LocationCard
                   key={r.region.id}
