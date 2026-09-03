@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { Platform } from "react-native";
+import { Linking, Platform } from "react-native";
 import * as WebBrowser from "expo-web-browser";
 import * as AuthSession from "expo-auth-session";
 import * as AppleAuthentication from "expo-apple-authentication";
@@ -113,6 +113,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(session?.user ?? null);
     });
     return () => listener.subscription.unsubscribe();
+  }, []);
+
+  // The password-reset email links to hriboradar://... (built with
+  // AuthSession.makeRedirectUri() below), carrying the recovery session in
+  // the URL fragment - but nothing was ever listening for that deep link
+  // reopening the app, so the tokens just got dropped and the app fell
+  // through to the ordinary login screen (found 2026-09-03). Web gets this
+  // for free from Supabase's detectSessionInUrl, which is why the OAuth
+  // flows above never needed this - detectSessionInUrl is off here
+  // (supabase.ts) since it doesn't apply to native anyway. Handles both a
+  // cold start (app opened fresh via the link) and the app already running
+  // in the background.
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    async function handleUrl(url: string | null) {
+      if (!url) return;
+      const hash = url.split("#")[1];
+      if (!hash) return;
+      const params = new URLSearchParams(hash);
+      if (params.get("type") !== "recovery") return;
+      const access_token = params.get("access_token");
+      const refresh_token = params.get("refresh_token");
+      if (!access_token || !refresh_token) return;
+      const { error } = await supabase.auth.setSession({ access_token, refresh_token });
+      if (!error) setPasswordRecovery(true);
+    }
+    Linking.getInitialURL().then(handleUrl);
+    const sub = Linking.addEventListener("url", ({ url }) => handleUrl(url));
+    return () => sub.remove();
   }, []);
 
   async function signInWithEmail(email: string, password: string): Promise<AuthResult> {
