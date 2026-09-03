@@ -93,6 +93,38 @@
     border-radius: 20px;
     border: 1px solid var(--line);
     box-shadow: 0 24px 48px -24px rgba(36, 38, 29, 0.35);
+    cursor: zoom-in;
+  }
+
+  .lightbox {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(36, 38, 29, 0.85);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    padding: 32px;
+    cursor: zoom-out;
+  }
+  .lightbox.open { display: flex; }
+  .lightbox img {
+    max-width: min(420px, 100%);
+    max-height: 100%;
+    border-radius: 20px;
+    box-shadow: 0 32px 64px -16px rgba(0, 0, 0, 0.5);
+  }
+  .lightbox .close {
+    position: absolute;
+    top: 20px;
+    right: 24px;
+    color: var(--surface);
+    font-size: 32px;
+    line-height: 1;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
   }
 
   footer {
@@ -151,7 +183,7 @@
     </a>
   </section>
 
-  <div class="gallery">
+  <div class="gallery" id="gallery">
     <img src="/screens/01-rostou.jpg" alt="Domovská obrazovka appky Hřiboradar s houbovým indexem" loading="lazy" />
     <img src="/screens/02-mapa.jpg" alt="Mapa Česka s hustotou pravděpodobnosti nálezu hub" loading="lazy" />
     <img src="/screens/03-planujte-vylet.jpg" alt="Sedmidenní předpověď růstu hub v appce Hřiboradar" loading="lazy" />
@@ -159,6 +191,11 @@
     <img src="/screens/05-houbarsky-pes.jpg" alt="Nastavení houbařského psa - upozornění na konkrétní druh houby" loading="lazy" />
     <img src="/screens/06-moje-mista.jpg" alt="Seznam uložených míst v appce Hřiboradar" loading="lazy" />
   </div>
+</div>
+
+<div class="lightbox" id="lightbox">
+  <button class="close" aria-label="Zavřít">&times;</button>
+  <img id="lightboxImg" src="" alt="" />
 </div>
 
 <footer>
@@ -183,6 +220,18 @@
   if (location.hash.includes("access_token")) {
     document.getElementById("confirmedBanner").style.display = "block";
   }
+
+  const lightbox = document.getElementById("lightbox");
+  const lightboxImg = document.getElementById("lightboxImg");
+  document.getElementById("gallery").addEventListener("click", (e) => {
+    if (e.target.tagName !== "IMG") return;
+    lightboxImg.src = e.target.src;
+    lightboxImg.alt = e.target.alt;
+    lightbox.classList.add("open");
+  });
+  function closeLightbox() { lightbox.classList.remove("open"); }
+  lightbox.addEventListener("click", closeLightbox);
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeLightbox(); });
 </script>
 </body>
 </html>
