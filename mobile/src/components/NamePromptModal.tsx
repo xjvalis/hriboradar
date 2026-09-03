@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Modal, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { palette, radius, shadow, space, type } from "../theme";
 import { PrimaryButton } from "./PrimaryButton";
 
@@ -23,35 +23,44 @@ export function NamePromptModal({
 
   return (
     <Modal transparent animationType="fade" onRequestClose={onCancel}>
-      <View style={styles.backdrop}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onCancel} />
-        <View style={[styles.card, shadow.card]}>
-          <Text style={styles.title}>{title}</Text>
-          <TextInput
-            style={styles.input}
-            value={value}
-            onChangeText={setValue}
-            placeholder="Název místa"
-            placeholderTextColor={palette.inkFaint}
-            autoFocus
-            selectTextOnFocus
-            onSubmitEditing={() => onConfirm(value.trim() || initialValue)}
-          />
-          <View style={styles.row}>
-            <Pressable onPress={onCancel} hitSlop={8} style={styles.cancelBtn}>
-              <Text style={styles.cancelText}>Zrušit</Text>
-            </Pressable>
-            <View style={{ flex: 1 }}>
-              <PrimaryButton label={confirmLabel} onPress={() => onConfirm(value.trim() || initialValue)} />
+      {/* iOS doesn't resize/reposition a centered Modal when the keyboard
+          opens (same issue BottomSheet.tsx's KeyboardAvoidingView already
+          works around) - without this, autoFocus on the input below meant
+          the keyboard came up immediately and could cover this centered
+          card entirely, with no way to see what's being typed. Android
+          already resizes the window itself. */}
+      <KeyboardAvoidingView style={styles.backdropWrap} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <View style={styles.backdrop}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={onCancel} />
+          <View style={[styles.card, shadow.card]}>
+            <Text style={styles.title}>{title}</Text>
+            <TextInput
+              style={styles.input}
+              value={value}
+              onChangeText={setValue}
+              placeholder="Název místa"
+              placeholderTextColor={palette.inkFaint}
+              autoFocus
+              selectTextOnFocus
+              onSubmitEditing={() => onConfirm(value.trim() || initialValue)}
+            />
+            <View style={styles.row}>
+              <Pressable onPress={onCancel} hitSlop={8} style={styles.cancelBtn}>
+                <Text style={styles.cancelText}>Zrušit</Text>
+              </Pressable>
+              <View style={{ flex: 1 }}>
+                <PrimaryButton label={confirmLabel} onPress={() => onConfirm(value.trim() || initialValue)} />
+              </View>
             </View>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  backdropWrap: { flex: 1 },
   backdrop: {
     flex: 1,
     backgroundColor: "#00000033",
