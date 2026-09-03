@@ -15,9 +15,7 @@
   ],
   "functions": {
     "api/**/*.ts": {
-      "includeFiles": "lib/data/forest-grid.*"
-    },
-    "api/cron/refresh-weather.ts": {
+      "includeFiles": "lib/data/forest-grid.*",
       "maxDuration": 60
     }
   }
