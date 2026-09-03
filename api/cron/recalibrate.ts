@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
 import { MODEL_VERSION } from "../../lib/scoring";
+import { refreshWeatherGrid } from "../../lib/refreshWeatherGrid";
 
 // Pseudo-observations pulling a sparse species+bucket toward the
 // species-agnostic rate for that same bucket (Beta-Binomial shrinkage) - at
@@ -95,6 +96,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const supabase = createClient(url, serviceKey);
+
+  // Piggybacked on this same daily run rather than its own cron - see
+  // lib/refreshWeatherGrid.ts's module comment for why (Hobby plan's
+  // 12-serverless-function-per-deployment cap). Failure here doesn't
+  // abort recalibration - a stale weather grid degrades to yesterday's
+  // data via lib/weather.ts's fallback, it isn't a reason to also skip
+  // an unrelated calibration update.
+  const weatherRefresh = await refreshWeatherGrid(supabase);
+  if (weatherRefresh.error || weatherRefresh.failed > 0) {
+    console.warn("[recalibrate] weather grid refresh:", weatherRefresh);
+  }
 
   const { data: rows, error } = await supabase
     .from("hriboradar_feedback")
@@ -200,6 +212,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   res.status(200).json({
     ok: true,
+    weather_grid_refresh: weatherRefresh,
     total_feedback_rows: rows?.length ?? 0,
     fit_rows: fitRows.length,
     holdout_rows: holdoutRows.length,
