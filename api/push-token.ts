@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 interface PushTokenBody {
   token: string;
   platform: "ios" | "android";
+  monthlyTipEnabled?: boolean;
 }
 
 /**
@@ -44,7 +45,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const body = req.body as Partial<PushTokenBody>;
-  const { token, platform } = body;
+  const { token, platform, monthlyTipEnabled } = body;
   if (typeof token !== "string" || !token || (platform !== "ios" && platform !== "android")) {
     res.status(400).json({ error: "Neplatná data." });
     return;
@@ -62,9 +63,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // no-op update instead of piling up duplicate rows for one device. A
   // fresh install/reinstall gets a new token from Expo, which is exactly
   // when a genuinely new row is wanted.
+  const row: Record<string, unknown> = { token, platform, updated_at: new Date().toISOString() };
+  // Only touched when the caller actually sends it (the monthly-tip toggle
+  // in Settings) - registerForPushNotificationsAsync also fires from
+  // LocationAlertsSheet's watchdog toggle, which has no opinion on this
+  // preference and shouldn't silently flip it back to the column default.
+  if (typeof monthlyTipEnabled === "boolean") row.monthly_tip_enabled = monthlyTipEnabled;
+
   const { error: upsertError } = await supabase
     .from("hriboradar_push_tokens")
-    .upsert({ token, platform, updated_at: new Date().toISOString() }, { onConflict: "token" });
+    .upsert(row, { onConflict: "token" });
 
   if (upsertError) {
     console.error("push-token upsert error:", upsertError);

@@ -7,44 +7,6 @@ import { SPECIES_BY_ID } from "./speciesInfo";
 import { useNotificationPrefs } from "./NotificationPrefsContext";
 import { useSubscription } from "./SubscriptionContext";
 
-// A real, well-known Czech pranostika per month - not an invented line.
-// (An earlier version of this made up its own wordplay headlines in the
-// *style* of a pranostika; the actual folk sayings read better and don't
-// risk sounding like a knockoff, so this switched to genuine ones instead.)
-// Sourced from czechtheworld.com/pranostiky and cross-checked against
-// treking.cz/sluzby/pranostiky-pocasi.htm (2026-08-26) for the most widely
-// recognized saying per month - "Březen, za kamna vlezem" and "Duben,
-// ještě tam budem" are the one exception kept as a pair even though the
-// April half wasn't on either source list, since they're near-universally
-// quoted together. The species named alongside each one are computed at
-// runtime from species.json, not hardcoded, so that part can't drift from
-// the real data even though the saying itself is fixed text.
-const MONTH_HEADLINE: Record<number, string> = {
-  1: "Leden studený, duben zelený.",
-  2: "Únor bílý, pole sílí.",
-  3: "Březen, za kamna vlezem.",
-  4: "Duben, ještě tam budem!",
-  5: "Mokrý máj, v stodole ráj.",
-  6: "Medardova kápě, čtyřicet dní kape.",
-  7: "Jaký červenec, takový leden.",
-  8: "Srpen k zimě hledí a rád vodu cedí.",
-  9: "Září víno vaří a co nedovaří, říjen dopeče.",
-  10: "Mrazy v říjnu, hezky v lednu.",
-  11: "Jaký listopad, takový březen.",
-  12: "Zelené Vánoce, bílé Velikonoce - a naopak.",
-};
-
-function topSpeciesNamesForMonth(month: number, count: number): string[] {
-  const all = Object.values(SPECIES_BY_ID);
-  const peak = all.filter((sp) => sp.season_peak_months.includes(month));
-  const pool = peak.length >= count ? peak : all.filter((sp) => sp.season_months.includes(month));
-  return pool
-    .slice()
-    .sort((a, b) => b.gbif_occurrence_count_cz - a.gbif_occurrence_count_cz)
-    .slice(0, count)
-    .map((sp) => sp.name_cz);
-}
-
 // The actual "don't spam" lever. Every candidate below is real and
 // dedupe-safe on its own, but showing all of them the moment they all
 // happen to become true on the same day (a saved location's forecast
@@ -69,7 +31,7 @@ interface Candidate {
 export function useNotificationGenerator() {
   const { addNotification, watchedSpecies, notifications, loaded } = useNotifications();
   const { locations: saved, loaded: savedLoaded } = useSavedLocations();
-  const { monthlyTipsEnabled, terrainSuggestionsEnabled, loaded: prefsLoaded } = useNotificationPrefs();
+  const { terrainSuggestionsEnabled, loaded: prefsLoaded } = useNotificationPrefs();
   const { isPremium, loading: subLoading } = useSubscription();
 
   useEffect(() => {
@@ -179,22 +141,13 @@ export function useNotificationGenerator() {
         });
       });
 
-      // Lowest priority - always available as a fallback when nothing more
-      // specific is happening.
-      const headline = MONTH_HEADLINE[month];
-      if (monthlyTipsEnabled && headline) {
-        const names = topSpeciesNamesForMonth(month, 3);
-        candidates.push({
-          priority: 6,
-          dedupeKey: `generic:${monthKey}`,
-          kind: "generic",
-          title: headline,
-          body:
-            names.length > 0
-              ? `Teď mají sezónu: ${names.join(", ")}. Mrkněte na atlas hub.`
-              : "Zrovna klidný měsíc pro houby - mrkněte na atlas, kdy se to zase rozjede.",
-        });
-      }
+      // The monthly pranostika digest used to be generated here too (lowest
+      // priority, `generic:${monthKey}`) - moved server-side to
+      // lib/monthlyTip.ts 2026-09-03 so it can be a real push that reaches
+      // someone even when the app isn't open, not just an in-app fallback
+      // for whenever they next happen to launch it. The server writes
+      // straight into hriboradar_notifications, which `notifications`
+      // above already reflects, so nothing needs generating here anymore.
 
       if (cancelled) return;
 
@@ -215,5 +168,5 @@ export function useNotificationGenerator() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loaded, savedLoaded, prefsLoaded, subLoading, isPremium, saved, watchedSpecies, monthlyTipsEnabled, terrainSuggestionsEnabled]);
+  }, [loaded, savedLoaded, prefsLoaded, subLoading, isPremium, saved, watchedSpecies, terrainSuggestionsEnabled]);
 }

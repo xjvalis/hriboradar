@@ -249,6 +249,11 @@ create table if not exists public.hriboradar_push_tokens (
   user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
   token text not null unique,
   platform text not null check (platform in ('ios', 'android')),
+  -- Měsíční tip (pranostika + houby v sezóně) jako skutečný push 1. den v
+  -- měsíci (api/cron/recalibrate.ts, lib/monthlyTip.ts) - appka nastavuje
+  -- tohle spolu s registrací tokenu, kdykoli uživatel přepne "Měsíční tip"
+  -- v Nastavení (api/push-token.ts).
+  monthly_tip_enabled boolean not null default true,
   updated_at timestamptz not null default now()
 );
 

@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
 import { MODEL_VERSION } from "../../lib/scoring";
 import { refreshWeatherGrid } from "../../lib/refreshWeatherGrid";
+import { sendMonthlyTip } from "../../lib/monthlyTip";
 
 // Pseudo-observations pulling a sparse species+bucket toward the
 // species-agnostic rate for that same bucket (Beta-Binomial shrinkage) - at
@@ -108,6 +109,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.warn("[recalibrate] weather grid refresh:", weatherRefresh);
   }
 
+  // Same 12-function-cap reasoning as the weather refresh above - the
+  // monthly pranostika push (lib/monthlyTip.ts) doesn't get its own cron,
+  // it just checks whether today is the 1st every time this daily job
+  // runs. UTC date, same as every other date computed in this codebase
+  // (see e.g. lib/weather.ts) - at most a few hours off from Czech local
+  // midnight, harmless for a once-a-month broadcast.
+  const monthlyTip =
+    new Date().getUTCDate() === 1 ? await sendMonthlyTip(supabase) : null;
+
   const { data: rows, error } = await supabase
     .from("hriboradar_feedback")
     .select("species_id, predicted_probability, found, observed_at")
@@ -213,6 +223,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.status(200).json({
     ok: true,
     weather_grid_refresh: weatherRefresh,
+    monthly_tip: monthlyTip,
     total_feedback_rows: rows?.length ?? 0,
     fit_rows: fitRows.length,
     holdout_rows: holdoutRows.length,

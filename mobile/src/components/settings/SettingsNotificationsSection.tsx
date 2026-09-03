@@ -6,6 +6,7 @@ import { Chip } from "../Chip";
 import { LocationAlertsSheet } from "../LocationAlertsSheet";
 import { useNotifications } from "../../NotificationContext";
 import { useNotificationPrefs } from "../../NotificationPrefsContext";
+import { registerForPushNotificationsAsync } from "../../pushNotifications";
 import { useSavedLocations, type SavedLocation } from "../../SavedLocationsContext";
 import { useSubscription } from "../../SubscriptionContext";
 import { usePaywall } from "../../PaywallContext";
@@ -22,6 +23,17 @@ export function SettingsNotificationsSection() {
   const { openPaywall } = usePaywall();
   const [alertsFor, setAlertsFor] = useState<SavedLocation | null>(null);
   const [speciesExpanded, setSpeciesExpanded] = useState(false);
+
+  // Real push now (lib/monthlyTip.ts, 1. den v měsíci), not just an
+  // in-app bell entry - so flipping this switch has to actually reach the
+  // server, not just AsyncStorage. Fires on both directions: turning on
+  // requests permission + registers the token with monthlyTipEnabled:true;
+  // turning off re-sends the same call with false so the server-side push
+  // stops even if this device already had a token from the watchdog flow.
+  function handleToggleMonthlyTip(v: boolean) {
+    setMonthlyTipsEnabled(v);
+    void registerForPushNotificationsAsync(v);
+  }
 
   function handleToggleSpecies(id: string) {
     // subscriptionLoading: see SubscriptionContext.tsx - don't paywall a
@@ -46,11 +58,13 @@ export function SettingsNotificationsSection() {
       <View style={styles.toggleRow}>
         <View style={{ flex: 1 }}>
           <Text style={styles.toggleLabel}>Měsíční tip</Text>
-          <Text style={styles.toggleHint}>Jednou za měsíc krátký houbařský tip, co má zrovna sezónu.</Text>
+          <Text style={styles.toggleHint}>
+            Push notifikace 1. den v měsíci - pořekadlo a jaké houby mají zrovna sezónu.
+          </Text>
         </View>
         <Switch
           value={monthlyTipsEnabled}
-          onValueChange={setMonthlyTipsEnabled}
+          onValueChange={handleToggleMonthlyTip}
           trackColor={{ false: palette.line, true: palette.primary }}
           thumbColor={palette.white}
         />

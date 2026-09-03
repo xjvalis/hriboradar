@@ -33,22 +33,29 @@ ExpoNotifications?.setNotificationHandler({
 /**
  * Requests push permission (if not already decided) and registers this
  * device's Expo push token against the signed-in user - see api/push-token.ts
- * and api/cron/watchdog.ts, which is what actually sends to it.
+ * and api/cron/watchdog.ts / lib/monthlyTip.ts, which is what actually
+ * sends to it.
  *
- * Called contextually from LocationAlertsSheet.tsx when someone turns a watchdog
- * on, not unconditionally at app launch - asking for notification
- * permission before the user has done anything notification-related reads
- * as a cold-open nag, not a feature. Safe to call again on a later launch
- * (e.g. from a "re-sync" spot) - already-granted/denied permission is a
- * no-op on both iOS and Android, and Expo tokens can rotate, so refreshing
- * it periodically for someone who already opted in is worthwhile.
+ * Called contextually - from LocationAlertsSheet.tsx when someone turns a
+ * watchdog on, and from SettingsNotificationsSection.tsx when someone
+ * flips the "Měsíční tip" switch - not unconditionally at app launch;
+ * asking for notification permission before the user has done anything
+ * notification-related reads as a cold-open nag, not a feature. Safe to
+ * call again on a later launch (e.g. from a "re-sync" spot) - already-
+ * granted/denied permission is a no-op on both iOS and Android, and Expo
+ * tokens can rotate, so refreshing it periodically for someone who
+ * already opted in is worthwhile.
+ *
+ * `monthlyTipEnabled` is optional and only forwarded when the caller has
+ * an actual opinion on it (the Settings toggle) - omitting it leaves
+ * whatever the server already has alone, see api/push-token.ts.
  *
  * Resolves to true on success, false on anything that means "no push for
  * now" (no native module, permission denied, offline) - callers should
  * treat false as "fine, this device just won't get one" rather than an
  * error, since the watchdog itself still works via e-mail either way.
  */
-export async function registerForPushNotificationsAsync(): Promise<boolean> {
+export async function registerForPushNotificationsAsync(monthlyTipEnabled?: boolean): Promise<boolean> {
   if (!ExpoNotifications || Platform.OS === "web") return false;
 
   try {
@@ -74,7 +81,11 @@ export async function registerForPushNotificationsAsync(): Promise<boolean> {
     const res = await fetch(`${API_BASE}/api/push-token`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
-      body: JSON.stringify({ token: tokenData, platform: Platform.OS }),
+      body: JSON.stringify({
+        token: tokenData,
+        platform: Platform.OS,
+        ...(monthlyTipEnabled != null ? { monthlyTipEnabled } : {}),
+      }),
     });
     return res.ok;
   } catch (e) {
