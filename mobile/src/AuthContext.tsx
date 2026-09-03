@@ -106,7 +106,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function signUpWithEmail(email: string, password: string): Promise<AuthResult> {
     if (!isSupabaseConfigured) return { error: NOT_CONFIGURED_ERROR };
-    const { data, error } = await supabase.auth.signUp({ email, password });
+    // Without an explicit emailRedirectTo, the confirmation link falls back
+    // to Supabase's own "Site URL" setting - which was still pointing at a
+    // local dev address, so a real user confirming their email landed on a
+    // bare localhost link (found 2026-09-03). This is a real, permanent
+    // page instead (public/email-confirmed.html), independent of whatever
+    // Site URL happens to be set in the dashboard.
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: "https://hriboradar.app/email-confirmed.html" },
+    });
     if (error) return { error: translateAuthError(error.message) };
     // signUp() succeeds (no error) even when email confirmation is
     // required - it just doesn't hand back a session yet. Without this
