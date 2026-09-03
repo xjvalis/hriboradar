@@ -78,31 +78,19 @@
   .store-btn:hover { background: var(--primary-deep); }
   .store-btn svg { width: 20px; height: 20px; flex: none; }
 
-  section.feature {
+  .gallery {
     display: flex;
-    align-items: center;
-    gap: 64px;
-    padding: 56px 0;
-    border-top: 1px solid var(--line);
+    gap: 24px;
+    overflow-x: auto;
+    padding: 8px 0 64px;
+    scroll-snap-type: x proximity;
   }
-  section.feature:nth-of-type(even) { flex-direction: row-reverse; }
-  .feature-text { flex: 1; min-width: 0; }
-  .feature-text .eyebrow {
-    font-family: "Fraunces", serif;
-    font-style: italic;
-    font-weight: 500;
-    color: var(--primary);
-    font-size: 14px;
-    letter-spacing: 0.02em;
-    margin: 0 0 8px;
-  }
-  .feature-text h2 { font-size: 28px; font-weight: 600; line-height: 1.25; margin: 0 0 12px; }
-  .feature-text p { font-size: 16px; line-height: 1.65; color: var(--ink-soft); margin: 0; max-width: 420px; }
-  .feature-shot { flex: none; width: 260px; }
-  .feature-shot img {
-    width: 100%;
+  .gallery img {
+    flex: none;
+    width: 220px;
+    scroll-snap-align: start;
     display: block;
-    border-radius: 24px;
+    border-radius: 20px;
     border: 1px solid var(--line);
     box-shadow: 0 24px 48px -24px rgba(36, 38, 29, 0.35);
   }
@@ -126,14 +114,7 @@
   footer .copy { font-size: 13px; color: var(--ink-faint); margin-top: 24px; }
 
   @media (max-width: 720px) {
-    section.feature, section.feature:nth-of-type(even) {
-      flex-direction: column;
-      text-align: center;
-      gap: 28px;
-      padding: 40px 0;
-    }
-    .feature-text p { margin: 0 auto; }
-    .feature-shot { width: 220px; }
+    .gallery { padding-left: 24px; padding-right: 24px; margin: 0 -24px; }
   }
 </style>
 </head>
@@ -170,59 +151,14 @@
     </a>
   </section>
 
-  <section class="feature">
-    <div class="feature-text">
-      <p class="eyebrow">houbový index</p>
-      <h2>Tak kam dnes na houby?</h2>
-      <p>Jedno číslo na první pohled - odhad podle aktuálního počasí, sezóny a lesa ve vašem okolí. Hned víte, jestli má cenu vzít košík.</p>
-    </div>
-    <div class="feature-shot"><img src="/screens/01-rostou.jpg" alt="Domovská obrazovka appky Hřiboradar s houbovým indexem" loading="lazy" /></div>
-  </section>
-
-  <section class="feature">
-    <div class="feature-text">
-      <p class="eyebrow">mapa česka</p>
-      <h2>Celá republika na mapě</h2>
-      <p>Projeďte mapu a najděte, kde budou mít houby nejlepší podmínky - podle druhu, kterého chcete najít.</p>
-    </div>
-    <div class="feature-shot"><img src="/screens/02-mapa.jpg" alt="Mapa Česka s hustotou pravděpodobnosti nálezu hub" loading="lazy" /></div>
-  </section>
-
-  <section class="feature">
-    <div class="feature-text">
-      <p class="eyebrow">plánujte výlet</p>
-      <h2>Předpověď na 7 dní dopředu</h2>
-      <p>Podívejte se, kde budou za pár dní nejlepší podmínky, a naplánujte výlet s předstihem - ne až v poslední chvíli.</p>
-    </div>
-    <div class="feature-shot"><img src="/screens/03-planujte-vylet.jpg" alt="Sedmidenní předpověď růstu hub v appce Hřiboradar" loading="lazy" /></div>
-  </section>
-
-  <section class="feature">
-    <div class="feature-text">
-      <p class="eyebrow">váš les</p>
-      <h2>Máte svůj flek? Hlídáme ho.</h2>
-      <p>Klepněte kamkoliv na mapě a zjistěte přesně, co by tam mohlo růst právě teď - podle skutečného lesa na tom místě.</p>
-    </div>
-    <div class="feature-shot"><img src="/screens/04-vas-les.jpg" alt="Detail vybraného místa na mapě s procenty jednotlivých druhů" loading="lazy" /></div>
-  </section>
-
-  <section class="feature">
-    <div class="feature-text">
-      <p class="eyebrow">houbařský pes</p>
-      <h2>Čmuchá za vás</h2>
-      <p>Vyberte houbu, nastavte hranici šance a nechte appku hlídat správný okamžik - upozorníme vás push notifikací i e-mailem.</p>
-    </div>
-    <div class="feature-shot"><img src="/screens/05-houbarsky-pes.jpg" alt="Nastavení houbařského psa - upozornění na konkrétní druh houby" loading="lazy" /></div>
-  </section>
-
-  <section class="feature">
-    <div class="feature-text">
-      <p class="eyebrow">vaše místa</p>
-      <h2>Chalupa, revír, tajný flek</h2>
-      <p>Uložte si všechna svoje oblíbená místa na jedno místo a mějte přehled, kde to dnes žije nejvíc.</p>
-    </div>
-    <div class="feature-shot"><img src="/screens/06-moje-mista.jpg" alt="Seznam uložených míst v appce Hřiboradar" loading="lazy" /></div>
-  </section>
+  <div class="gallery">
+    <img src="/screens/01-rostou.jpg" alt="Domovská obrazovka appky Hřiboradar s houbovým indexem" loading="lazy" />
+    <img src="/screens/02-mapa.jpg" alt="Mapa Česka s hustotou pravděpodobnosti nálezu hub" loading="lazy" />
+    <img src="/screens/03-planujte-vylet.jpg" alt="Sedmidenní předpověď růstu hub v appce Hřiboradar" loading="lazy" />
+    <img src="/screens/04-vas-les.jpg" alt="Detail vybraného místa na mapě s procenty jednotlivých druhů" loading="lazy" />
+    <img src="/screens/05-houbarsky-pes.jpg" alt="Nastavení houbařského psa - upozornění na konkrétní druh houby" loading="lazy" />
+    <img src="/screens/06-moje-mista.jpg" alt="Seznam uložených míst v appce Hřiboradar" loading="lazy" />
+  </div>
 </div>
 
 <footer>
