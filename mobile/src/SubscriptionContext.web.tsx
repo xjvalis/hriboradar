@@ -35,10 +35,18 @@ interface SubscriptionContextValue {
 
 const SubscriptionContext = createContext<SubscriptionContextValue | null>(null);
 
+// Same dev-only bypass as SubscriptionContext.tsx's FORCE_PREMIUM_DEV - kept
+// as its own copy here rather than shared, since this file's whole reason
+// to exist is that the native version can't be imported on web at all
+// (see the module comment above). Without this, EXPO_PUBLIC_FORCE_PREMIUM
+// had no effect on the web build whatsoever - found 2026-09-03 after a long
+// debugging session where the flag worked everywhere except here.
+const FORCE_PREMIUM_DEV = __DEV__ && process.env.EXPO_PUBLIC_FORCE_PREMIUM === "true";
+
 export function SubscriptionProvider({ children }: { children: ReactNode }) {
   const value = useMemo<SubscriptionContextValue>(
     () => ({
-      isPremium: false,
+      isPremium: FORCE_PREMIUM_DEV,
       loading: false,
       available: false,
       monthly: null,
