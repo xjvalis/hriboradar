@@ -262,7 +262,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.md,
     paddingVertical: space.sm + 2,
     fontFamily: "Manrope-Regular",
-    fontSize: 14,
+    fontSize: ts(14),
     color: palette.ink,
   },
   passwordRow: { position: "relative", justifyContent: "center" },

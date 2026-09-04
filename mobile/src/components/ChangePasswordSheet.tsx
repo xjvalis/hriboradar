@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { StyleSheet, Text, TextInput, View } from "react-native";
-import { palette, radius, space, type } from "../theme";
+import { palette, radius, space, ts, type } from "../theme";
 import { BottomSheet } from "./BottomSheet";
 import { PrimaryButton } from "./PrimaryButton";
 import { useAuth } from "../AuthContext";
@@ -86,7 +86,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.md,
     paddingVertical: space.sm + 2,
     fontFamily: "Manrope-Regular",
-    fontSize: 14,
+    fontSize: ts(14),
     color: palette.ink,
   },
   error: { ...type.bodySmall, color: palette.danger },

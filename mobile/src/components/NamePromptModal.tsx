@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import { palette, radius, shadow, space, type } from "../theme";
+import { palette, radius, shadow, space, ts, type } from "../theme";
 import { PrimaryButton } from "./PrimaryButton";
 
 // Shared by "Uložit do Mých míst" (map -> new saved location) and the
@@ -86,7 +86,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.md,
     paddingVertical: space.sm + 2,
     fontFamily: "Manrope-Regular",
-    fontSize: 14.5,
+    fontSize: ts(14.5),
     color: palette.ink,
   },
   row: { flexDirection: "row", alignItems: "center", gap: space.md, marginTop: space.md },

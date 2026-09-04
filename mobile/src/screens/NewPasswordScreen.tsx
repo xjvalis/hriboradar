@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { palette, radius, space, type } from "../theme";
+import { palette, radius, space, ts, type } from "../theme";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { PaperBackground } from "../components/PaperBackground";
 import { MorelLogo } from "../components/MorelLogo";
@@ -85,7 +85,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.md,
     paddingVertical: space.sm + 2,
     fontFamily: "Manrope-Regular",
-    fontSize: 14,
+    fontSize: ts(14),
     color: palette.ink,
   },
   error: { ...type.bodySmall, color: palette.danger },

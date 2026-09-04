@@ -1,8 +1,15 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CalendarDays, Home, Leaf, Map } from "lucide-react-native";
-import { IS_TABLET, palette, space, ts, type } from "../theme";
+import { IS_TABLET, palette, space, type } from "../theme";
 import type { ScreenName } from "./TopBar";
+
+// The flat 1.2x FONT_SCALE (ts(), used everywhere else) still left this
+// bar reading as tiny against a 13" iPad's sheer size - found 2026-09-05
+// ("dolní menu je hrozně malé"). Sized directly per platform here instead
+// of stacking another multiplier on top of ts().
+const ICON_SIZE = IS_TABLET ? 28 : 22;
+const LABEL_SIZE = IS_TABLET ? 14 : 10;
 
 // The 4 screens someone actually reaches for daily - "is it worth going
 // out today" (Domů), "where exactly" (Mapa), "what about this week"
@@ -35,7 +42,7 @@ export function BottomTabBar({ active, onNavigate }: { active: ScreenName; onNav
               accessibilityLabel={label}
               accessibilityState={{ selected: isActive }}
             >
-              <Icon size={ts(22)} strokeWidth={isActive ? 2.2 : 1.8} color={isActive ? palette.primary : palette.inkFaint} />
+              <Icon size={ICON_SIZE} strokeWidth={isActive ? 2.2 : 1.8} color={isActive ? palette.primary : palette.inkFaint} />
               <Text style={[styles.label, isActive && styles.labelActive]}>{label}</Text>
             </Pressable>
           );
@@ -64,7 +71,13 @@ const styles = StyleSheet.create({
   bar: IS_TABLET
     ? { flexDirection: "row", width: "100%", maxWidth: TABLET_BAR_MAX_WIDTH }
     : { flexDirection: "row" },
-  tab: { flex: 1, alignItems: "center", justifyContent: "center", gap: 2, paddingVertical: 2 },
-  label: { ...type.caption, fontSize: ts(10), color: palette.inkFaint },
+  tab: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: IS_TABLET ? 4 : 2,
+    paddingVertical: IS_TABLET ? 6 : 2,
+  },
+  label: { ...type.caption, fontSize: LABEL_SIZE, color: palette.inkFaint },
   labelActive: { color: palette.primary, fontFamily: "Manrope-SemiBold" },
 });

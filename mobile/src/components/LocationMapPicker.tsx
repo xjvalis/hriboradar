@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { StyleSheet, Text, TextInput, View } from "react-native";
 import { WebView } from "react-native-webview";
-import { palette, radius, space, type } from "../theme";
+import { palette, radius, space, ts, type } from "../theme";
 import { API_BASE } from "../api";
 import { useLocation } from "../LocationContext";
 import { BottomSheet } from "./BottomSheet";
@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.md,
     paddingVertical: space.sm + 2,
     fontFamily: "Manrope-Regular",
-    fontSize: 14,
+    fontSize: ts(14),
     color: palette.ink,
   },
 });

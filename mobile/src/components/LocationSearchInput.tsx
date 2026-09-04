@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import { palette, radius, space, type } from "../theme";
+import { palette, radius, space, ts, type } from "../theme";
 import { searchLocations, type GeocodeResult } from "../api";
 
 // Self-contained: owns its own query text and debounced results, and hands
@@ -73,7 +73,7 @@ const styles = StyleSheet.create({
     // see that component's manualToggle comment.
     height: 46,
     fontFamily: "Manrope-Regular",
-    fontSize: 14,
+    fontSize: ts(14),
     color: palette.ink,
   },
   hint: { ...type.caption, color: palette.inkFaint, marginTop: space.xs, marginLeft: 2 },
