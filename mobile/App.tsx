@@ -19,7 +19,7 @@ import { NotificationPrefsProvider } from "./src/NotificationPrefsContext";
 import { useNotificationGenerator } from "./src/useNotificationGenerator";
 import { NotificationsSheet } from "./src/components/NotificationsSheet";
 import { LocationPickerProvider } from "./src/LocationPickerContext";
-import { LocationPickerSheet } from "./src/components/LocationPickerSheet";
+import { LocationChangeScreen } from "./src/components/LocationChangeScreen";
 import { SpeciesDetailProvider } from "./src/SpeciesDetailContext";
 import { SpeciesDetailSheet } from "./src/components/SpeciesDetailSheet";
 import { SubscriptionProvider } from "./src/SubscriptionContext";
@@ -137,7 +137,7 @@ function AppShell() {
       <BottomTabBar active={active} onNavigate={setActive} />
       <SpeciesDetailSheet />
       <NotificationsSheet />
-      <LocationPickerSheet />
+      <LocationChangeScreen />
       <PaywallModal />
       <DrawerMenu
         visible={drawerOpen}

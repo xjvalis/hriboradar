@@ -5,10 +5,11 @@ import { useLocation, type AppLocation } from "../../LocationContext";
 // second tap - the picker itself IS the page now, so choosing a place is
 // one tap instead of two.
 export function SettingsLocationSection({ onDone }: { onDone: () => void }) {
-  const { setLocation } = useLocation();
+  const { setLocation, useGpsLocation } = useLocation();
 
-  function choose(loc: AppLocation) {
-    setLocation(loc);
+  function choose(loc: AppLocation, opts?: { gps?: boolean }) {
+    if (opts?.gps) useGpsLocation(loc);
+    else setLocation(loc);
     onDone();
   }
 

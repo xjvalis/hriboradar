@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { reverseGeocode } from "./api";
 
 export interface AppLocation {
@@ -22,7 +23,20 @@ export const PRESET_LOCATIONS: AppLocation[] = [
 
 interface LocationContextValue {
   location: AppLocation;
+  // Any explicit pick that ISN'T "use my current GPS position" - a search
+  // result, a saved place, a preset, or a pin dropped on the map. Persists
+  // across restarts and sign-out/sign-in (see FIXED_LOCATION_KEY) until the
+  // user explicitly asks for GPS again via useGpsLocation - found
+  // 2026-09-04: a first real user kept getting re-defaulted to wherever
+  // they physically were (often a built-up area with nothing to forecast)
+  // every time they reopened the app, even right after picking their
+  // chalupa on the map.
   setLocation: (location: AppLocation) => void;
+  // The one explicit escape hatch back to "follow my real position" -
+  // clears the persisted fixed location so the auto-locate effect below
+  // resumes on the next launch instead of staying pinned to whatever was
+  // last picked.
+  useGpsLocation: (location: AppLocation) => void;
   // False until the initial GPS attempt settles (or GPS_RESOLVE_TIMEOUT_MS
   // elapses) - App.tsx holds the loading screen on this so most users go
   // straight to their real position instead of seeing Smržovka rendered
@@ -34,6 +48,11 @@ interface LocationContextValue {
   // a denied/slow GPS still can't hang the app forever.
   resolved: boolean;
 }
+
+// Device-level, not account-scoped on purpose - a picked "vlastní bod"
+// (chalupa, favorite spot) is meaningful even signed out, and should
+// survive a sign-out/sign-in exactly like it survives a restart.
+const FIXED_LOCATION_KEY = "hriboradar:fixedLocation";
 
 const LocationContext = createContext<LocationContextValue | null>(null);
 
@@ -60,36 +79,54 @@ export function LocationProvider({ children }: { children: ReactNode }) {
   const [location, setLocation] = useState<AppLocation>(DEFAULT_LOCATION);
   const [resolved, setResolved] = useState(false);
   // Once the user has picked anything (including tapping "Smržovka" itself
-  // as a deliberate choice), the auto-locate effect below must never
-  // silently overwrite it - it only gets to set the very first location.
+  // as a deliberate choice, or the persisted fixed location loading below),
+  // the auto-locate effect must never silently overwrite it - it only gets
+  // to set the very first location.
   const userChose = useRef(false);
 
   function chooseLocation(loc: AppLocation) {
     userChose.current = true;
     setLocation(loc);
+    AsyncStorage.setItem(FIXED_LOCATION_KEY, JSON.stringify(loc)).catch(() => {});
   }
 
-  // Tries the real current position before falling back to Smržovka -
-  // "default to wherever the user actually is" is the more useful starting
-  // point for a hyper-local forecast than any fixed place, and matches
-  // what tapping "Aktuální poloha" in the picker already does manually.
-  // Silent (no error UI) since this is a background best-effort attempt,
-  // not a user-initiated action - a denial or failure just means Smržovka
-  // stays the default, exactly like before this existed.
+  function chooseGpsLocation(loc: AppLocation) {
+    userChose.current = true;
+    setLocation(loc);
+    AsyncStorage.removeItem(FIXED_LOCATION_KEY).catch(() => {});
+  }
+
+  // First checks for a persisted fixed location (a real "vlastní bod" the
+  // user picked and saved, or any other explicit pick) - if one exists, it
+  // wins outright and GPS is never even attempted, so a user who picked
+  // their chalupa on the map doesn't get quietly bumped back to wherever
+  // they're standing on next launch. Only without one does this fall back
+  // to trying the real current position, then Smržovka - "default to
+  // wherever the user actually is" is the more useful starting point for a
+  // hyper-local forecast than any fixed place. Silent (no error UI) since
+  // this is a background best-effort attempt, not a user-initiated action.
   useEffect(() => {
-    if (!ExpoLocation) {
-      setResolved(true);
-      return;
-    }
     let cancelled = false;
     const resolveTimer = setTimeout(() => setResolved(true), GPS_RESOLVE_TIMEOUT_MS);
     (async () => {
       try {
-        const { status } = await ExpoLocation!.getForegroundPermissionsAsync();
+        const storedRaw = await AsyncStorage.getItem(FIXED_LOCATION_KEY).catch(() => null);
+        if (storedRaw && !cancelled) {
+          const stored = JSON.parse(storedRaw) as AppLocation;
+          userChose.current = true;
+          setLocation(stored);
+          return;
+        }
+      } catch {
+        // malformed storage - fall through to the normal GPS attempt below
+      }
+      if (!ExpoLocation || cancelled || userChose.current) return;
+      try {
+        const { status } = await ExpoLocation.getForegroundPermissionsAsync();
         const granted =
-          status === "granted" ? true : (await ExpoLocation!.requestForegroundPermissionsAsync()).status === "granted";
+          status === "granted" ? true : (await ExpoLocation.requestForegroundPermissionsAsync()).status === "granted";
         if (!granted || cancelled || userChose.current) return;
-        const pos = await ExpoLocation!.getCurrentPositionAsync({ accuracy: ExpoLocation!.Accuracy.Balanced });
+        const pos = await ExpoLocation.getCurrentPositionAsync({ accuracy: ExpoLocation.Accuracy.Balanced });
         if (cancelled || userChose.current) return;
         const geocoded = await reverseGeocode(pos.coords.latitude, pos.coords.longitude).catch(() => null);
         if (cancelled || userChose.current) return;
@@ -100,10 +137,10 @@ export function LocationProvider({ children }: { children: ReactNode }) {
         });
       } catch {
         // GPS unavailable/denied/errored - Smržovka stays the default
-      } finally {
-        if (!cancelled) setResolved(true);
       }
-    })();
+    })().finally(() => {
+      if (!cancelled) setResolved(true);
+    });
     return () => {
       cancelled = true;
       clearTimeout(resolveTimer);
@@ -111,7 +148,10 @@ export function LocationProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const value = useMemo(() => ({ location, setLocation: chooseLocation, resolved }), [location, resolved]);
+  const value = useMemo(
+    () => ({ location, setLocation: chooseLocation, useGpsLocation: chooseGpsLocation, resolved }),
+    [location, resolved]
+  );
   return <LocationContext.Provider value={value}>{children}</LocationContext.Provider>;
 }
 

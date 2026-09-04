@@ -23,7 +23,11 @@ try {
 // SettingsLocationSection (a full page, no sheet-inside-a-page redundancy
 // - Nastavení → Poloha used to show a summary card that opened this same
 // picker as a second tap; now the picker itself IS the page).
-export function LocationPickerBody({ onChoose }: { onChoose: (loc: AppLocation) => void }) {
+export function LocationPickerBody({
+  onChoose,
+}: {
+  onChoose: (loc: AppLocation, opts?: { gps?: boolean }) => void;
+}) {
   const { location } = useLocation();
   const { locations: saved } = useSavedLocations();
   const [locating, setLocating] = useState(false);
@@ -48,11 +52,14 @@ export function LocationPickerBody({ onChoose }: { onChoose: (loc: AppLocation) 
       }
       const pos = await ExpoLocation.getCurrentPositionAsync({ accuracy: ExpoLocation.Accuracy.Balanced });
       const geocoded = await reverseGeocode(pos.coords.latitude, pos.coords.longitude);
-      onChoose({
-        lat: pos.coords.latitude,
-        lon: pos.coords.longitude,
-        label: geocoded?.label ?? "Aktuální poloha",
-      });
+      onChoose(
+        {
+          lat: pos.coords.latitude,
+          lon: pos.coords.longitude,
+          label: geocoded?.label ?? "Aktuální poloha",
+        },
+        { gps: true }
+      );
     } catch {
       setLocateError("Polohu se nepodařilo zjistit.");
     } finally {
