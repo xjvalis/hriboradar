@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { Alert, Linking, Pressable, StyleSheet, Text, View } from "react-native";
-import { Check, Sparkles } from "lucide-react-native";
+import { Check, LogIn, Sparkles } from "lucide-react-native";
 import { palette, radius, space, ts, type } from "../theme";
 import { BottomSheet } from "./BottomSheet";
 import { PrimaryButton } from "./PrimaryButton";
 import { usePaywall } from "../PaywallContext";
 import { useSubscription, type BillingPeriod } from "../SubscriptionContext";
+import { useAuth } from "../AuthContext";
+import { useAuthScreen } from "../AuthScreenContext";
 import {
   FALLBACK_MONTHLY_PRICE,
   FALLBACK_ANNUAL_PRICE,
@@ -37,6 +39,8 @@ const ANNUAL_SAVINGS_PCT = Math.round((1 - FALLBACK_ANNUAL_PRICE_CZK / (FALLBACK
 export function PaywallModal() {
   const { isOpen, reason, closePaywall } = usePaywall();
   const { isPremium, available, monthly, annual, purchase, restore } = useSubscription();
+  const { user } = useAuth();
+  const { openLogin } = useAuthScreen();
   const [period, setPeriod] = useState<BillingPeriod>("annual");
   const [purchasing, setPurchasing] = useState(false);
   const [restoring, setRestoring] = useState(false);
@@ -94,6 +98,10 @@ export function PaywallModal() {
           </Text>
         ) : (
           <>
+            {/* Pricing/period picker stays visible either way - Apple's
+                subscription guidelines (3.1.2) want title/length/price
+                shown before purchase, and there's no reason to hide what
+                the plans cost just because someone isn't signed in yet. */}
             <View style={styles.periodRow}>
               <Pressable
                 style={[styles.periodCard, period === "monthly" && styles.periodCardActive]}
@@ -121,10 +129,45 @@ export function PaywallModal() {
                 <Text style={[styles.periodSub, period === "annual" && styles.periodSubActive]}>za rok</Text>
               </Pressable>
             </View>
-            <PrimaryButton label="Aktivovat Hřiboradar Plus" onPress={handlePurchase} loading={purchasing} />
-            <Text onPress={handleRestore} style={styles.restoreLink}>
-              {restoring ? "Obnovuji…" : "Už jsem si koupil(a) - obnovit nákup"}
-            </Text>
+
+            {!user ? (
+              // Purchasing itself requires an account (found 2026-09-07,
+              // thinking through what an anonymous purchase would actually
+              // mean here): two of Plus's four features - unlimited saved
+              // places and houbařský pes - live entirely in the signed-in
+              // account (Moje is gated on `user`, see MojeScreen.tsx), so
+              // an anonymous buyer would be paying for value they can't
+              // reach yet. Purchasing anonymously would also hand
+              // RevenueCat its own throwaway anonymous customer id instead
+              // of this app's real Supabase user id, which is what
+              // api/webhooks/revenuecat.ts relies on to send the
+              // subscription-active email and keep hriboradar_subscriptions
+              // in sync - that would depend entirely on RevenueCat's
+              // anonymous-to-identified transfer happening correctly on a
+              // later login, an untested edge case rather than the
+              // straightforward, guaranteed-correct path of just signing
+              // in first. Browsing/the paywall itself still don't require
+              // an account (Apple guideline 5.1.1(v)) - only the actual
+              // purchase does, same as many subscription apps gate at
+              // checkout rather than at the door.
+              <>
+                <PrimaryButton label="Přihlásit se a pokračovat" onPress={openLogin} />
+                <View style={styles.loginNoteRow}>
+                  <LogIn size={ts(13)} strokeWidth={2} color={palette.inkFaint} />
+                  <Text style={styles.loginNote}>
+                    Přihlášení appka potřebuje, aby předplatné zůstalo spárované s vaším účtem - i po
+                    přeinstalaci nebo na jiném zařízení.
+                  </Text>
+                </View>
+              </>
+            ) : (
+              <>
+                <PrimaryButton label="Aktivovat Hřiboradar Plus" onPress={handlePurchase} loading={purchasing} />
+                <Text onPress={handleRestore} style={styles.restoreLink}>
+                  {restoring ? "Obnovuji…" : "Už jsem si koupil(a) - obnovit nákup"}
+                </Text>
+              </>
+            )}
           </>
         )}
 
@@ -192,6 +235,14 @@ const styles = StyleSheet.create({
   savingsBadgeText: { ...type.caption, fontSize: ts(10), color: palette.white, fontFamily: "Manrope-Bold" },
   unavailable: { ...type.bodySmall, color: palette.inkFaint, textAlign: "center", marginVertical: space.md },
   restoreLink: { ...type.caption, color: palette.primary, marginTop: space.md, textAlign: "center" },
+  loginNoteRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: space.xs,
+    marginTop: space.md,
+    paddingHorizontal: space.sm,
+  },
+  loginNote: { ...type.caption, color: palette.inkFaint, flex: 1, lineHeight: 15 },
   legal: { ...type.caption, color: palette.inkFaint, textAlign: "center", marginTop: space.xl, lineHeight: 16 },
   legalLink: { color: palette.primary, textDecorationLine: "underline" },
 });
