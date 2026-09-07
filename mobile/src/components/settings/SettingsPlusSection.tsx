@@ -105,7 +105,7 @@ export function SettingsPlusSection() {
       )}
       <Text style={styles.priceNote}>
         Ceny: {FALLBACK_MONTHLY_PRICE_CZK} Kč měsíčně nebo {FALLBACK_ANNUAL_PRICE_CZK} Kč ročně (přesná cena a
-        měna podle vašeho App Store / Google Play účtu).
+        měna podle vašeho App Store účtu).
       </Text>
     </View>
   );

@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
-import { Bell, BellOff, Dog, Map, MoreVertical, Sprout } from "lucide-react-native";
+import { Bell, BellOff, Dog, LogIn, Map, MoreVertical, Sprout } from "lucide-react-native";
 import { palette, radius, space, ts, type } from "../theme";
 import { PageHeader } from "../components/PageHeader";
 import { PaperBackground } from "../components/PaperBackground";
 import { EmptyState } from "../components/EmptyState";
+import { PrimaryButton } from "../components/PrimaryButton";
 import { LocationSearchInput } from "../components/LocationSearchInput";
 import { LocationMapPicker } from "../components/LocationMapPicker";
 import { ObservationSheet } from "../components/ObservationSheet";
@@ -16,6 +17,8 @@ import { useSavedLocations, type SavedLocation } from "../SavedLocationsContext"
 import { useLocation, type AppLocation } from "../LocationContext";
 import { useSubscription } from "../SubscriptionContext";
 import { usePaywall } from "../PaywallContext";
+import { useAuth } from "../AuthContext";
+import { useAuthScreen } from "../AuthScreenContext";
 import { FREE_SAVED_LOCATIONS_LIMIT } from "../subscriptionLimits";
 import { getForecast } from "../api";
 import { computeDailyOverall } from "../forecastMath";
@@ -27,6 +30,8 @@ function placesLabel(n: number): string {
 }
 
 export default function MojeScreen() {
+  const { user } = useAuth();
+  const { openLogin } = useAuthScreen();
   const { locations, addLocation, removeLocation, toggleLocationAlerts, renameLocation } = useSavedLocations();
   const { setLocation } = useLocation();
   const { isPremium, loading: subscriptionLoading } = useSubscription();
@@ -88,6 +93,32 @@ export default function MojeScreen() {
       return;
     }
     addLocation(loc);
+  }
+
+  // Saved locations live in the signed-in account (SavedLocationsContext),
+  // not on-device - there's nothing real for this screen to show or do
+  // without one, so it asks to sign in instead of rendering an "add a
+  // place" flow that would silently no-op (Apple guideline 5.1.1(v): the
+  // rest of the app - Domů/Mapa/Předpověď/Houby - stays browsable without
+  // an account; this is the one screen that's genuinely account-based).
+  if (!user) {
+    return (
+      <ScrollView style={styles.screen} contentContainerStyle={{ flexGrow: 1 }}>
+        <PaperBackground style={styles.content}>
+          <PageHeader eyebrow="chalupa, revír, les" title="Moje" subtitle="Uložená místa" />
+          <EmptyState
+            icon={LogIn}
+            title="Přihlaste se pro uložená místa"
+            description="Uložená místa, houbařský pes a upozornění patří k účtu - přihlaste se nebo si založte účet, ať vám tu nic nezmizí."
+            action={
+              <View style={{ marginTop: space.base, alignSelf: "stretch" }}>
+                <PrimaryButton label="Přihlásit se" onPress={openLogin} />
+              </View>
+            }
+          />
+        </PaperBackground>
+      </ScrollView>
+    );
   }
 
   return (

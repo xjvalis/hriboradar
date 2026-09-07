@@ -130,7 +130,7 @@ export function PaywallModal() {
 
         <Text style={styles.legal}>
           Předplatné se automaticky obnovuje, dokud ho nezrušíte - zrušit jde kdykoli ve správě
-          předplatných App Store / Google Play. Nákupem souhlasíte s{" "}
+          předplatných App Store. Nákupem souhlasíte s{" "}
           <Text style={styles.legalLink} onPress={() => Linking.openURL("https://hriboradar.app/terms.html")}>
             podmínkami užití
           </Text>{" "}

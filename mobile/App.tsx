@@ -12,7 +12,8 @@ import { AppNavigationProvider, useAppNavigation } from "./src/AppNavigationCont
 import { LocationProvider, useLocation } from "./src/LocationContext";
 import { SavedLocationsProvider } from "./src/SavedLocationsContext";
 import { AuthProvider, useAuth } from "./src/AuthContext";
-import LoginScreen from "./src/screens/LoginScreen";
+import { AuthScreenProvider } from "./src/AuthScreenContext";
+import { LoginOverlay } from "./src/components/LoginOverlay";
 import NewPasswordScreen from "./src/screens/NewPasswordScreen";
 import { NotificationProvider } from "./src/NotificationContext";
 import { NotificationPrefsProvider } from "./src/NotificationPrefsContext";
@@ -54,7 +55,7 @@ function AppShell() {
 
   const { active, setActive } = useAppNavigation();
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const { user, loading: authLoading, passwordRecovery } = useAuth();
+  const { loading: authLoading, passwordRecovery } = useAuth();
   const { resolved: locationResolved } = useLocation();
   useNotificationGenerator();
 
@@ -66,9 +67,9 @@ function AppShell() {
     );
   }
 
-  // Checked before the normal !user branch below - a password-recovery
-  // link does hand back a real session, but the standard flow is "set a
-  // new password first," not "drop straight into the app."
+  // A password-recovery link does hand back a real session, but the
+  // standard flow is "set a new password first," not "drop straight into
+  // the app."
   if (passwordRecovery) {
     return (
       <SafeAreaView style={styles.screen} edges={["top", "left", "right"]}>
@@ -78,24 +79,19 @@ function AppShell() {
     );
   }
 
-  // Gate everything behind login - nothing past this point renders for an
-  // unauthenticated visitor. LoginScreen itself needs fonts loaded too
-  // (Fraunces/Manrope), which is why this check comes after the fonts
-  // branch above, not before it.
-  if (!user) {
-    return (
-      <SafeAreaView style={styles.screen} edges={["top", "left", "right"]}>
-        <StatusBar style="dark" />
-        <LoginScreen />
-      </SafeAreaView>
-    );
-  }
+  // No longer gated behind login below this point (Apple guideline
+  // 5.1.1(v): non-account features must stay reachable without
+  // registering, found in App Review feedback 2026-09-07) - browsing
+  // Domů/Mapa/Předpověď/Houby works signed out. LoginOverlay (rendered
+  // below) opens on demand from whatever genuinely account-based feature
+  // needs it (Moje's saved locations, Nastavení's account section),
+  // instead of blocking the whole app up front.
 
-  // Held only for a logged-in user, and only briefly (LocationContext caps
-  // this at GPS_RESOLVE_TIMEOUT_MS) - see LocationContext.tsx's `resolved`
-  // comment for why: without this, Domů/Mapa/Předpověď all render against
-  // the Smržovka default first and then visibly jump to the user's real
-  // GPS position a moment later, mid-read.
+  // Held only briefly (LocationContext caps this at GPS_RESOLVE_TIMEOUT_MS)
+  // - see LocationContext.tsx's `resolved` comment for why: without this,
+  // Domů/Mapa/Předpověď all render against the Smržovka default first and
+  // then visibly jump to the user's real GPS position a moment later,
+  // mid-read.
   if (!locationResolved) {
     return (
       <SafeAreaView style={styles.screen}>
@@ -139,6 +135,7 @@ function AppShell() {
       <NotificationsSheet />
       <LocationChangeScreen />
       <PaywallModal />
+      <LoginOverlay />
       <DrawerMenu
         visible={drawerOpen}
         active={active}
@@ -165,7 +162,9 @@ export default function App() {
                     <LocationPickerProvider>
                       <SpeciesDetailProvider>
                         <AppNavigationProvider>
-                          <AppShell />
+                          <AuthScreenProvider>
+                            <AppShell />
+                          </AuthScreenProvider>
                         </AppNavigationProvider>
                       </SpeciesDetailProvider>
                     </LocationPickerProvider>

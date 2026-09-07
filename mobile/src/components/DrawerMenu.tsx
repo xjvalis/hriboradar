@@ -2,9 +2,11 @@ import { useEffect, useRef } from "react";
 import { Animated, Image, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BlurView } from "expo-blur";
-import { CalendarDays, Home, Leaf, Map, MapPin, Settings, X } from "lucide-react-native";
+import { CalendarDays, Home, Leaf, LogIn, Map, MapPin, Settings, X } from "lucide-react-native";
 import { IS_TABLET, palette, radius, space, ts, type } from "../theme";
 import { BrandMark } from "./BrandMark";
+import { useAuth } from "../AuthContext";
+import { useAuthScreen } from "../AuthScreenContext";
 import type { ScreenName } from "./TopBar";
 
 // BottomTabBar duplicates Domů/Mapa/Předpověď/Houby as a faster path to
@@ -42,6 +44,8 @@ export function DrawerMenu({
 }) {
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
+  const { openLogin } = useAuthScreen();
   // Phone's fixed 300pt cap left the drawer feeling cramped once icons/
   // labels inside it scale up 20% on tablet - a bigger flat cap (still
   // capped as a fraction of width, so it doesn't take over a narrower
@@ -104,6 +108,21 @@ export function DrawerMenu({
             );
           })}
         </View>
+
+        {!user && (
+          <Pressable
+            onPress={() => {
+              openLogin();
+              onClose();
+            }}
+            style={styles.loginRow}
+            accessibilityRole="button"
+            accessibilityLabel="Přihlásit se"
+          >
+            <LogIn size={ts(19)} strokeWidth={1.8} color={palette.primary} />
+            <Text style={styles.loginRowText}>Přihlásit se</Text>
+          </Pressable>
+        )}
 
         <View style={styles.art}>
           <Image
@@ -173,6 +192,20 @@ const styles = StyleSheet.create({
   itemActive: { backgroundColor: palette.bg },
   itemText: { ...type.body, color: palette.inkSoft },
   itemTextActive: { color: palette.primary, fontFamily: "Manrope-SemiBold" },
+  loginRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.md,
+    marginHorizontal: space.lg,
+    marginTop: space.sm,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm + 2,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: palette.primary + "44",
+    backgroundColor: palette.primary + "14",
+  },
+  loginRowText: { ...type.body, color: palette.primary, fontFamily: "Manrope-SemiBold" },
   art: {
     flex: 1,
     width: "100%",

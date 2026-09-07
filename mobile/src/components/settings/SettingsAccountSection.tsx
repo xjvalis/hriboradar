@@ -1,13 +1,36 @@
 import { useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
-import { KeyRound, LogOut, Trash2 } from "lucide-react-native";
+import { KeyRound, LogIn, LogOut, Trash2 } from "lucide-react-native";
 import { palette, radius, space, ts, type } from "../../theme";
 import { ChangePasswordSheet } from "../ChangePasswordSheet";
+import { PrimaryButton } from "../PrimaryButton";
 import { useAuth } from "../../AuthContext";
+import { useAuthScreen } from "../../AuthScreenContext";
 
 export function SettingsAccountSection() {
   const { user, signOut, deleteAccount } = useAuth();
+  const { openLogin } = useAuthScreen();
   const [changingPassword, setChangingPassword] = useState(false);
+
+  // Browsing works signed out (Apple guideline 5.1.1(v)) - this section is
+  // the one genuinely account-based part of Nastavení, so it invites
+  // signing in instead of the rest of the app forcing it up front.
+  if (!user) {
+    return (
+      <View style={styles.padded}>
+        <View style={styles.loggedOutCard}>
+          <LogIn size={ts(22)} strokeWidth={1.8} color={palette.primary} />
+          <Text style={styles.loggedOutTitle}>Zatím nejste přihlášeni</Text>
+          <Text style={styles.loggedOutText}>
+            Přihlaste se pro uložená místa, houbařského psa a upozornění na sezónu.
+          </Text>
+          <View style={{ marginTop: space.sm, alignSelf: "stretch" }}>
+            <PrimaryButton label="Přihlásit se" onPress={openLogin} />
+          </View>
+        </View>
+      </View>
+    );
+  }
 
   // Google/Apple-only accounts have no password to change - Supabase marks
   // this on the user's identities array (one entry per linked provider),
@@ -61,6 +84,16 @@ export function SettingsAccountSection() {
 
 const styles = StyleSheet.create({
   padded: { paddingHorizontal: space.lg },
+  loggedOutCard: {
+    alignItems: "center",
+    backgroundColor: palette.surface,
+    borderWidth: 1,
+    borderColor: palette.line,
+    borderRadius: radius.md,
+    padding: space.lg,
+  },
+  loggedOutTitle: { ...type.headingSm, color: palette.ink, marginTop: space.sm, textAlign: "center" },
+  loggedOutText: { ...type.bodySmall, color: palette.inkSoft, marginTop: space.xs, textAlign: "center" },
   currentCard: {
     flexDirection: "row",
     alignItems: "center",
