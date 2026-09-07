@@ -1,10 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { Info } from "lucide-react-native";
-import { palette, radius, space, ts, type } from "../theme";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Info, LocateFixed } from "lucide-react-native";
+import { palette, radius, shadow, space, ts, type } from "../theme";
 import { API_BASE, type GridResponse } from "../api";
 import { fetchJsonWithProgress } from "../xhrProgress";
 import { useLocation } from "../LocationContext";
+
+// expo-location has native code - see LocationChangeScreen.web.tsx's
+// comment on why this needs a guarded require() (harmless on web too).
+let ExpoLocation: typeof import("expo-location") | null;
+try {
+  ExpoLocation = require("expo-location");
+} catch {
+  ExpoLocation = null;
+}
 import { buildGridMapHtml, type MapMode } from "../leafletHtml";
 import { useAppNavigation } from "../AppNavigationContext";
 import { useSavedLocations } from "../SavedLocationsContext";
@@ -33,6 +42,26 @@ export default function MapScreen() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   // Captured once, not tracked live - see the `html` useMemo below.
   const initialLocationRef = useRef(location);
+  const [locating, setLocating] = useState(false);
+
+  // See MapScreen.tsx's matching comment - jumps to (and marks) a live GPS
+  // fix instead of wherever `location` was when Mapa first loaded.
+  async function recenterOnMe() {
+    if (!ExpoLocation) return;
+    setLocating(true);
+    try {
+      const { status } = await ExpoLocation.requestForegroundPermissionsAsync();
+      if (status !== "granted") return;
+      const pos = await ExpoLocation.getCurrentPositionAsync({ accuracy: ExpoLocation.Accuracy.Balanced });
+      const { latitude: lat, longitude: lon } = pos.coords;
+      iframeRef.current?.contentWindow?.postMessage(JSON.stringify({ type: "setUserLocation", lat, lon }), "*");
+      iframeRef.current?.contentWindow?.postMessage(JSON.stringify({ type: "focusView", lat, lon, zoom: 15 }), "*");
+    } catch {
+      // GPS unavailable/denied - silently no-op, same as elsewhere in the app.
+    } finally {
+      setLocating(false);
+    }
+  }
 
   useEffect(() => {
     fetchJsonWithProgress<GridResponse>(`${API_BASE}/api/grid`, setGridProgress)
@@ -183,6 +212,21 @@ export default function MapScreen() {
             <LoadingProgress percent={gridProgress} />
           </View>
         )}
+        {grid && !gridError && ExpoLocation && (
+          <Pressable
+            onPress={recenterOnMe}
+            disabled={locating}
+            style={styles.locateBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Přesunout mapu na moji polohu"
+          >
+            {locating ? (
+              <ActivityIndicator size="small" color={palette.primary} />
+            ) : (
+              <LocateFixed size={ts(20)} strokeWidth={2} color={palette.primary} />
+            )}
+          </Pressable>
+        )}
       </View>
       {selected && <LocationSheet selected={selected} mode={mode} onClose={() => setSelected(null)} />}
       {infoOpen && <MapInfoSheet onClose={() => setInfoOpen(false)} />}
@@ -204,6 +248,20 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
+  },
+  locateBtn: {
+    position: "absolute",
+    right: space.md,
+    bottom: space.md,
+    width: ts(44),
+    height: ts(44),
+    borderRadius: radius.pill,
+    backgroundColor: palette.surface,
+    borderWidth: 1,
+    borderColor: palette.line,
+    alignItems: "center",
+    justifyContent: "center",
+    ...shadow.card,
   },
   loading: { ...type.bodySmall, color: palette.inkFaint },
   error: { ...type.bodySmall, color: palette.danger, textAlign: "center", paddingHorizontal: space.lg },

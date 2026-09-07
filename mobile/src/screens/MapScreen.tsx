@@ -1,11 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { WebView } from "react-native-webview";
-import { Info } from "lucide-react-native";
-import { palette, radius, space, ts, type } from "../theme";
+import { Info, LocateFixed } from "lucide-react-native";
+import { palette, radius, shadow, space, ts, type } from "../theme";
 import { API_BASE, type GridResponse } from "../api";
 import { fetchJsonWithProgress } from "../xhrProgress";
 import { useLocation } from "../LocationContext";
+
+// expo-location has native code - see LocationChangeScreen.tsx's comment
+// on why this needs a guarded require() rather than a static import.
+let ExpoLocation: typeof import("expo-location") | null;
+try {
+  ExpoLocation = require("expo-location");
+} catch {
+  ExpoLocation = null;
+}
 import { type MapMode } from "../leafletHtml";
 import { useAppNavigation } from "../AppNavigationContext";
 import { useSavedLocations } from "../SavedLocationsContext";
@@ -34,9 +43,33 @@ export default function MapScreen() {
   const [mapReady, setMapReady] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [locating, setLocating] = useState(false);
   const webviewRef = useRef<WebView>(null);
   // Captured once, not tracked live - see mapUri below.
   const initialLocationRef = useRef(location);
+
+  // Standing in the actual forest and wanting to see exactly where that is
+  // on the map - independent of `location` (which could be a saved "Vlastní
+  // bod" far from wherever the phone actually is right now) - found
+  // 2026-09-07. Moves the "Vaše poloha" marker to the live fix and jumps
+  // the view there in one tap, every time (not just once at page load).
+  async function recenterOnMe() {
+    if (!ExpoLocation) return;
+    setLocating(true);
+    try {
+      const { status } = await ExpoLocation.requestForegroundPermissionsAsync();
+      if (status !== "granted") return;
+      const pos = await ExpoLocation.getCurrentPositionAsync({ accuracy: ExpoLocation.Accuracy.Balanced });
+      const { latitude: lat, longitude: lon } = pos.coords;
+      webviewRef.current?.postMessage(JSON.stringify({ type: "setUserLocation", lat, lon }));
+      webviewRef.current?.postMessage(JSON.stringify({ type: "focusView", lat, lon, zoom: 15 }));
+    } catch {
+      // GPS unavailable/denied - silently no-op, same as elsewhere in the
+      // app; the button itself is the only feedback needed for a retry.
+    } finally {
+      setLocating(false);
+    }
+  }
 
   function loadGrid() {
     setGridError(null);
@@ -246,6 +279,21 @@ export default function MapScreen() {
             }}
           />
         )}
+        {grid && !gridError && !webviewError && ExpoLocation && (
+          <Pressable
+            onPress={recenterOnMe}
+            disabled={locating}
+            style={styles.locateBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Přesunout mapu na moji polohu"
+          >
+            {locating ? (
+              <ActivityIndicator size="small" color={palette.primary} />
+            ) : (
+              <LocateFixed size={ts(20)} strokeWidth={2} color={palette.primary} />
+            )}
+          </Pressable>
+        )}
       </View>
       {selected && <LocationSheet selected={selected} mode={mode} onClose={() => setSelected(null)} />}
       {infoOpen && <MapInfoSheet onClose={() => setInfoOpen(false)} />}
@@ -270,6 +318,20 @@ const styles = StyleSheet.create({
     // own centerOverlay/loadingWrap instead.
   },
   centerOverlay: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center" },
+  locateBtn: {
+    position: "absolute",
+    right: space.md,
+    bottom: space.md,
+    width: ts(44),
+    height: ts(44),
+    borderRadius: radius.pill,
+    backgroundColor: palette.surface,
+    borderWidth: 1,
+    borderColor: palette.line,
+    alignItems: "center",
+    justifyContent: "center",
+    ...shadow.card,
+  },
   loading: { ...type.bodySmall, color: palette.inkFaint },
   loadingWrap: {
     ...StyleSheet.absoluteFillObject,

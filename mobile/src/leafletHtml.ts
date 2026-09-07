@@ -199,10 +199,22 @@ export function buildGridMapHtml(opts: {
     mapApiKey,
   } = opts;
 
-  const userMarkerJs =
-    userLat != null && userLon != null
-      ? `L.circleMarker([${userLat},${userLon}], {radius:6, color:'#24261D', weight:2, fillColor:'#EDE6D6', fillOpacity:1}).addTo(map).bindTooltip('Vaše poloha');`
-      : "";
+  // A plain function (not a one-shot circleMarker chain) so the "setUserLocation"
+  // message below can move this same marker to a live GPS fix later - e.g.
+  // someone standing in the actual forest tapping "recenter to my location"
+  // wants to see exactly where they're standing, not wherever `location`
+  // happened to be when Mapa first loaded (found 2026-09-07: "chci se
+  // podívat na to místo, na mapě by měla být zobrazená poloha uživatele").
+  const userMarkerJs = `
+      var userMarker = null;
+      function setUserMarker(lat, lon) {
+        if (userMarker) { userMarker.setLatLng([lat, lon]); }
+        else {
+          userMarker = L.circleMarker([lat, lon], {radius:6, color:'#24261D', weight:2, fillColor:'#EDE6D6', fillOpacity:1}).addTo(map).bindTooltip('Vaše poloha');
+        }
+      }
+      ${userLat != null && userLon != null ? `setUserMarker(${userLat}, ${userLon});` : ""}
+  `;
 
   const pointsJs = JSON.stringify(
     points.map((p) => ({ lat: p.lat, lon: p.lon, overall: p.overall, scores: p.scores }))
@@ -989,6 +1001,12 @@ export function buildGridMapHtml(opts: {
               applyInitialView();
               didInitialFit = true;
             }
+          }
+          // A fresh GPS fix (the "recenter to my location" button) - moves
+          // the "Vaše poloha" marker there, independent of focusView, since
+          // a jump can be requested without the marker needing to move too.
+          else if (msg.type === 'setUserLocation') {
+            setUserMarker(msg.lat, msg.lon);
           }
         } catch (e) {
           // not our message
