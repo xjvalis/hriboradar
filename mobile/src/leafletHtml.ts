@@ -210,7 +210,19 @@ export function buildGridMapHtml(opts: {
       function setUserMarker(lat, lon) {
         if (userMarker) { userMarker.setLatLng([lat, lon]); }
         else {
-          userMarker = L.circleMarker([lat, lon], {radius:6, color:'#24261D', weight:2, fillColor:'#EDE6D6', fillOpacity:1}).addTo(map).bindTooltip('Vaše poloha');
+          // L.circleMarker is a vector (Path) layer, which by default
+          // renders into Leaflet's overlayPane - the SAME pane as the
+          // probability density raster/vector layers below, which get
+          // re-added (moved to the DOM's top) on every mode switch and
+          // every rebuildVectorLayer() during panning. Without an
+          // explicit higher pane, this marker would render fine once and
+          // then silently end up UNDER that layer the next time it
+          // redraws - exactly what happened tapping "recenter to my
+          // location" right after a fresh pan/zoom (found 2026-09-07).
+          // markerPane (z-index 600) sits above overlayPane (400) - the
+          // same pane L.marker (used for saved-location pins below,
+          // via its own zIndexOffset) already gets by default.
+          userMarker = L.circleMarker([lat, lon], {radius:6, color:'#24261D', weight:2, fillColor:'#EDE6D6', fillOpacity:1, pane: 'markerPane'}).addTo(map).bindTooltip('Vaše poloha');
         }
       }
       ${userLat != null && userLon != null ? `setUserMarker(${userLat}, ${userLon});` : ""}
