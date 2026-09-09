@@ -3,7 +3,10 @@ import { useFonts } from "expo-font";
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { initSentry, wrapWithSentry } from "./src/sentry";
 import { palette } from "./src/theme";
+
+initSentry();
 import { LoadingScreen } from "./src/components/LoadingScreen";
 import { TopBar, type ScreenName } from "./src/components/TopBar";
 import { DrawerMenu } from "./src/components/DrawerMenu";
@@ -149,7 +152,7 @@ function AppShell() {
   );
 }
 
-export default function App() {
+function App() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
@@ -178,6 +181,8 @@ export default function App() {
     </SafeAreaProvider>
   );
 }
+
+export default wrapWithSentry(App);
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: palette.bg },

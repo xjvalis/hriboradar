@@ -65,7 +65,8 @@
           "icon": "./assets/icon.png",
           "color": "#33482C"
         }
-      ]
+      ],
+      "@sentry/react-native"
     ],
     "extra": {
       "eas": {
