@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { buildPinPickerHtml } from "../lib/leafletHtml";
 import { parseLatLon } from "../lib/validate";
+import { withSentry } from "../lib/sentry";
 
 /**
  * GET /api/map-pin?lat=&lon=&zoom=
@@ -10,7 +11,7 @@ import { parseLatLon } from "../lib/validate";
  * name search. No grid computation - just the point the caller already has
  * (from a name search or the default location), fast to load.
  */
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+async function handler(req: VercelRequest, res: VercelResponse) {
   const parsed = parseLatLon(req.query);
   if (!parsed) {
     res.status(400).json({ error: "Chybí nebo je neplatné lat/lon." });
@@ -25,3 +26,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader("Cache-Control", "no-store");
   res.status(200).end(html);
 }
+
+export default withSentry(handler);

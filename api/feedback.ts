@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { fetchWeather } from "../lib/weather";
 import { fetchTerrain } from "../lib/terrain";
 import { scoreSpeciesDay, MODEL_VERSION, type Species } from "../lib/scoring";
+import { captureError, withSentry } from "../lib/sentry";
 import speciesData from "./data/species.json";
 
 // Species the model already considered negligible that day carry no
@@ -33,7 +34,7 @@ interface FeedbackBody {
  * role), so Postgres RLS - not this handler - is what actually stops one
  * user from writing rows under another user's id.
  */
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+async function handler(req: VercelRequest, res: VercelResponse) {
   // Unlike the read-only GET endpoints, this one needs a custom
   // Authorization header on a POST - that combination triggers a real CORS
   // preflight in any browser context, and Vercel doesn't add CORS headers
@@ -137,6 +138,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (upsertError) {
       console.error("feedback upsert error:", upsertError);
+      captureError(upsertError, { lat, lon, targetDate });
       res.status(500).json({ error: "Nepodařilo se uložit zpětnou vazbu." });
       return;
     }
@@ -144,6 +146,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.status(200).json({ ok: true, rows_written: rows.length });
   } catch (err) {
     console.error("feedback handler error:", err);
+    captureError(err, { lat, lon, targetDate });
     res.status(500).json({ error: "Nepodařilo se uložit zpětnou vazbu." });
   }
 }
+
+export default withSentry(handler);

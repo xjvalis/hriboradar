@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
+import { captureError, withSentry } from "../lib/sentry";
 
 interface PushTokenBody {
   token: string;
@@ -17,7 +18,7 @@ interface PushTokenBody {
  * what actually stops one user from writing a token row under another
  * user's id.
  */
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
@@ -76,9 +77,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (upsertError) {
     console.error("push-token upsert error:", upsertError);
+    captureError(upsertError, { platform });
     res.status(500).json({ error: "Nepodařilo se uložit push token." });
     return;
   }
 
   res.status(200).json({ ok: true });
 }
+
+export default withSentry(handler);

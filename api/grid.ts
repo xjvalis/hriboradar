@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { computeGrid } from "../lib/grid";
+import { withSentry } from "../lib/sentry";
 
 /**
  * GET /api/grid
@@ -15,7 +16,9 @@ import { computeGrid } from "../lib/grid";
  * them. Also used server-side by /api/map (same grid, rendered as an HTML
  * page instead of JSON) - see lib/grid.ts.
  */
-export default async function handler(_req: VercelRequest, res: VercelResponse) {
+async function handler(_req: VercelRequest, res: VercelResponse) {
   const data = await computeGrid();
   res.status(200).json(data);
 }
+
+export default withSentry(handler);

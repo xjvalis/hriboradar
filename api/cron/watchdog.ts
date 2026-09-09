@@ -6,6 +6,7 @@ import { scoreSpeciesDay, type Species } from "../../lib/scoring";
 import { overallScore } from "../../lib/grid";
 import { sendEmail, watchdogEmail } from "../../lib/email";
 import { sendPushNotifications } from "../../lib/push";
+import { captureError, withSentry } from "../../lib/sentry";
 import speciesData from "../data/species.json";
 
 /**
@@ -51,7 +52,7 @@ interface WatchdogRow {
   watchdog_notified_at: string | null;
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+async function handler(req: VercelRequest, res: VercelResponse) {
   const auth = req.headers.authorization;
   if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
     res.status(401).json({ error: "unauthorized" });
@@ -181,11 +182,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       await admin.from("hriboradar_saved_locations").update({ watchdog_notified_at: todayStr }).eq("id", row.id);
       notified += 1;
-    } catch {
+    } catch (err) {
       // one location's forecast failing (weather API hiccup, etc.) shouldn't block the rest
+      captureError(err, { locationId: row.id, userId: row.user_id });
       continue;
     }
   }
 
   res.status(200).json({ ok: true, checked, notified });
 }
+
+export default withSentry(handler);

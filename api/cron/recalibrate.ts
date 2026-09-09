@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { MODEL_VERSION } from "../../lib/scoring";
 import { refreshWeatherGrid } from "../../lib/refreshWeatherGrid";
 import { sendMonthlyTip } from "../../lib/monthlyTip";
+import { captureError, withSentry } from "../../lib/sentry";
 
 // Pseudo-observations pulling a sparse species+bucket toward the
 // species-agnostic rate for that same bucket (Beta-Binomial shrinkage) - at
@@ -82,7 +83,7 @@ function computeAUC(rows: { predicted_probability: number; found: boolean }[]): 
  * system allowed to read feedback across every user at once (RLS blocks
  * that for the anon/authenticated roles by design, see hriboradar_schema.sql).
  */
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+async function handler(req: VercelRequest, res: VercelResponse) {
   const auth = req.headers.authorization;
   if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
     res.status(401).json({ error: "unauthorized" });
@@ -124,6 +125,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     .eq("model_version", MODEL_VERSION);
 
   if (error) {
+    captureError(error, { step: "fetch feedback" });
     res.status(500).json({ error: error.message });
     return;
   }
@@ -202,6 +204,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .from("hriboradar_calibration_stats")
       .upsert(upserts, { onConflict: "species_id,probability_bucket,model_version" });
     if (upsertError) {
+      captureError(upsertError, { step: "upsert calibration stats" });
       res.status(500).json({ error: upsertError.message });
       return;
     }
@@ -233,3 +236,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     holdout_auc: computeAUC(holdoutRows),
   });
 }
+
+export default withSentry(handler);

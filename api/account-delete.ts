@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
+import { captureError, withSentry } from "../lib/sentry";
 
 /**
  * POST /api/account-delete
@@ -14,7 +15,7 @@ import { createClient } from "@supabase/supabase-js";
  * like api/feedback.ts), and only *that* verified id is ever deleted. There
  * is deliberately no "user id" field in the request body.
  */
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
@@ -52,9 +53,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const admin = createClient(url, serviceKey);
   const { error: deleteError } = await admin.auth.admin.deleteUser(userData.user.id);
   if (deleteError) {
+    captureError(deleteError, { userId: userData.user.id });
     res.status(500).json({ error: "Smazání účtu se nezdařilo. Zkuste to prosím znovu." });
     return;
   }
 
   res.status(200).json({ ok: true });
 }
+
+export default withSentry(handler);

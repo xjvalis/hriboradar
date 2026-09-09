@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { cached, roundCoord } from "../lib/cache";
 import { parseLatLon } from "../lib/validate";
+import { captureError, withSentry } from "../lib/sentry";
 
 /**
  * GET /api/geocode?q=<text>
@@ -59,7 +60,7 @@ async function fetchNominatimReverse(lat: number, lon: number): Promise<GeocodeR
   return { label, sublabel: rest.join(", "), lat, lon };
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+async function handler(req: VercelRequest, res: VercelResponse) {
   const parsed = req.query.lat != null || req.query.lon != null ? parseLatLon(req.query) : null;
   if (parsed) {
     const { lat, lon } = parsed;
@@ -68,7 +69,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         fetchNominatimReverse(lat, lon)
       );
       res.status(200).json({ results: [result] });
-    } catch {
+    } catch (err) {
+      captureError(err, { lat, lon });
       res.status(200).json({ results: [] });
     }
     return;
@@ -83,7 +85,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const results = await cached(`geocode:${q.toLowerCase()}`, GEOCODE_CACHE_TTL_MS, () => fetchNominatim(q));
     res.status(200).json({ results });
-  } catch {
+  } catch (err) {
+    captureError(err, { q });
     res.status(200).json({ results: [] });
   }
 }
+
+export default withSentry(handler);

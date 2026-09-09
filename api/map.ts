@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { computeGrid } from "../lib/grid";
 import { buildGridMapHtml } from "../lib/leafletHtml";
+import { withSentry } from "../lib/sentry";
 
 /**
  * GET /api/map?lat=&lon=
@@ -17,7 +18,7 @@ import { buildGridMapHtml } from "../lib/leafletHtml";
  * (the web build never hits this path; it builds the same HTML client-side
  * and drops it into an iframe instead, see MapScreen.web.tsx).
  */
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+async function handler(req: VercelRequest, res: VercelResponse) {
   const lat = req.query.lat != null ? Number(req.query.lat) : undefined;
   const lon = req.query.lon != null ? Number(req.query.lon) : undefined;
   const speciesParam = typeof req.query.species === "string" ? req.query.species : undefined;
@@ -58,3 +59,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader("Cache-Control", "no-store");
   res.status(200).end(html);
 }
+
+export default withSentry(handler);

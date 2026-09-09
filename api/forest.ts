@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import forestData from "./data/forest-cz.json";
 import { fetchTerrain, type DominantForestType } from "../lib/terrain";
+import { withSentry } from "../lib/sentry";
 
 /**
  * GET /api/forest
@@ -52,7 +53,7 @@ async function buildCache() {
   cached = { polygons, terrain };
 }
 
-export default async function handler(_req: VercelRequest, res: VercelResponse) {
+async function handler(_req: VercelRequest, res: VercelResponse) {
   if (!cached) await buildCache();
 
   res.setHeader("Content-Type", "application/json; charset=utf-8");
@@ -64,3 +65,5 @@ export default async function handler(_req: VercelRequest, res: VercelResponse) 
   res.setHeader("Cache-Control", "public, max-age=21600");
   res.status(200).end(JSON.stringify(cached));
 }
+
+export default withSentry(handler);

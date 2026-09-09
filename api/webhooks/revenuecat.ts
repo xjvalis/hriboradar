@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
 import { sendEmail, subscriptionActiveEmail, subscriptionCanceledEmail, billingIssueEmail } from "../../lib/email";
+import { captureError, withSentry } from "../../lib/sentry";
 
 /**
  * POST /api/webhooks/revenuecat
@@ -36,7 +37,7 @@ interface RevenueCatEvent {
   original_app_user_id?: string;
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
     res.status(405).json({ error: "Method not allowed" });
     return;
@@ -94,7 +95,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (upsertError) {
     // Most likely userId wasn't a real Supabase user (anonymous RevenueCat
     // id) - not worth 500ing the webhook over, RevenueCat would just retry
-    // forever for an event that will never resolve.
+    // forever for an event that will never resolve. Still worth a Sentry
+    // breadcrumb though: this exact silent path is also what a *real* bug
+    // (schema drift, RLS misconfiguration) would hide behind, and a
+    // payment that quietly never synced is worse than a noisy log.
+    captureError(upsertError, { userId, eventType: event.type, note: "revenuecat subscription upsert skipped" });
     res.status(200).json({ ok: true, note: "upsert skipped", detail: upsertError.message });
     return;
   }
@@ -115,3 +120,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   res.status(200).json({ ok: true });
 }
+
+export default withSentry(handler);

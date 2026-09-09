@@ -5,6 +5,7 @@ import { scoreSpeciesDay, MODEL_VERSION, type Species } from "../lib/scoring";
 import { fetchTerrain } from "../lib/terrain";
 import { applyCalibratedProbability } from "../lib/calibration";
 import { parseLatLon } from "../lib/validate";
+import { captureError, withSentry } from "../lib/sentry";
 import speciesData from "./data/species.json";
 
 // Whether this call is coming from a Plus subscriber - the 7-day forecast
@@ -61,7 +62,7 @@ async function isPremiumCaller(authHeader: string | undefined): Promise<boolean>
  * already falls back to `weather[].tempC` with a "Průměrná denní teplota"
  * label whenever `current` is null - see HomeScreen.tsx/PredpovedScreen.tsx.
  */
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+async function handler(req: VercelRequest, res: VercelResponse) {
   const parsed = parseLatLon(req.query);
   if (!parsed) {
     res.status(400).json({ error: "Chybí nebo je neplatné lat/lon." });
@@ -140,6 +141,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // security: verbose error responses), and isn't actionable for the
     // app anyway beyond "something failed."
     console.error("forecast handler error:", err);
+    captureError(err, { lat, lon });
     res.status(500).json({ error: "Nepodařilo se spočítat předpověď." });
   }
 }
+
+export default withSentry(handler);
