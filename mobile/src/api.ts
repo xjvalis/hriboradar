@@ -96,7 +96,18 @@ export interface ForecastResponse {
 }
 
 export async function getForecast(lat: number, lon: number): Promise<ForecastResponse> {
-  const res = await fetch(`${API_BASE}/api/forecast?lat=${lat}&lon=${lon}`);
+  // The server can only enforce the free-tier "today only" limit (see
+  // api/forecast.ts) if it knows who's asking - previously this call was
+  // fully anonymous, which meant the 7-day paywall existed purely in the
+  // app's own UI and anyone calling the API directly got the full forecast
+  // for free regardless of subscription status (found 2026-09-09). A
+  // missing/expired session just omits the header, same as before - the
+  // server already treats that as free tier.
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  const res = await fetch(`${API_BASE}/api/forecast?lat=${lat}&lon=${lon}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  });
   if (!res.ok) {
     throw new Error(`Server vrátil chybu ${res.status}`);
   }

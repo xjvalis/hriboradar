@@ -1,10 +1,40 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { createClient } from "@supabase/supabase-js";
 import { fetchWeather } from "../lib/weather";
 import { scoreSpeciesDay, MODEL_VERSION, type Species } from "../lib/scoring";
 import { fetchTerrain } from "../lib/terrain";
 import { applyCalibratedProbability } from "../lib/calibration";
 import { parseLatLon } from "../lib/validate";
 import speciesData from "./data/species.json";
+
+// Whether this call is coming from a Plus subscriber - the 7-day forecast
+// is a paid feature (free tier: today only), but until this existed that
+// limit was enforced purely in the app's own UI, so anyone calling this
+// endpoint directly got the full 7 days for free regardless of
+// subscription status (found 2026-09-09, auditing "no bypassing the
+// system" ahead of launch). Uses the caller's own access token against
+// RLS (same anon-client pattern as api/account-delete.ts), never the
+// service_role key - a missing/invalid/expired token just reads as free
+// tier, same as an anonymous visitor.
+async function isPremiumCaller(authHeader: string | undefined): Promise<boolean> {
+  if (!authHeader?.startsWith("Bearer ")) return false;
+  const url = process.env.SUPABASE_URL;
+  const anonKey = process.env.SUPABASE_ANON_KEY;
+  if (!url || !anonKey) return false;
+  try {
+    const authed = createClient(url, anonKey, { global: { headers: { Authorization: authHeader } } });
+    const { data: userData } = await authed.auth.getUser();
+    if (!userData.user) return false;
+    const { data } = await authed
+      .from("hriboradar_subscriptions")
+      .select("status")
+      .eq("user_id", userData.user.id)
+      .maybeSingle();
+    return data?.status === "active" || data?.status === "trial";
+  } catch {
+    return false;
+  }
+}
 
 /**
  * GET /api/forecast?lat=50.075&lon=14.44
@@ -40,7 +70,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { lat, lon } = parsed;
 
   try {
-    const [days, terrain] = await Promise.all([fetchWeather(lat, lon), fetchTerrain(lat, lon)]);
+    const [days, terrain, premium] = await Promise.all([
+      fetchWeather(lat, lon),
+      fetchTerrain(lat, lon),
+      isPremiumCaller(req.headers.authorization),
+    ]);
     const current = null;
     const species = speciesData.species as Species[];
 
@@ -50,6 +84,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const todayStr = new Date().toISOString().slice(0, 10);
     const todayIndex = days.findIndex((d) => d.date === todayStr);
     const outputStart = Math.max(0, todayIndex - 1);
+    // Free tier: yesterday + today only, no forecast days - matches what
+    // the app's own paywall already advertises. Applied by slicing the
+    // already-scored output below rather than shortening `days.slice(
+    // outputStart)` above, since scoreSpeciesDay's days-since-rain lookback
+    // still needs the full history regardless of who's asking.
+    const freeTierCutoff = todayIndex - outputStart + 1;
 
     // probability_pct gets nudged by the calibration layer (see
     // lib/calibration.ts) once enough real "did you find it" feedback
@@ -91,8 +131,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       model_version: MODEL_VERSION,
       terrain,
       current,
-      weather,
-      species: result,
+      weather: premium ? weather : weather.slice(0, freeTierCutoff),
+      species: premium ? result : result.map((sp) => ({ ...sp, days: sp.days.slice(0, freeTierCutoff) })),
     });
   } catch (err) {
     // Logged server-side for debugging, not sent to the client - a raw
