@@ -337,8 +337,7 @@ export function buildGridMapHtml(opts: {
       mapInitialized = true;
       
       var mapEl = document.getElementById('map');
-      console.log('[Map Init] Container size:', mapEl.clientWidth, 'x', mapEl.clientHeight);
-      
+
       var map = L.map('map', { zoomControl: true, maxZoom: ${GRID_MAP_MAX_ZOOM}, attributionControl: false });
       var initialView = ${initialViewJs};
       // App.tsx keeps every screen mounted permanently, just hidden via
@@ -382,10 +381,12 @@ export function buildGridMapHtml(opts: {
       applyInitialView();
       map.on('resize', applyMinZoom);
 
-      // Aggressive invalidation for native WebView - runs many times to catch size changes
+      // Native WebView can report the container's real size at any point
+      // after this script runs, not necessarily before - re-checking at a
+      // spread of delays catches whichever one it settles on, instead of
+      // guessing a single "surely long enough by now" timeout.
       [10, 50, 100, 200, 400, 800, 1200].forEach(function (ms) {
         setTimeout(function () {
-          console.log('[Map Init] invalidateSize at', ms, 'ms');
           map.invalidateSize();
           applyInitialView();
         }, ms);

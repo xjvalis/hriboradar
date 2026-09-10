@@ -205,10 +205,34 @@ export function buildGridMapHtml(opts: {
     mapApiKey,
   } = opts;
 
-  const userMarkerJs =
-    userLat != null && userLon != null
-      ? `L.circleMarker([${userLat},${userLon}], {radius:6, color:'#24261D', weight:2, fillColor:'#EDE6D6', fillOpacity:1}).addTo(map).bindTooltip('Vaše poloha');`
-      : "";
+  // A plain function (not a one-shot circleMarker chain) so the "setUserLocation"
+  // message below can move this same marker to a live GPS fix later - e.g.
+  // someone standing in the actual forest tapping "recenter to my location"
+  // wants to see exactly where they're standing, not wherever `location`
+  // happened to be when Mapa first loaded (found 2026-09-07: "chci se
+  // podívat na to místo, na mapě by měla být zobrazená poloha uživatele").
+  const userMarkerJs = `
+      var userMarker = null;
+      function setUserMarker(lat, lon) {
+        if (userMarker) { userMarker.setLatLng([lat, lon]); }
+        else {
+          // L.circleMarker is a vector (Path) layer, which by default
+          // renders into Leaflet's overlayPane - the SAME pane as the
+          // probability density raster/vector layers below, which get
+          // re-added (moved to the DOM's top) on every mode switch and
+          // every rebuildVectorLayer() during panning. Without an
+          // explicit higher pane, this marker would render fine once and
+          // then silently end up UNDER that layer the next time it
+          // redraws - exactly what happened tapping "recenter to my
+          // location" right after a fresh pan/zoom (found 2026-09-07).
+          // markerPane (z-index 600) sits above overlayPane (400) - the
+          // same pane L.marker (used for saved-location pins below,
+          // via its own zIndexOffset) already gets by default.
+          userMarker = L.circleMarker([lat, lon], {radius:6, color:'#24261D', weight:2, fillColor:'#EDE6D6', fillOpacity:1, pane: 'markerPane'}).addTo(map).bindTooltip('Vaše poloha');
+        }
+      }
+      ${userLat != null && userLon != null ? `setUserMarker(${userLat}, ${userLon});` : ""}
+  `;
 
   const pointsJs = JSON.stringify(
     points.map((p) => ({ lat: p.lat, lon: p.lon, overall: p.overall, scores: p.scores }))
@@ -319,8 +343,7 @@ export function buildGridMapHtml(opts: {
       mapInitialized = true;
       
       var mapEl = document.getElementById('map');
-      console.log('[Map Init] Container size:', mapEl.clientWidth, 'x', mapEl.clientHeight);
-      
+
       var map = L.map('map', { zoomControl: true, maxZoom: ${GRID_MAP_MAX_ZOOM}, attributionControl: false });
       var initialView = ${initialViewJs};
       // App.tsx keeps every screen mounted permanently, just hidden via
@@ -364,10 +387,12 @@ export function buildGridMapHtml(opts: {
       applyInitialView();
       map.on('resize', applyMinZoom);
 
-      // Aggressive invalidation for native WebView - runs many times to catch size changes
+      // Native WebView can report the container's real size at any point
+      // after this script runs, not necessarily before - re-checking at a
+      // spread of delays catches whichever one it settles on, instead of
+      // guessing a single "surely long enough by now" timeout.
       [10, 50, 100, 200, 400, 800, 1200].forEach(function (ms) {
         setTimeout(function () {
-          console.log('[Map Init] invalidateSize at', ms, 'ms');
           map.invalidateSize();
           applyInitialView();
         }, ms);
@@ -995,6 +1020,12 @@ export function buildGridMapHtml(opts: {
               applyInitialView();
               didInitialFit = true;
             }
+          }
+          // A fresh GPS fix (the "recenter to my location" button) - moves
+          // the "Vaše poloha" marker there, independent of focusView, since
+          // a jump can be requested without the marker needing to move too.
+          else if (msg.type === 'setUserLocation') {
+            setUserMarker(msg.lat, msg.lon);
           }
         } catch (e) {
           // not our message
