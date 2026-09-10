@@ -61,7 +61,13 @@ const TERRAIN_URBAN: TerrainInfo = { ...TERRAIN_MATCH, isUrban: true };
 function buildDays(): DayWeather[] {
   const days: DayWeather[] = [];
   for (let i = 0; i < 10; i++) {
-    const date = new Date(2026, 8, i + 1).toISOString().slice(0, 10);
+    // Built directly as a UTC date string, not new Date(y,m,d).toISOString()
+    // - that constructs the date at LOCAL midnight and converts to UTC,
+    // which silently shifts the calendar day backwards for anyone west of
+    // UTC (found 2026-09-10: passed on a CEST dev machine, failed in CI's
+    // UTC runner with an off-by-one "date" field in the snapshot - the
+    // actual scored values were identical, only this string differed).
+    const date = `2026-09-${String(i + 1).padStart(2, "0")}`;
     const isRainDay = i === 5;
     days.push({
       date,
@@ -108,7 +114,13 @@ describe("scoreSpeciesDay (golden snapshot)", () => {
     // must land under 100 regardless of how good conditions are.
     const days: DayWeather[] = [];
     for (let i = 0; i < 10; i++) {
-      const date = new Date(2026, 8, i + 1).toISOString().slice(0, 10);
+      // Built directly as a UTC date string, not new Date(y,m,d).toISOString()
+    // - that constructs the date at LOCAL midnight and converts to UTC,
+    // which silently shifts the calendar day backwards for anyone west of
+    // UTC (found 2026-09-10: passed on a CEST dev machine, failed in CI's
+    // UTC runner with an off-by-one "date" field in the snapshot - the
+    // actual scored values were identical, only this string differed).
+    const date = `2026-09-${String(i + 1).padStart(2, "0")}`;
       days.push({
         date,
         precipMm: i === 5 ? 45 : 0,

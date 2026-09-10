@@ -2,7 +2,7 @@
 
 exports[`scoreSpeciesDay (golden snapshot) > matches the exact-genus-match, non-urban case 1`] = `
 {
-  "date": "2026-09-09",
+  "date": "2026-09-10",
   "factors": {
     "days_since_rain": 3,
     "moisture": 0.77,
@@ -18,7 +18,7 @@ exports[`scoreSpeciesDay (golden snapshot) > matches the exact-genus-match, non-
 
 exports[`scoreSpeciesDay (golden snapshot) > matches the unknown-forest-type case 1`] = `
 {
-  "date": "2026-09-09",
+  "date": "2026-09-10",
   "factors": {
     "days_since_rain": 3,
     "moisture": 0.77,
@@ -34,7 +34,7 @@ exports[`scoreSpeciesDay (golden snapshot) > matches the unknown-forest-type cas
 
 exports[`scoreSpeciesDay (golden snapshot) > matches the urban-penalty case 1`] = `
 {
-  "date": "2026-09-09",
+  "date": "2026-09-10",
   "factors": {
     "days_since_rain": 3,
     "moisture": 0.77,
