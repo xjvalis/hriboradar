@@ -1,6 +1,6 @@
 import { StatusBar } from "expo-status-bar";
 import { useFonts } from "expo-font";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { initSentry, wrapWithSentry } from "./src/sentry";
@@ -21,8 +21,9 @@ import { AboutScreenProvider } from "./src/AboutScreenContext";
 import { AboutScreen } from "./src/components/AboutScreen";
 import NewPasswordScreen from "./src/screens/NewPasswordScreen";
 import { NotificationProvider } from "./src/NotificationContext";
-import { NotificationPrefsProvider } from "./src/NotificationPrefsContext";
+import { NotificationPrefsProvider, useNotificationPrefs } from "./src/NotificationPrefsContext";
 import { useNotificationGenerator } from "./src/useNotificationGenerator";
+import { registerForPushNotificationsAsync } from "./src/pushNotifications";
 import { NotificationsSheet } from "./src/components/NotificationsSheet";
 import { LocationPickerProvider } from "./src/LocationPickerContext";
 import { LocationChangeScreen } from "./src/components/LocationChangeScreen";
@@ -60,9 +61,22 @@ function AppShell() {
 
   const { active, setActive } = useAppNavigation();
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const { loading: authLoading, passwordRecovery } = useAuth();
+  const { user, loading: authLoading, passwordRecovery } = useAuth();
   const { resolved: locationResolved } = useLocation();
+  const { monthlyTipsEnabled, loaded: prefsLoaded } = useNotificationPrefs();
   useNotificationGenerator();
+
+  // Asked right away rather than waiting for someone to touch a
+  // notification-related switch first - on request, since "kdo bude appku
+  // vůbec chtít, ať se rovnou zeptá" was the explicit call. Already-
+  // granted/denied permission is a no-op (see pushNotifications.ts), so
+  // this is safe to re-run - it also re-fires when `user` goes from
+  // null to signed-in, which is what actually lets the token reach the
+  // server (registerForPushNotificationsAsync needs a session).
+  useEffect(() => {
+    if (!prefsLoaded) return;
+    void registerForPushNotificationsAsync(monthlyTipsEnabled);
+  }, [user, prefsLoaded]);
 
   if (!fontsLoaded || authLoading) {
     return (

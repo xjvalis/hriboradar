@@ -121,6 +121,10 @@ export function LocationAlertsSheet({ location, onClose }: { location: SavedLoca
                 <Chip key={pct} label={`${pct} %`} active={threshold === pct} onPress={() => setThreshold(pct)} />
               ))}
             </View>
+            <Text style={styles.watchdogNote}>
+              Ať vám push notifikace neuteče, zkontrolujte, že má Hřiboradar povolená upozornění i v
+              nastavení telefonu.
+            </Text>
           </View>
         )}
 
@@ -149,4 +153,5 @@ const styles = StyleSheet.create({
   watchdogDetail: { marginBottom: space.sm },
   sectionLabel: { ...type.label, color: palette.inkFaint, marginBottom: space.sm, marginTop: space.sm },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: space.sm, marginBottom: space.md },
+  watchdogNote: { ...type.caption, color: palette.inkFaint, marginTop: -space.sm, marginBottom: space.sm },
 });
