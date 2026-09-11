@@ -17,6 +17,8 @@ import { SavedLocationsProvider } from "./src/SavedLocationsContext";
 import { AuthProvider, useAuth } from "./src/AuthContext";
 import { AuthScreenProvider } from "./src/AuthScreenContext";
 import { LoginOverlay } from "./src/components/LoginOverlay";
+import { AboutScreenProvider } from "./src/AboutScreenContext";
+import { AboutScreen } from "./src/components/AboutScreen";
 import NewPasswordScreen from "./src/screens/NewPasswordScreen";
 import { NotificationProvider } from "./src/NotificationContext";
 import { NotificationPrefsProvider } from "./src/NotificationPrefsContext";
@@ -139,6 +141,7 @@ function AppShell() {
       <LocationChangeScreen />
       <PaywallModal />
       <LoginOverlay />
+      <AboutScreen />
       <DrawerMenu
         visible={drawerOpen}
         active={active}
@@ -166,7 +169,9 @@ function App() {
                       <SpeciesDetailProvider>
                         <AppNavigationProvider>
                           <AuthScreenProvider>
-                            <AppShell />
+                            <AboutScreenProvider>
+                              <AppShell />
+                            </AboutScreenProvider>
                           </AuthScreenProvider>
                         </AppNavigationProvider>
                       </SpeciesDetailProvider>

@@ -2,11 +2,12 @@ import { useEffect, useRef } from "react";
 import { Animated, Image, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BlurView } from "expo-blur";
-import { CalendarDays, Home, Leaf, LogIn, Map, MapPin, Settings, X } from "lucide-react-native";
+import { CalendarDays, Home, Info, Leaf, LogIn, Map, MapPin, Settings, X } from "lucide-react-native";
 import { IS_TABLET, palette, radius, space, ts, type } from "../theme";
 import { BrandMark } from "./BrandMark";
 import { useAuth } from "../AuthContext";
 import { useAuthScreen } from "../AuthScreenContext";
+import { useAboutScreen } from "../AboutScreenContext";
 import type { ScreenName } from "./TopBar";
 
 // BottomTabBar duplicates Domů/Mapa/Předpověď/Houby as a faster path to
@@ -46,6 +47,7 @@ export function DrawerMenu({
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { openLogin } = useAuthScreen();
+  const { openAbout } = useAboutScreen();
   // Phone's fixed 300pt cap left the drawer feeling cramped once icons/
   // labels inside it scale up 20% on tablet - a bigger flat cap (still
   // capped as a fraction of width, so it doesn't take over a narrower
@@ -108,6 +110,19 @@ export function DrawerMenu({
             );
           })}
         </View>
+
+        <Pressable
+          onPress={() => {
+            openAbout();
+            onClose();
+          }}
+          style={styles.item}
+          accessibilityRole="button"
+          accessibilityLabel="O aplikaci"
+        >
+          <Info size={ts(19)} strokeWidth={1.8} color={palette.wood} />
+          <Text style={styles.itemText}>O aplikaci</Text>
+        </Pressable>
 
         {!user && (
           <Pressable
