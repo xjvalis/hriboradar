@@ -58,6 +58,9 @@ export function PaywallModal() {
 
   const monthlyPrice = monthly?.priceString ?? FALLBACK_MONTHLY_PRICE;
   const annualPrice = annual?.priceString ?? FALLBACK_ANNUAL_PRICE;
+  const selectedHasTrial = (period === "monthly" ? monthly : annual)?.hasFreeTrial ?? false;
+  const selectedPrice = period === "monthly" ? monthlyPrice : annualPrice;
+  const selectedPeriodLabel = period === "monthly" ? "měsíc" : "rok";
 
   async function handlePurchase() {
     setPurchasing(true);
@@ -82,6 +85,11 @@ export function PaywallModal() {
         </View>
         <Text style={styles.title}>Hřiboradar Plus</Text>
         {reason && <Text style={styles.reason}>{reason}</Text>}
+        {selectedHasTrial && (
+          <View style={styles.trialBadge}>
+            <Text style={styles.trialBadgeText}>14 dní zdarma</Text>
+          </View>
+        )}
 
         <View style={styles.featureList}>
           {FEATURES.map((f) => (
@@ -162,7 +170,11 @@ export function PaywallModal() {
               </>
             ) : (
               <>
-                <PrimaryButton label="Aktivovat Hřiboradar Plus" onPress={handlePurchase} loading={purchasing} />
+                <PrimaryButton
+                  label={selectedHasTrial ? "Vyzkoušet 14 dní zdarma" : "Aktivovat Hřiboradar Plus"}
+                  onPress={handlePurchase}
+                  loading={purchasing}
+                />
                 <Text onPress={handleRestore} style={styles.restoreLink}>
                   {restoring ? "Obnovuji…" : "Už jsem si koupil(a) - obnovit nákup"}
                 </Text>
@@ -172,8 +184,10 @@ export function PaywallModal() {
         )}
 
         <Text style={styles.legal}>
-          Předplatné se automaticky obnovuje, dokud ho nezrušíte - zrušit jde kdykoli ve správě
-          předplatných App Store. Nákupem souhlasíte s{" "}
+          {selectedHasTrial
+            ? `Prvních 14 dní zdarma, dnes se nic neúčtuje. Pak se předplatné automaticky obnoví za ${selectedPrice}/${selectedPeriodLabel}, dokud ho nezrušíte - zrušit jde kdykoli, i během zkušební doby, ve správě předplatných App Store. `
+            : "Předplatné se automaticky obnovuje, dokud ho nezrušíte - zrušit jde kdykoli ve správě předplatných App Store. "}
+          Nákupem souhlasíte s{" "}
           <Text style={styles.legalLink} onPress={() => Linking.openURL("https://hriboradar.app/terms.html")}>
             podmínkami užití
           </Text>{" "}
@@ -204,6 +218,14 @@ const styles = StyleSheet.create({
   },
   title: { ...type.headingLg, color: palette.ink },
   reason: { ...type.bodySmall, color: palette.inkSoft, textAlign: "center", marginTop: 4, paddingHorizontal: space.md },
+  trialBadge: {
+    backgroundColor: palette.success + "1a",
+    borderRadius: radius.pill,
+    paddingHorizontal: space.md,
+    paddingVertical: 4,
+    marginTop: space.sm,
+  },
+  trialBadgeText: { ...type.label, color: palette.success },
   featureList: { alignSelf: "stretch", gap: space.sm, marginTop: space.lg, marginBottom: space.lg },
   featureRow: { flexDirection: "row", alignItems: "center", gap: space.sm },
   featureText: { ...type.body, color: palette.ink, flexShrink: 1 },

@@ -87,6 +87,25 @@ Before either platform's purchases are live for real users:
 5. A real EAS build is required either way - `react-native-purchases` cannot
    function in Expo Go (see below), so nothing here is testable without one.
 
+## Introductory offer (free trial)
+
+A 2-week free trial (`duration: TWO_WEEKS`, `offerMode: FREE_TRIAL`, `numberOfPeriods: 1`)
+was added 2026-09-12 to both `hriboradar_plus_monthly` and `hriboradar_plus_annual`,
+across all 175 App Store Connect territories - done directly via the App Store
+Connect API (`POST /v1/subscriptionIntroductoryOffers`, one call per
+territory per subscription; `territory` is a required relationship even
+though a free trial has no price to vary by region). Unlike a new
+subscription/app version, introductory offers don't need an App Review
+submission - they take effect as soon as created.
+
+`SubscriptionContext.tsx`'s `PackageInfo.hasFreeTrial` reads this back from
+RevenueCat's `product.introPrice` (populated automatically once StoreKit
+picks up the offer) and drives the "14 dní zdarma" badge/button copy and the
+trial-terms disclosure text in `PaywallModal.tsx`. It reflects the product's
+configuration, not a given user's actual eligibility - Apple/StoreKit itself
+silently skips the trial at purchase time for someone who's already used it,
+same as any other subscription app.
+
 ## Expo Go crash guard
 
 `react-native-purchases` has native code; every `RNPurchases.*` call in

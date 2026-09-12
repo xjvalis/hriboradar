@@ -120,6 +120,13 @@ export type BillingPeriod = "monthly" | "annual";
 
 interface PackageInfo {
   priceString: string;
+  /** True when the App Store Connect product currently has a $0 introductory
+   * offer attached (see docs/subscriptions.md - a 2-week free trial was
+   * added 2026-09-12 across all territories, both plans). Doesn't reflect
+   * per-user eligibility - Apple/StoreKit itself silently skips the trial
+   * at purchase time for someone who's already used it, same as any other
+   * subscription app; showing the badge to everyone up front is standard. */
+  hasFreeTrial: boolean;
 }
 
 // Surfaced in the Plus settings section so "Spravovat nebo zrušit
@@ -247,8 +254,8 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
             const pkgs = o.current?.availablePackages ?? [];
             const monthlyPkg = findPackage(pkgs, "monthly");
             const annualPkg = findPackage(pkgs, "annual");
-            setMonthly(monthlyPkg ? { priceString: monthlyPkg.product.priceString } : null);
-            setAnnual(annualPkg ? { priceString: annualPkg.product.priceString } : null);
+            setMonthly(monthlyPkg ? { priceString: monthlyPkg.product.priceString, hasFreeTrial: !!monthlyPkg.product.introPrice && monthlyPkg.product.introPrice.price === 0 } : null);
+            setAnnual(annualPkg ? { priceString: annualPkg.product.priceString, hasFreeTrial: !!annualPkg.product.introPrice && annualPkg.product.introPrice.price === 0 } : null);
           })
           .catch(() => {});
         RNPurchases!.addCustomerInfoUpdateListener(applyCustomerInfo);
