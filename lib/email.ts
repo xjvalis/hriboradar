@@ -10,23 +10,45 @@
 // email, not a passing one.
 const RESEND_FROM = "Hřiboradar <noreply@hriboradar.app>";
 const FETCH_TIMEOUT_MS = 8000;
+// Attachments (the daily screenshot report, see api/send-report-email.ts)
+// push a plain webhook-triggered transactional email's payload well past
+// 8s-worth of typical upload time on a cold function - a few PNG
+// screenshots base64-encoded easily reach a few MB.
+const FETCH_TIMEOUT_WITH_ATTACHMENTS_MS = 30000;
 
-export async function sendEmail(opts: { to: string; subject: string; html: string }): Promise<void> {
+export async function sendEmail(opts: {
+  to: string;
+  subject: string;
+  html: string;
+  attachments?: { filename: string; content: string }[]; // content: base64, no data: prefix
+}): Promise<{ ok: boolean; error?: string }> {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
     console.error("[email] RESEND_API_KEY not set, skipping send:", opts.subject);
-    return;
+    return { ok: false, error: "RESEND_API_KEY not set" };
   }
   try {
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ from: RESEND_FROM, to: opts.to, subject: opts.subject, html: opts.html }),
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      body: JSON.stringify({
+        from: RESEND_FROM,
+        to: opts.to,
+        subject: opts.subject,
+        html: opts.html,
+        ...(opts.attachments?.length ? { attachments: opts.attachments } : {}),
+      }),
+      signal: AbortSignal.timeout(opts.attachments?.length ? FETCH_TIMEOUT_WITH_ATTACHMENTS_MS : FETCH_TIMEOUT_MS),
     });
-    if (!res.ok) console.error("[email] Resend returned", res.status, await res.text());
+    if (!res.ok) {
+      const text = await res.text();
+      console.error("[email] Resend returned", res.status, text);
+      return { ok: false, error: `Resend ${res.status}: ${text}` };
+    }
+    return { ok: true };
   } catch (err) {
     console.error("[email] send failed:", err);
+    return { ok: false, error: String(err) };
   }
 }
 
