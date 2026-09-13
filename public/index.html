@@ -284,15 +284,29 @@
 
   const lightbox = document.getElementById("lightbox");
   const lightboxImg = document.getElementById("lightboxImg");
+  const galleryImages = Array.from(document.querySelectorAll("#gallery img"));
+  let lightboxIndex = -1;
+
+  function showLightboxImage(i) {
+    lightboxIndex = (i + galleryImages.length) % galleryImages.length;
+    const img = galleryImages[lightboxIndex];
+    lightboxImg.src = img.src;
+    lightboxImg.alt = img.alt;
+  }
+
   document.getElementById("gallery").addEventListener("click", (e) => {
     if (e.target.tagName !== "IMG") return;
-    lightboxImg.src = e.target.src;
-    lightboxImg.alt = e.target.alt;
+    showLightboxImage(galleryImages.indexOf(e.target));
     lightbox.classList.add("open");
   });
   function closeLightbox() { lightbox.classList.remove("open"); }
   lightbox.addEventListener("click", closeLightbox);
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeLightbox(); });
+  document.addEventListener("keydown", (e) => {
+    if (!lightbox.classList.contains("open")) return;
+    if (e.key === "Escape") closeLightbox();
+    else if (e.key === "ArrowRight") showLightboxImage(lightboxIndex + 1);
+    else if (e.key === "ArrowLeft") showLightboxImage(lightboxIndex - 1);
+  });
 </script>
 </body>
 </html>
