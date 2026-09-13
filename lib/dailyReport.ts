@@ -240,15 +240,21 @@ export async function runDailyReport(): Promise<{
     const grid = await computeGrid();
     const topSpots = pickTopSpots(grid.points);
 
-    const reportSpots: ReportSpot[] = [];
-    for (const spot of topSpots) {
-      const { species, conditions } = await scoreSpotSpecies(spot.lat, spot.lon);
-      const bestSpeciesId = species[0]?.id ?? grid.speciesList[0]?.id ?? "";
-      const { png: screenshotPng, error: screenshotError } = bestSpeciesId
-        ? await screenshotSpot(spot, bestSpeciesId)
-        : { png: null, error: "no species id" };
-      reportSpots.push({ ...spot, species, conditions, screenshotPng, screenshotError });
-    }
+    // Run all 3 spots concurrently (scoring + a whole headless-Chromium
+    // launch each) rather than sequentially - this whole function has to
+    // fit inside Vercel Hobby's 60s maxDuration cap alongside watchdog's
+    // own per-location work, and 3 sequential Chromium launches alone
+    // would eat most of that budget.
+    const reportSpots: ReportSpot[] = await Promise.all(
+      topSpots.map(async (spot) => {
+        const { species, conditions } = await scoreSpotSpecies(spot.lat, spot.lon);
+        const bestSpeciesId = species[0]?.id ?? grid.speciesList[0]?.id ?? "";
+        const { png: screenshotPng, error: screenshotError } = bestSpeciesId
+          ? await screenshotSpot(spot, bestSpeciesId)
+          : { png: null, error: "no species id" };
+        return { ...spot, species, conditions, screenshotPng, screenshotError };
+      })
+    );
 
     const today = new Date().toLocaleDateString("cs-CZ", { day: "numeric", month: "long", year: "numeric" });
     const html = composeHtml(reportSpots, today);
