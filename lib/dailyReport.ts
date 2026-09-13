@@ -166,12 +166,29 @@ async function screenshotSpot(
     try {
       const page = await browser.newPage();
       await page.setViewport(SCREENSHOT_VIEWPORT);
-      await page.goto(url, { waitUntil: "networkidle0", timeout: 25000 });
-      // The map's own tiles/probability overlay finish drawing shortly
-      // after the page's network goes idle (postMessage-driven, not a
-      // fetch this waits on) - a short fixed pause is simpler and more
-      // reliable here than wiring up a real "map is done painting" signal.
-      await new Promise((resolve) => setTimeout(resolve, 2500));
+      await page.goto(url, { waitUntil: "load", timeout: 25000 });
+      // mapa.html's own <script> sets #mapFrame's src (a same-origin
+      // /api/map iframe) after the outer page loads - "networkidle0" on
+      // the OUTER page's own goto doesn't track that inner frame's fetches
+      // (grid data + Leaflet tiles), so a fixed pause here was screenshotting
+      // a blank map most of the time (found 2026-09-13 from a real report
+      // email showing an empty map area). Poll for real rendered tiles
+      // inside that iframe instead - same-origin, so contentDocument is
+      // reachable from here.
+      await page
+        .waitForFunction(
+          () => {
+            const frame = document.getElementById("mapFrame") as HTMLIFrameElement | null;
+            const tiles = frame?.contentDocument?.querySelectorAll(".leaflet-tile-loaded");
+            return !!tiles && tiles.length >= 4;
+          },
+          { timeout: 20000 }
+        )
+        .catch(() => {}); // fall through and screenshot whatever rendered rather than erroring the whole spot
+      // Small settle time for the probability-cloud overlay, which paints
+      // just after the base tiles (postMessage-driven, not itself part of
+      // the tile-load signal above).
+      await new Promise((resolve) => setTimeout(resolve, 1500));
       const png = await page.screenshot({ type: "png" });
       return { png: Buffer.from(png), error: null };
     } finally {
