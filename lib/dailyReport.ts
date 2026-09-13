@@ -136,8 +136,18 @@ async function screenshotSpot(spot: Spot, bestSpeciesId: string): Promise<{ png:
     // binary, which only local dev's node_modules would otherwise need to
     // carry around for a code path that never runs there (this function is
     // only ever called from a deployed Vercel cron, see module comment).
-    const chromium = (await import("@sparticuz/chromium")).default;
-    const puppeteer = await import("puppeteer-core");
+    //
+    // @sparticuz/chromium is ESM-only ("type": "module", no CJS export) -
+    // this whole project compiles to CommonJS (tsconfig's module: commonjs,
+    // and Vercel's own esbuild bundling follows suit), and both TS and
+    // esbuild rewrite a plain `await import("literal-string")` into a
+    // `require()` call when they can statically resolve the target, which
+    // then crashes at runtime with ERR_REQUIRE_ESM (confirmed 2026-09-13
+    // in production). `eval("import(...)")` hides the import specifier
+    // from that static rewrite, forcing Node's own dynamic import - which,
+    // unlike require(), can load a real ESM package from CommonJS.
+    const chromium = (await eval('import("@sparticuz/chromium")')).default;
+    const puppeteer = await eval('import("puppeteer-core")');
     const browser = await puppeteer.launch({
       args: chromium.args,
       executablePath: await chromium.executablePath(),
