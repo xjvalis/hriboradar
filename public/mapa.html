@@ -155,6 +155,38 @@
 
   chipsEl.appendChild(makeChip(null, "Všechny houby"));
   SPECIES.forEach(function (s) { chipsEl.appendChild(makeChip(s.id, s.name)); });
+
+  // Edge-hover auto-scroll: with the scrollbar hidden (see .chips CSS),
+  // hovering near either end is the only real affordance a mouse user has
+  // for "there's more over here" - scrolling faster the closer the cursor
+  // gets to the edge reads as a gentle pull rather than a fixed-speed
+  // conveyor belt. Touch/trackpad swiping still works untouched, this is
+  // purely additive for a mouse hovering, not a replacement for it.
+  var EDGE_ZONE = 56;
+  var MAX_SPEED = 9;
+  var hoverSpeed = 0;
+  var scrollRaf = null;
+
+  function tickScroll() {
+    if (hoverSpeed !== 0) {
+      chipsEl.scrollLeft += hoverSpeed;
+      scrollRaf = requestAnimationFrame(tickScroll);
+    } else {
+      scrollRaf = null;
+    }
+  }
+
+  chipsEl.addEventListener("mousemove", function (e) {
+    var rect = chipsEl.getBoundingClientRect();
+    var fromLeft = e.clientX - rect.left;
+    var fromRight = rect.right - e.clientX;
+    var next = 0;
+    if (fromRight < EDGE_ZONE) next = MAX_SPEED * (1 - fromRight / EDGE_ZONE);
+    else if (fromLeft < EDGE_ZONE) next = -MAX_SPEED * (1 - fromLeft / EDGE_ZONE);
+    hoverSpeed = next;
+    if (hoverSpeed !== 0 && scrollRaf == null) scrollRaf = requestAnimationFrame(tickScroll);
+  });
+  chipsEl.addEventListener("mouseleave", function () { hoverSpeed = 0; });
 </script>
 </body>
 </html>
