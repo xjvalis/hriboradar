@@ -290,8 +290,22 @@ export async function runDailyReport(opts?: { skipEmail?: boolean }): Promise<{
     try {
       for (const { spot, species, conditions } of scored) {
         const bestSpeciesId = species[0]?.id ?? grid.speciesList[0]?.id ?? "";
+        // Hard external deadline on top of screenshotSpot's own internal
+        // timeouts - a real run got stuck well past its 12s tile-wait
+        // (almost certainly the client-side pass over ~36k forest
+        // polygons that masks the probability cloud, not network/tiles -
+        // see leafletHtml.ts's own comment on how heavy that is) and ate
+        // the whole function's 60s budget with nothing to show for it -
+        // no screenshots AND no e-mail (confirmed 2026-09-13). One slow
+        // spot must never again be able to sink the other two plus the
+        // send.
         const { png: screenshotPng, error: screenshotError } = bestSpeciesId
-          ? await screenshotSpot(spot, bestSpeciesId, browser)
+          ? await Promise.race([
+              screenshotSpot(spot, bestSpeciesId, browser),
+              new Promise<{ png: null; error: string }>((resolve) =>
+                setTimeout(() => resolve({ png: null, error: "hard per-spot deadline exceeded" }), 15000)
+              ),
+            ])
           : { png: null, error: "no species id" };
         reportSpots.push({ ...spot, species, conditions, screenshotPng, screenshotError });
       }
