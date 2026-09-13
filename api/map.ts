@@ -1,10 +1,18 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { computeGrid } from "../lib/grid";
-import { buildGridMapHtml } from "../lib/leafletHtml";
+import { buildGridMapHtml, buildPinPickerHtml } from "../lib/leafletHtml";
+import { parseLatLon } from "../lib/validate";
 import { withSentry } from "../lib/sentry";
 
 /**
  * GET /api/map?lat=&lon=
+ * GET /api/map?mode=pin&lat=&lon=&zoom= (rewritten from /api/map-pin, see
+ * vercel.json - kept as its own external path since mobile/'s
+ * LocationMapPicker.tsx calls it by that name; merged into this same
+ * function body purely to stay under Vercel Hobby's 12-serverless-
+ * function-per-deployment cap, same reasoning as api/cron/recalibrate.ts
+ * piggybacking the weather refresh and monthly tip jobs. No behavior
+ * change for either caller.)
  *
  * The Mapa screen's probability-cloud page, as real HTML - not JSON passed
  * through react-native-webview's `source={{ html }}` prop, which silently
@@ -19,6 +27,25 @@ import { withSentry } from "../lib/sentry";
  * and drops it into an iframe instead, see MapScreen.web.tsx).
  */
 async function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.query.mode === "pin") {
+    const parsed = parseLatLon(req.query);
+    if (!parsed) {
+      res.status(400).json({ error: "Chybí nebo je neplatné lat/lon." });
+      return;
+    }
+    const zoom = req.query.zoom != null ? Number(req.query.zoom) : undefined;
+    const html = buildPinPickerHtml({
+      lat: parsed.lat,
+      lon: parsed.lon,
+      zoom: Number.isFinite(zoom) ? zoom : undefined,
+      mapApiKey: process.env.MAPY_CZ_API_KEY ?? "",
+    });
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.setHeader("Cache-Control", "no-store");
+    res.status(200).end(html);
+    return;
+  }
+
   const lat = req.query.lat != null ? Number(req.query.lat) : undefined;
   const lon = req.query.lon != null ? Number(req.query.lon) : undefined;
   const speciesParam = typeof req.query.species === "string" ? req.query.species : undefined;

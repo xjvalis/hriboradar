@@ -5,16 +5,24 @@
 import http from "node:http";
 import { URL } from "node:url";
 
+const mapHandler = (await import("./api/map.ts")).default;
+
+// /api/map-pin isn't its own file anymore (see api/map.ts's module comment
+// - merged in to stay under Vercel Hobby's 12-function cap) - production
+// gets there via vercel.json's rewrite to /api/map?mode=pin, which this
+// local stand-in doesn't have, so the same "pretend mode=pin was in the
+// querystring" trick happens by hand in the handler wiring below.
 const routes = {
   "/api/forecast": (await import("./api/forecast.ts")).default,
   "/api/grid": (await import("./api/grid.ts")).default,
-  "/api/map": (await import("./api/map.ts")).default,
-  "/api/map-pin": (await import("./api/map-pin.ts")).default,
+  "/api/map": mapHandler,
+  "/api/map-pin": mapHandler,
   "/api/forest": (await import("./api/forest.ts")).default,
   "/api/geocode": (await import("./api/geocode.ts")).default,
   "/api/feedback": (await import("./api/feedback.ts")).default,
   "/api/push-token": (await import("./api/push-token.ts")).default,
   "/api/account-delete": (await import("./api/account-delete.ts")).default,
+  "/api/send-report-email": (await import("./api/send-report-email.ts")).default,
   "/api/cron/recalibrate": (await import("./api/cron/recalibrate.ts")).default,
   "/api/cron/watchdog": (await import("./api/cron/watchdog.ts")).default,
   "/api/webhooks/revenuecat": (await import("./api/webhooks/revenuecat.ts")).default,
@@ -87,6 +95,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   const query = Object.fromEntries(url.searchParams);
+  if (url.pathname === "/api/map-pin") query.mode = "pin";
   try {
     const body = await readJsonBody(req);
     await handler({ query, body, method: req.method, headers: req.headers }, makeRes(res));

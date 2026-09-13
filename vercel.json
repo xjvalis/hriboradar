@@ -1,4 +1,10 @@
 {
+  "rewrites": [
+    {
+      "source": "/api/map-pin",
+      "destination": "/api/map?mode=pin"
+    }
+  ],
   "crons": [
     {
       "path": "/api/cron/recalibrate",
