@@ -17,11 +17,11 @@
   ],
   "functions": {
     "api/cron/watchdog.ts": {
-      "includeFiles": "{lib/data/forest-grid.*,node_modules/@sparticuz/chromium/**,node_modules/puppeteer-core/**}",
+      "includeFiles": "{lib/data/forest-grid.*,node_modules/**}",
       "maxDuration": 60
     },
     "api/send-report-email.ts": {
-      "includeFiles": "{lib/data/forest-grid.*,node_modules/@sparticuz/chromium/**,node_modules/puppeteer-core/**}",
+      "includeFiles": "{lib/data/forest-grid.*,node_modules/**}",
       "maxDuration": 60
     },
     "api/**/*.ts": {
