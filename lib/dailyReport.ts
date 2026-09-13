@@ -1,21 +1,32 @@
-// Daily "kde dnes rostou houby" report - three real screenshots of the
-// public mapa.html preview (see public/mapa.html) at today's best spots,
-// plus real per-species percentages, e-mailed to the app owner every
-// morning. Triggered from api/cron/watchdog.ts (piggybacked onto its
-// existing 06:00 UTC schedule - Vercel Hobby caps cron jobs at 2/project
-// and this project's other slot is already api/cron/recalibrate.ts) and
-// also reachable directly via api/send-report-email.ts for manual testing
-// without touching watchdog's real user-facing alert logic.
+// Daily "kde dnes rostou houby" report - today's 3 best spots nationwide,
+// with real per-species percentages and a direct link to each one's live
+// map view, e-mailed to the app owner every morning. Triggered from
+// api/cron/watchdog.ts (piggybacked onto its existing 06:00 UTC schedule -
+// Vercel Hobby caps cron jobs at 2/project and this project's other slot
+// is already api/cron/recalibrate.ts) and also reachable directly via
+// api/send-report-email.ts for manual testing without touching watchdog's
+// real user-facing alert logic.
 //
-// An earlier version of this ran as a scheduled Claude cloud agent
-// instead - abandoned 2026-09-13 when that sandbox's egress policy
-// turned out to hard-block hriboradar.app entirely, with no user-facing
-// way to allow it. Running inside this project's own Vercel deployment
-// sidesteps that: this code already has full outbound internet access
-// (it's the same infra api/forecast.ts etc. run on) and the real
-// RESEND_API_KEY, no secret-passing needed.
+// Two earlier versions of this existed, both abandoned 2026-09-13:
+//   1. A scheduled Claude cloud agent - that sandbox's egress policy
+//      hard-blocks hriboradar.app entirely, with no user-facing way to
+//      allow it.
+//   2. Server-side screenshots via puppeteer-core + @sparticuz/chromium,
+//      run inside this same Vercel function. Got real screenshots working
+//      end to end, but the target page (mapa.html -> /api/map) does a
+//      genuinely heavy client-side pass over ~36k forest polygons to mask
+//      the probability cloud (see leafletHtml.ts's own comment on it),
+//      and that unpredictably hung the whole render on a constrained
+//      Hobby-plan shared vCPU - even with a hard per-spot timeout, since
+//      the underlying Chromium process itself could become unresponsive
+//      to new commands, not just slow to respond to the one already
+//      waiting. Chased it through 5 rounds of fixes (ESM import rewriting,
+//      missing transitive deps, an ETXTBSY race, a wrong zoom param) before
+//      concluding a real fix needs infra this project doesn't have
+//      (a dedicated screenshot service, or more CPU than Hobby gives a
+//      single function) - not worth it for 3 images/day. The user's own
+//      call: send the link, let them screenshot it themselves.
 import { computeGrid } from "./grid";
-import type { Browser } from "puppeteer-core";
 import { fetchWeather } from "./weather";
 import { fetchTerrain, type TerrainInfo } from "./terrain";
 import { scoreSpeciesDay, type Species } from "./scoring";
@@ -33,7 +44,6 @@ const SPOT_COUNT = 3;
 const MIN_SEPARATION_DEG = 0.55;
 const MIN_REPORT_PCT = 20;
 const MAP_ZOOM = 10;
-const SCREENSHOT_VIEWPORT = { width: 1000, height: 1300 };
 
 interface Spot extends ScenicArea {
   overall: number;
@@ -56,8 +66,7 @@ interface SpotConditions {
 interface ReportSpot extends Spot {
   species: SpotSpecies[];
   conditions: SpotConditions | null;
-  screenshotPng: Buffer | null;
-  screenshotError: string | null;
+  mapUrl: string;
 }
 
 function pickTopSpots(gridPoints: { lat: number; lon: number; overall: number }[]): Spot[] {
@@ -130,128 +139,72 @@ async function scoreSpotSpecies(lat: number, lon: number): Promise<{ species: Sp
   return { species: qualifying.length > 0 ? qualifying : scored.slice(0, 1), conditions };
 }
 
-// @sparticuz/chromium is ESM-only ("type": "module", no CJS export) - this
-// whole project compiles to CommonJS (tsconfig's module: commonjs, and
-// Vercel's own esbuild bundling follows suit), and both TS and esbuild
-// rewrite a plain `await import("literal-string")` into a `require()` call
-// when they can statically resolve the target, which then crashes at
-// runtime with ERR_REQUIRE_ESM (confirmed 2026-09-13 in production).
-// `eval("import(...)")` hides the import specifier from that static
-// rewrite, forcing Node's own dynamic import - which, unlike require(),
-// can load a real ESM package from CommonJS.
-async function launchBrowser(): Promise<Browser> {
-  const chromium = (await eval('import("@sparticuz/chromium")')).default;
-  const puppeteer = await eval('import("puppeteer-core")');
-  return puppeteer.launch({
-    args: chromium.args,
-    executablePath: await chromium.executablePath(),
-    headless: true,
-  });
-}
-
-// One browser instance shared across all 3 spots (opened once in
-// runDailyReport, a fresh page per spot, closed once at the end) rather
-// than a full Chromium process launched per spot - process startup alone
-// was a meaningful chunk of the ~20s/spot that blew through Vercel's 60s
-// maxDuration (504, confirmed 2026-09-13). Sharing the browser also means
-// the 2nd/3rd spot's page can reuse the 1st's HTTP cache for anything
-// identical between them (notably /api/forest's ~1.3MB polygon payload,
-// which doesn't depend on which spot is being viewed) instead of
-// re-downloading it fresh per spot.
-async function screenshotSpot(
-  spot: Spot,
-  bestSpeciesId: string,
-  browser: Browser
-): Promise<{ png: Buffer | null; error: string | null }> {
-  // mapa.html just forwards its own querystring verbatim to /api/map (see
-  // public/mapa.html), and /api/map.ts specifically reads "fzoom" for the
-  // initial zoomed-in view (lat/lon alone only place the marker) - "zoom"
-  // by itself is silently ignored, which is why the first real screenshot
-  // came out at the default whole-country view instead of zoomed into the
-  // spot (found 2026-09-13, comparing a real screenshot against this URL).
-  const url = `https://hriboradar.app/mapa.html?species=${encodeURIComponent(bestSpeciesId)}&lat=${spot.lat}&lon=${spot.lon}&fzoom=${MAP_ZOOM}`;
-  const page = await browser.newPage();
-  try {
-    await page.setViewport(SCREENSHOT_VIEWPORT);
-    await page.goto(url, { waitUntil: "load", timeout: 15000 });
-    // mapa.html's own <script> sets #mapFrame's src (a same-origin
-    // /api/map iframe) after the outer page loads - "networkidle0" on
-    // the OUTER page's own goto doesn't track that inner frame's fetches
-    // (grid data + Leaflet tiles), so a fixed pause here was screenshotting
-    // a blank map most of the time (found 2026-09-13 from a real report
-    // email showing an empty map area). Poll for real rendered tiles
-    // inside that iframe instead - same-origin, so contentDocument is
-    // reachable from here.
-    await page
-      .waitForFunction(
-        () => {
-          const frame = document.getElementById("mapFrame") as HTMLIFrameElement | null;
-          const tiles = frame?.contentDocument?.querySelectorAll(".leaflet-tile-loaded");
-          return !!tiles && tiles.length >= 4;
-        },
-        { timeout: 12000 }
-      )
-      .catch(() => {}); // fall through and screenshot whatever rendered rather than erroring the whole spot
-    // Small settle time for the probability-cloud overlay, which paints
-    // just after the base tiles (postMessage-driven, not itself part of
-    // the tile-load signal above).
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    const png = await page.screenshot({ type: "png" });
-    return { png: Buffer.from(png), error: null };
-  } catch (err) {
-    captureError(err, { step: "screenshotSpot", url });
-    return { png: null, error: String(err) };
-  } finally {
-    await page.close();
-  }
-}
-
 const FOREST_TYPE_TEXT: Record<NonNullable<TerrainInfo["dominantType"]>, string> = {
   jehličnatý: "jehličnatý les",
   listnatý: "listnatý les",
   smíšený: "smíšený les",
 };
 
-function describeConditions(c: SpotConditions): string {
-  const parts: string[] = [];
-  parts.push(`${c.tempC} °C`);
-  parts.push(
+// Joins Czech names with "a" before the last one ("A, B a C") instead of a
+// bare comma list - reads like something a person wrote, not a CSV dump.
+function joinCz(items: string[]): string {
+  if (items.length <= 1) return items.join("");
+  return `${items.slice(0, -1).join(", ")} a ${items[items.length - 1]}`;
+}
+
+// A short, warm paragraph explaining WHY, not just a fact-dump of numbers -
+// on request 2026-09-13 ("ty zprávy by se mi hodily opravdu jako líp
+// vysvětlený proč a co roste"). Leads with the species and percentages
+// (the actual news), then weaves weather and forest type together as the
+// reasoning, in one flowing sentence rather than a labeled "Počasí: ..."
+// line - the house style throughout this app's copy (see lib/email.ts,
+// public/mapa.html) is direct and conversational, not a spec sheet.
+function describeSpot(spot: ReportSpot): string {
+  const named = spot.species.map((s) => `${s.name_cz} (${s.probability_pct} %)`);
+  const weak = spot.species.every((s) => s.probability_pct < MIN_REPORT_PCT);
+  const lead = weak
+    ? `Dnes to tu nikde moc nehoří, ale nejblíž k tomu má ${joinCz(named)} - je to nejlepší nabídka z celého dnešního dne.`
+    : `Dnes tu má nejlepší šanci ${joinCz(named)}.`;
+
+  const c = spot.conditions;
+  if (!c) return lead;
+
+  const rainText =
     c.daysSinceRain === 0
-      ? "dnes pršelo"
+      ? "dnes vydatně pršelo"
       : c.daysSinceRain === 1
-        ? "naposledy pršelo včera"
-        : `naposledy pršelo před ${c.daysSinceRain} dny`
-  );
-  if (c.rain3dMm > 0) parts.push(`za poslední 3 dny spadlo ${c.rain3dMm} mm`);
-  parts.push(`vlhkost půdy ${Math.round(c.soilMoisturePct)} %`);
+        ? "naposledy vydatně pršelo včera"
+        : `naposledy vydatně pršelo před ${c.daysSinceRain} dny`;
+  const moistureText =
+    c.soilMoisturePct >= 35
+      ? `půda je pořád pěkně vlhká (${Math.round(c.soilMoisturePct)} %)`
+      : c.soilMoisturePct >= 20
+        ? `půda má ještě slušnou vlhkost (${Math.round(c.soilMoisturePct)} %)`
+        : `půda už je dost suchá (jen ${Math.round(c.soilMoisturePct)} % vlhkosti)`;
 
   const forestType = c.terrain.dominantType ? FOREST_TYPE_TEXT[c.terrain.dominantType] : null;
   const genera = c.terrain.treeGenera.slice(0, 3).join(", ");
   const forestText = forestType
     ? genera
-      ? `V okolí převažuje ${forestType} (${genera})`
-      : `V okolí převažuje ${forestType}`
+      ? `V okolí navíc roste hlavně ${forestType} (${genera}), přesně to, co tyhle druhy potřebují`
+      : `V okolí navíc roste hlavně ${forestType}`
     : null;
 
-  return `Počasí: ${parts.join(", ")}.${forestText ? ` ${forestText}.` : ""}`;
+  const why = `${rainText.charAt(0).toUpperCase() + rainText.slice(1)}, teploty se drží kolem ${c.tempC} °C a ${moistureText}.${forestText ? ` ${forestText}.` : ""}`;
+
+  return `${lead} ${why}`;
 }
 
 function composeHtml(spots: ReportSpot[], today: string): string {
   const rows = spots
     .map((spot, i) => {
-      const speciesText = spot.species.map((s) => `${s.name_cz} ${s.probability_pct} %`).join(", ");
-      const weak = spot.species.every((s) => s.probability_pct < MIN_REPORT_PCT);
-      const note = weak ? " (dnes tam nic moc neroste, ale je to pořád nejlepší z dnešní nabídky)" : "";
-      const conditionsText = spot.conditions ? describeConditions(spot.conditions) : "";
-      const screenshotNote = spot.screenshotPng
-        ? `Screenshot v příloze: spot${i + 1}.png`
-        : "Screenshot se dnes bohužel nepodařilo vygenerovat.";
       return `
         <div style="margin-bottom:24px;padding-bottom:20px;${i < spots.length - 1 ? "border-bottom:1px solid #E4DCC6" : ""}">
-          <h2 style="font-size:17px;margin:0 0 6px">${spot.name}</h2>
-          <p style="margin:0;color:#5A5847">${speciesText}${note}</p>
-          ${conditionsText ? `<p style="margin:8px 0 0;font-size:13px;color:#5A5847">${conditionsText}</p>` : ""}
-          <p style="margin:6px 0 0;font-size:12px;color:#8C8A6E">${screenshotNote}</p>
+          <h2 style="font-size:17px;margin:0 0 8px">${spot.name}</h2>
+          <p style="margin:0;color:#5A5847">${describeSpot(spot)}</p>
+          <p style="margin:10px 0 0">
+            <a href="${spot.mapUrl}" style="color:#33482C;font-weight:600">Otevřít mapu tohoto místa →</a>
+          </p>
         </div>`;
     })
     .join("");
@@ -267,72 +220,37 @@ function composeHtml(spots: ReportSpot[], today: string): string {
 export async function runDailyReport(opts?: { skipEmail?: boolean }): Promise<{
   ok: boolean;
   error?: string;
-  spots?: { name: string; screenshot: boolean; screenshotError?: string | null; screenshotPngBase64?: string }[];
+  spots?: { name: string; mapUrl: string; species: SpotSpecies[] }[];
 }> {
   try {
     const grid = await computeGrid();
     const topSpots = pickTopSpots(grid.points);
 
-    // Scoring (weather/terrain HTTP fetches, no Chromium) stays parallel -
-    // that's cheap I/O, not CPU.
     const scored = await Promise.all(
       topSpots.map(async (spot) => ({ spot, ...(await scoreSpotSpecies(spot.lat, spot.lon)) }))
     );
 
-    // Screenshots run one at a time on ONE shared browser (see
-    // screenshotSpot's own comment) rather than a fresh Chromium process
-    // per spot - 3 concurrent processes on a single Hobby function's
-    // shared vCPU, and separately 3 sequential *process launches*, both
-    // independently blew through Vercel's 60s maxDuration wall (504,
-    // confirmed 2026-09-13) before this.
-    const reportSpots: ReportSpot[] = [];
-    const browser = await launchBrowser();
-    try {
-      for (const { spot, species, conditions } of scored) {
-        const bestSpeciesId = species[0]?.id ?? grid.speciesList[0]?.id ?? "";
-        // Hard external deadline on top of screenshotSpot's own internal
-        // timeouts - a real run got stuck well past its 12s tile-wait
-        // (almost certainly the client-side pass over ~36k forest
-        // polygons that masks the probability cloud, not network/tiles -
-        // see leafletHtml.ts's own comment on how heavy that is) and ate
-        // the whole function's 60s budget with nothing to show for it -
-        // no screenshots AND no e-mail (confirmed 2026-09-13). One slow
-        // spot must never again be able to sink the other two plus the
-        // send.
-        const { png: screenshotPng, error: screenshotError } = bestSpeciesId
-          ? await Promise.race([
-              screenshotSpot(spot, bestSpeciesId, browser),
-              new Promise<{ png: null; error: string }>((resolve) =>
-                setTimeout(() => resolve({ png: null, error: "hard per-spot deadline exceeded" }), 15000)
-              ),
-            ])
-          : { png: null, error: "no species id" };
-        reportSpots.push({ ...spot, species, conditions, screenshotPng, screenshotError });
-      }
-    } finally {
-      await browser.close();
-    }
+    const reportSpots: ReportSpot[] = scored.map(({ spot, species, conditions }) => {
+      const bestSpeciesId = species[0]?.id ?? grid.speciesList[0]?.id ?? "";
+      // mapa.html (public/mapa.html - a standalone page, not part of the
+      // mobile app) forwards its own querystring verbatim to /api/map,
+      // which specifically reads "fzoom" for the initial zoomed-in view
+      // (lat/lon alone only place the marker) - plain "zoom" is silently
+      // ignored (found 2026-09-13, a screenshot came out at the whole-
+      // country default view instead of zoomed into the spot).
+      const mapUrl = `https://hriboradar.app/mapa.html?species=${encodeURIComponent(bestSpeciesId)}&lat=${spot.lat}&lon=${spot.lon}&fzoom=${MAP_ZOOM}`;
+      return { ...spot, species, conditions, mapUrl };
+    });
 
     const today = new Date().toLocaleDateString("cs-CZ", { day: "numeric", month: "long", year: "numeric" });
     const html = composeHtml(reportSpots, today);
-    const attachments = reportSpots
-      .map((spot, i) =>
-        spot.screenshotPng ? { filename: `spot${i + 1}.png`, content: spot.screenshotPng.toString("base64") } : null
-      )
-      .filter((a): a is { filename: string; content: string } => a !== null);
 
     // skipEmail: used only by api/send-report-email.ts's manual debug path
-    // to inspect a screenshot directly (as base64) without spending a real
-    // Resend send on every iteration while tuning the screenshot timing.
+    // to check the picked spots/links without spending a real Resend send.
     if (opts?.skipEmail) {
       return {
         ok: true,
-        spots: reportSpots.map((s) => ({
-          name: s.name,
-          screenshot: !!s.screenshotPng,
-          screenshotError: s.screenshotError,
-          screenshotPngBase64: s.screenshotPng?.toString("base64"),
-        })),
+        spots: reportSpots.map((s) => ({ name: s.name, mapUrl: s.mapUrl, species: s.species })),
       };
     }
 
@@ -340,7 +258,6 @@ export async function runDailyReport(opts?: { skipEmail?: boolean }): Promise<{
       to: REPORT_TO,
       subject: `🍄 Dnešní houbové tipy - ${today}`,
       html,
-      attachments,
     });
 
     if (!result.ok) {
@@ -349,7 +266,7 @@ export async function runDailyReport(opts?: { skipEmail?: boolean }): Promise<{
     }
     return {
       ok: true,
-      spots: reportSpots.map((s) => ({ name: s.name, screenshot: !!s.screenshotPng, screenshotError: s.screenshotError })),
+      spots: reportSpots.map((s) => ({ name: s.name, mapUrl: s.mapUrl, species: s.species })),
     };
   } catch (err) {
     captureError(err, { step: "runDailyReport" });

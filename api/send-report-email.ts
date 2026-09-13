@@ -11,7 +11,7 @@ import { withSentry } from "../lib/sentry";
  * watchdog's real user-facing alert logic (useful for verifying a change
  * to the report itself without waiting for - or risking a side effect in -
  * the actual watchdog run). Secret-protected since it's an unauthenticated
- * POST that costs real Chromium/Resend usage per call.
+ * POST that costs a real Resend send per call.
  */
 async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
@@ -26,10 +26,9 @@ async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  // ?debug=1 skips the real Resend send and returns each screenshot as
-  // base64 instead, so a screenshot-timing fix can be checked directly
-  // (saved and viewed) without spending a real e-mail send on every
-  // iteration - see lib/dailyReport.ts's runDailyReport().
+  // ?debug=1 skips the real Resend send and just returns the picked spots
+  // (name, map link, species/percentages) as JSON, so a change can be
+  // checked without spending a real e-mail send on every iteration.
   const debug = req.query.debug === "1";
   const result = await runDailyReport({ skipEmail: debug });
   res.status(result.ok ? 200 : 502).json(result);
