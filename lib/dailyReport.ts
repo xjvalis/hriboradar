@@ -15,6 +15,7 @@
 // (it's the same infra api/forecast.ts etc. run on) and the real
 // RESEND_API_KEY, no secret-passing needed.
 import { computeGrid } from "./grid";
+import type { Browser } from "puppeteer-core";
 import { fetchWeather } from "./weather";
 import { fetchTerrain, type TerrainInfo } from "./terrain";
 import { scoreSpeciesDay, type Species } from "./scoring";
@@ -138,65 +139,64 @@ async function scoreSpotSpecies(lat: number, lon: number): Promise<{ species: Sp
 // `eval("import(...)")` hides the import specifier from that static
 // rewrite, forcing Node's own dynamic import - which, unlike require(),
 // can load a real ESM package from CommonJS.
-async function loadChromiumLauncher(): Promise<{ args: string[]; executablePath: string; puppeteer: typeof import("puppeteer-core") }> {
+async function launchBrowser(): Promise<Browser> {
   const chromium = (await eval('import("@sparticuz/chromium")')).default;
   const puppeteer = await eval('import("puppeteer-core")');
-  // Resolved once and reused across all 3 parallel screenshots (see
-  // Promise.all below) - chromium.executablePath() extracts the bundled
-  // binary to a shared temp path on first call, and two concurrent
-  // extractions of the same file raced into ETXTBSY ("text file busy",
-  // one process tried to exec it while another was still writing it)
-  // the first time this ran with 3 fully independent per-spot calls.
-  const executablePath = await chromium.executablePath();
-  return { args: chromium.args, executablePath, puppeteer };
+  return puppeteer.launch({
+    args: chromium.args,
+    executablePath: await chromium.executablePath(),
+    headless: true,
+  });
 }
 
+// One browser instance shared across all 3 spots (opened once in
+// runDailyReport, a fresh page per spot, closed once at the end) rather
+// than a full Chromium process launched per spot - process startup alone
+// was a meaningful chunk of the ~20s/spot that blew through Vercel's 60s
+// maxDuration (504, confirmed 2026-09-13). Sharing the browser also means
+// the 2nd/3rd spot's page can reuse the 1st's HTTP cache for anything
+// identical between them (notably /api/forest's ~1.3MB polygon payload,
+// which doesn't depend on which spot is being viewed) instead of
+// re-downloading it fresh per spot.
 async function screenshotSpot(
   spot: Spot,
   bestSpeciesId: string,
-  launcher: { args: string[]; executablePath: string; puppeteer: typeof import("puppeteer-core") }
+  browser: Browser
 ): Promise<{ png: Buffer | null; error: string | null }> {
   const url = `https://hriboradar.app/mapa.html?species=${encodeURIComponent(bestSpeciesId)}&lat=${spot.lat}&lon=${spot.lon}&zoom=${MAP_ZOOM}`;
+  const page = await browser.newPage();
   try {
-    const browser = await launcher.puppeteer.launch({
-      args: launcher.args,
-      executablePath: launcher.executablePath,
-      headless: true,
-    });
-    try {
-      const page = await browser.newPage();
-      await page.setViewport(SCREENSHOT_VIEWPORT);
-      await page.goto(url, { waitUntil: "load", timeout: 15000 });
-      // mapa.html's own <script> sets #mapFrame's src (a same-origin
-      // /api/map iframe) after the outer page loads - "networkidle0" on
-      // the OUTER page's own goto doesn't track that inner frame's fetches
-      // (grid data + Leaflet tiles), so a fixed pause here was screenshotting
-      // a blank map most of the time (found 2026-09-13 from a real report
-      // email showing an empty map area). Poll for real rendered tiles
-      // inside that iframe instead - same-origin, so contentDocument is
-      // reachable from here.
-      await page
-        .waitForFunction(
-          () => {
-            const frame = document.getElementById("mapFrame") as HTMLIFrameElement | null;
-            const tiles = frame?.contentDocument?.querySelectorAll(".leaflet-tile-loaded");
-            return !!tiles && tiles.length >= 4;
-          },
-          { timeout: 12000 }
-        )
-        .catch(() => {}); // fall through and screenshot whatever rendered rather than erroring the whole spot
-      // Small settle time for the probability-cloud overlay, which paints
-      // just after the base tiles (postMessage-driven, not itself part of
-      // the tile-load signal above).
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      const png = await page.screenshot({ type: "png" });
-      return { png: Buffer.from(png), error: null };
-    } finally {
-      await browser.close();
-    }
+    await page.setViewport(SCREENSHOT_VIEWPORT);
+    await page.goto(url, { waitUntil: "load", timeout: 15000 });
+    // mapa.html's own <script> sets #mapFrame's src (a same-origin
+    // /api/map iframe) after the outer page loads - "networkidle0" on
+    // the OUTER page's own goto doesn't track that inner frame's fetches
+    // (grid data + Leaflet tiles), so a fixed pause here was screenshotting
+    // a blank map most of the time (found 2026-09-13 from a real report
+    // email showing an empty map area). Poll for real rendered tiles
+    // inside that iframe instead - same-origin, so contentDocument is
+    // reachable from here.
+    await page
+      .waitForFunction(
+        () => {
+          const frame = document.getElementById("mapFrame") as HTMLIFrameElement | null;
+          const tiles = frame?.contentDocument?.querySelectorAll(".leaflet-tile-loaded");
+          return !!tiles && tiles.length >= 4;
+        },
+        { timeout: 12000 }
+      )
+      .catch(() => {}); // fall through and screenshot whatever rendered rather than erroring the whole spot
+    // Small settle time for the probability-cloud overlay, which paints
+    // just after the base tiles (postMessage-driven, not itself part of
+    // the tile-load signal above).
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    const png = await page.screenshot({ type: "png" });
+    return { png: Buffer.from(png), error: null };
   } catch (err) {
     captureError(err, { step: "screenshotSpot", url });
     return { png: null, error: String(err) };
+  } finally {
+    await page.close();
   }
 }
 
@@ -266,28 +266,31 @@ export async function runDailyReport(opts?: { skipEmail?: boolean }): Promise<{
   try {
     const grid = await computeGrid();
     const topSpots = pickTopSpots(grid.points);
-    const launcher = await loadChromiumLauncher();
 
     // Scoring (weather/terrain HTTP fetches, no Chromium) stays parallel -
-    // that's cheap I/O, not CPU. Screenshots run one at a time instead:
-    // 3 concurrent Chromium instances on a single Hobby function's shared
-    // vCPU contended hard enough for CPU time that tile-loading (see
-    // screenshotSpot's own comment) blew past even a 20s-per-spot budget
-    // and the whole function hit Vercel's 60s maxDuration wall (504,
-    // confirmed 2026-09-13). Sequential is slower in isolation but far
-    // more predictable - each spot gets the CPU to itself. The launcher
-    // (resolved once, above) is still shared across all 3.
+    // that's cheap I/O, not CPU.
     const scored = await Promise.all(
       topSpots.map(async (spot) => ({ spot, ...(await scoreSpotSpecies(spot.lat, spot.lon)) }))
     );
 
+    // Screenshots run one at a time on ONE shared browser (see
+    // screenshotSpot's own comment) rather than a fresh Chromium process
+    // per spot - 3 concurrent processes on a single Hobby function's
+    // shared vCPU, and separately 3 sequential *process launches*, both
+    // independently blew through Vercel's 60s maxDuration wall (504,
+    // confirmed 2026-09-13) before this.
     const reportSpots: ReportSpot[] = [];
-    for (const { spot, species, conditions } of scored) {
-      const bestSpeciesId = species[0]?.id ?? grid.speciesList[0]?.id ?? "";
-      const { png: screenshotPng, error: screenshotError } = bestSpeciesId
-        ? await screenshotSpot(spot, bestSpeciesId, launcher)
-        : { png: null, error: "no species id" };
-      reportSpots.push({ ...spot, species, conditions, screenshotPng, screenshotError });
+    const browser = await launchBrowser();
+    try {
+      for (const { spot, species, conditions } of scored) {
+        const bestSpeciesId = species[0]?.id ?? grid.speciesList[0]?.id ?? "";
+        const { png: screenshotPng, error: screenshotError } = bestSpeciesId
+          ? await screenshotSpot(spot, bestSpeciesId, browser)
+          : { png: null, error: "no species id" };
+        reportSpots.push({ ...spot, species, conditions, screenshotPng, screenshotError });
+      }
+    } finally {
+      await browser.close();
     }
 
     const today = new Date().toLocaleDateString("cs-CZ", { day: "numeric", month: "long", year: "numeric" });
