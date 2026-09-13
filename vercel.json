@@ -17,11 +17,11 @@
   ],
   "functions": {
     "api/cron/watchdog.ts": {
-      "includeFiles": "{lib/data/forest-grid.*,node_modules/**}",
+      "includeFiles": "{lib/data/forest-grid.*,node_modules/tar-fs/**,node_modules/pump/**,node_modules/end-of-stream/**,node_modules/once/**,node_modules/wrappy/**,node_modules/tar-stream/**,node_modules/b4a/**,node_modules/bare-fs/**,node_modules/bare-events/**,node_modules/bare-path/**,node_modules/bare-stream/**,node_modules/streamx/**,node_modules/events-universal/**,node_modules/fast-fifo/**,node_modules/text-decoder/**,node_modules/teex/**,node_modules/bare-url/**,node_modules/puppeteer-core/**,node_modules/@puppeteer/browsers/**,node_modules/modern-tar/**,node_modules/yargs/**,node_modules/cliui/**,node_modules/string-width/**,node_modules/emoji-regex/**,node_modules/is-fullwidth-code-point/**,node_modules/strip-ansi/**,node_modules/ansi-regex/**,node_modules/wrap-ansi/**,node_modules/ansi-styles/**,node_modules/escalade/**,node_modules/get-caller-file/**,node_modules/y18n/**,node_modules/yargs-parser/**,node_modules/chromium-bidi/**,node_modules/mitt/**,node_modules/zod/**,node_modules/devtools-protocol/**,node_modules/typed-query-selector/**,node_modules/webdriver-bidi-protocol/**,node_modules/ws/**,node_modules/@sparticuz/chromium/**}",
       "maxDuration": 60
     },
     "api/send-report-email.ts": {
-      "includeFiles": "{lib/data/forest-grid.*,node_modules/**}",
+      "includeFiles": "{lib/data/forest-grid.*,node_modules/tar-fs/**,node_modules/pump/**,node_modules/end-of-stream/**,node_modules/once/**,node_modules/wrappy/**,node_modules/tar-stream/**,node_modules/b4a/**,node_modules/bare-fs/**,node_modules/bare-events/**,node_modules/bare-path/**,node_modules/bare-stream/**,node_modules/streamx/**,node_modules/events-universal/**,node_modules/fast-fifo/**,node_modules/text-decoder/**,node_modules/teex/**,node_modules/bare-url/**,node_modules/puppeteer-core/**,node_modules/@puppeteer/browsers/**,node_modules/modern-tar/**,node_modules/yargs/**,node_modules/cliui/**,node_modules/string-width/**,node_modules/emoji-regex/**,node_modules/is-fullwidth-code-point/**,node_modules/strip-ansi/**,node_modules/ansi-regex/**,node_modules/wrap-ansi/**,node_modules/ansi-styles/**,node_modules/escalade/**,node_modules/get-caller-file/**,node_modules/y18n/**,node_modules/yargs-parser/**,node_modules/chromium-bidi/**,node_modules/mitt/**,node_modules/zod/**,node_modules/devtools-protocol/**,node_modules/typed-query-selector/**,node_modules/webdriver-bidi-protocol/**,node_modules/ws/**,node_modules/@sparticuz/chromium/**}",
       "maxDuration": 60
     },
     "api/**/*.ts": {
