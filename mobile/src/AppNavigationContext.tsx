@@ -1,6 +1,34 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { Platform } from "react-native";
 import type { ScreenName } from "./components/TopBar";
 import { useAuth } from "./AuthContext";
+
+const SCREEN_NAMES: ScreenName[] = ["Domů", "Mapa", "Předpověď", "Houby", "Moje", "Nastavení"];
+
+// Lets a web URL land directly on a given screen/species/region - used by
+// the hriboradar.app landing page (embeds this web build in an iframe,
+// wants it to open straight on Mapa instead of Domů) and, later, by
+// whatever generates the daily "kde dnes rostou houby" screenshots (needs
+// to land on a specific species+region without simulating clicks first).
+// Native builds never have a browser URL to read, so this is a no-op there.
+function readUrlParams(): { screen: ScreenName | null; species: string | null; lat: number | null; lon: number | null; zoom: number | null } {
+  if (Platform.OS !== "web" || typeof window === "undefined") {
+    return { screen: null, species: null, lat: null, lon: null, zoom: null };
+  }
+  const params = new URLSearchParams(window.location.search);
+  const screenParam = params.get("screen");
+  const screen = (SCREEN_NAMES as string[]).includes(screenParam ?? "") ? (screenParam as ScreenName) : null;
+  const lat = params.get("lat") != null ? Number(params.get("lat")) : null;
+  const lon = params.get("lon") != null ? Number(params.get("lon")) : null;
+  const zoom = params.get("zoom") != null ? Number(params.get("zoom")) : null;
+  return {
+    screen,
+    species: params.get("species"),
+    lat: Number.isFinite(lat) ? lat : null,
+    lon: Number.isFinite(lon) ? lon : null,
+    zoom: Number.isFinite(zoom) ? zoom : null,
+  };
+}
 
 export interface MapFocusRequest {
   lat: number;
@@ -35,10 +63,16 @@ interface AppNavigationValue {
 
 const AppNavigationContext = createContext<AppNavigationValue | null>(null);
 
+const urlParams = readUrlParams();
+
 export function AppNavigationProvider({ children }: { children: ReactNode }) {
-  const [active, setActive] = useState<ScreenName>("Domů");
-  const pendingSpeciesId = useRef<string | null>(null);
-  const pendingMapFocus = useRef<MapFocusRequest | null>(null);
+  const [active, setActive] = useState<ScreenName>(urlParams.screen ?? "Domů");
+  const pendingSpeciesId = useRef<string | null>(urlParams.species);
+  const pendingMapFocus = useRef<MapFocusRequest | null>(
+    urlParams.lat != null && urlParams.lon != null
+      ? { lat: urlParams.lat, lon: urlParams.lon, zoom: urlParams.zoom ?? 10 }
+      : null
+  );
   const pendingHoubyTimeline = useRef(false);
 
   // This provider lives above App.tsx's `if (!user)` branch (so it doesn't
