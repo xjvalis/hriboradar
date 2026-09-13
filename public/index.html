@@ -33,12 +33,25 @@
   a { color: inherit; }
   .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
 
-  header.top {
-    padding: 24px 0;
-  }
+  header.top { padding: 20px 0; }
   .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
   .brand img { width: 34px; height: 34px; }
   .brand span { font-family: "Fraunces", serif; font-weight: 700; font-size: 20px; color: var(--ink); }
+  .nav-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+    color: var(--ink);
+    border: 1px solid var(--ink);
+    padding: 9px 18px;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 14px;
+    white-space: nowrap;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .nav-btn:hover { background: var(--ink); color: var(--surface); }
 
   .hero {
     display: flex;
@@ -105,6 +118,15 @@
     .preview iframe { height: 640px; }
   }
 
+  .gallery-heading {
+    text-align: center;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin: 0 0 24px;
+  }
   .gallery {
     display: flex;
     gap: 24px;
@@ -180,11 +202,12 @@
 <body>
 
 <header class="top">
-  <div class="wrap">
+  <div class="wrap" style="display:flex; align-items:center; justify-content:space-between; gap:16px;">
     <a class="brand" href="/">
       <img src="/app-icon.png" alt="" />
       <span>Hřiboradar</span>
     </a>
+    <a class="nav-btn" href="https://apps.apple.com/app/id6805550756">Stáhnout appku</a>
   </div>
 </header>
 
@@ -220,6 +243,7 @@
     ></iframe>
   </div>
 
+  <p class="gallery-heading">Další obrazovky appky</p>
   <div class="gallery" id="gallery">
     <img src="/screens/01-rostou.jpg" alt="Domovská obrazovka appky Hřiboradar s houbovým indexem" loading="lazy" />
     <img src="/screens/02-mapa.jpg" alt="Mapa Česka s hustotou pravděpodobnosti nálezu hub" loading="lazy" />
