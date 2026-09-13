@@ -129,28 +129,38 @@ async function scoreSpotSpecies(lat: number, lon: number): Promise<{ species: Sp
   return { species: qualifying.length > 0 ? qualifying : scored.slice(0, 1), conditions };
 }
 
-async function screenshotSpot(spot: Spot, bestSpeciesId: string): Promise<{ png: Buffer | null; error: string | null }> {
+// @sparticuz/chromium is ESM-only ("type": "module", no CJS export) - this
+// whole project compiles to CommonJS (tsconfig's module: commonjs, and
+// Vercel's own esbuild bundling follows suit), and both TS and esbuild
+// rewrite a plain `await import("literal-string")` into a `require()` call
+// when they can statically resolve the target, which then crashes at
+// runtime with ERR_REQUIRE_ESM (confirmed 2026-09-13 in production).
+// `eval("import(...)")` hides the import specifier from that static
+// rewrite, forcing Node's own dynamic import - which, unlike require(),
+// can load a real ESM package from CommonJS.
+async function loadChromiumLauncher(): Promise<{ args: string[]; executablePath: string; puppeteer: typeof import("puppeteer-core") }> {
+  const chromium = (await eval('import("@sparticuz/chromium")')).default;
+  const puppeteer = await eval('import("puppeteer-core")');
+  // Resolved once and reused across all 3 parallel screenshots (see
+  // Promise.all below) - chromium.executablePath() extracts the bundled
+  // binary to a shared temp path on first call, and two concurrent
+  // extractions of the same file raced into ETXTBSY ("text file busy",
+  // one process tried to exec it while another was still writing it)
+  // the first time this ran with 3 fully independent per-spot calls.
+  const executablePath = await chromium.executablePath();
+  return { args: chromium.args, executablePath, puppeteer };
+}
+
+async function screenshotSpot(
+  spot: Spot,
+  bestSpeciesId: string,
+  launcher: { args: string[]; executablePath: string; puppeteer: typeof import("puppeteer-core") }
+): Promise<{ png: Buffer | null; error: string | null }> {
   const url = `https://hriboradar.app/mapa.html?species=${encodeURIComponent(bestSpeciesId)}&lat=${spot.lat}&lon=${spot.lon}&zoom=${MAP_ZOOM}`;
   try {
-    // Lazy-imported: these two packages bundle/download a real Chromium
-    // binary, which only local dev's node_modules would otherwise need to
-    // carry around for a code path that never runs there (this function is
-    // only ever called from a deployed Vercel cron, see module comment).
-    //
-    // @sparticuz/chromium is ESM-only ("type": "module", no CJS export) -
-    // this whole project compiles to CommonJS (tsconfig's module: commonjs,
-    // and Vercel's own esbuild bundling follows suit), and both TS and
-    // esbuild rewrite a plain `await import("literal-string")` into a
-    // `require()` call when they can statically resolve the target, which
-    // then crashes at runtime with ERR_REQUIRE_ESM (confirmed 2026-09-13
-    // in production). `eval("import(...)")` hides the import specifier
-    // from that static rewrite, forcing Node's own dynamic import - which,
-    // unlike require(), can load a real ESM package from CommonJS.
-    const chromium = (await eval('import("@sparticuz/chromium")')).default;
-    const puppeteer = await eval('import("puppeteer-core")');
-    const browser = await puppeteer.launch({
-      args: chromium.args,
-      executablePath: await chromium.executablePath(),
+    const browser = await launcher.puppeteer.launch({
+      args: launcher.args,
+      executablePath: launcher.executablePath,
       headless: true,
     });
     try {
@@ -239,18 +249,20 @@ export async function runDailyReport(): Promise<{
   try {
     const grid = await computeGrid();
     const topSpots = pickTopSpots(grid.points);
+    const launcher = await loadChromiumLauncher();
 
     // Run all 3 spots concurrently (scoring + a whole headless-Chromium
     // launch each) rather than sequentially - this whole function has to
     // fit inside Vercel Hobby's 60s maxDuration cap alongside watchdog's
     // own per-location work, and 3 sequential Chromium launches alone
-    // would eat most of that budget.
+    // would eat most of that budget. The launcher (resolved once, above)
+    // is shared rather than re-resolved per spot - see its own comment.
     const reportSpots: ReportSpot[] = await Promise.all(
       topSpots.map(async (spot) => {
         const { species, conditions } = await scoreSpotSpecies(spot.lat, spot.lon);
         const bestSpeciesId = species[0]?.id ?? grid.speciesList[0]?.id ?? "";
         const { png: screenshotPng, error: screenshotError } = bestSpeciesId
-          ? await screenshotSpot(spot, bestSpeciesId)
+          ? await screenshotSpot(spot, bestSpeciesId, launcher)
           : { png: null, error: "no species id" };
         return { ...spot, species, conditions, screenshotPng, screenshotError };
       })
