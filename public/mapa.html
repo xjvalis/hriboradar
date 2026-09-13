@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mapa - Hřiboradar</title>
+<meta name="robots" content="noindex" />
+<link rel="icon" href="/app-icon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,600;0,9..144,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #EDE6D6;
+    --surface: #F7F2E7;
+    --ink: #24261D;
+    --ink-soft: #5A5847;
+    --ink-faint: #8C8A6E;
+    --line: #E4DCC6;
+    --primary: #33482C;
+    --primary-deep: #243420;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    font-family: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+  }
+  h1 { font-family: "Fraunces", Georgia, serif; }
+
+  /* Standalone page meant to look like the app's own Mapa screen (brand
+     bar + header + species chips) around the real /api/map iframe - this
+     chrome is plain HTML/CSS, not a build of the mobile app, so it can be
+     embedded on the landing page or opened directly (full-size, with
+     ?species=&lat=&lon=&zoom= to land on an exact view) for the daily
+     "kde dnes rostou houby" screenshots without touching mobile/ at all. */
+  header.top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--line);
+    background: var(--surface);
+    flex: none;
+  }
+  header.top img { width: 26px; height: 26px; }
+  header.top span { font-family: "Fraunces", serif; font-weight: 700; font-size: 17px; }
+
+  .panel {
+    padding: 16px 20px 12px;
+    flex: none;
+  }
+  .eyebrow { font-family: "Fraunces", serif; font-style: italic; font-weight: 600; color: var(--primary); font-size: 13px; margin: 0 0 4px; }
+  h1 { font-size: 24px; margin: 0 0 4px; }
+  .hint { font-size: 12.5px; color: var(--ink-faint); margin: 0 0 12px; }
+
+  .chips { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+  .chip {
+    flex: none;
+    font-family: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--ink-soft);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 7px 14px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .chip.active { background: var(--primary); border-color: var(--primary); color: var(--surface); }
+
+  .mapWrap { flex: 1; position: relative; min-height: 320px; }
+  .mapWrap iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: none; }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <img src="/app-icon.png" alt="" />
+  <span>Hřiboradar</span>
+</header>
+
+<div class="panel">
+  <p class="eyebrow">celá ČR · dnes</p>
+  <h1>Mapa</h1>
+  <p class="hint">Hustota mraku = pravděpodobnost nálezu.</p>
+  <div class="chips" id="chips"></div>
+</div>
+
+<div class="mapWrap">
+  <iframe id="mapFrame" title="Mapa houbového indexu"></iframe>
+</div>
+
+<script>
+  var SPECIES = [
+    { id: "hrib-smrkovy", name: "Hřib smrkový" },
+    { id: "hrib-dubovy", name: "Hřib dubový" },
+    { id: "kozak-brezovy", name: "Kozák březový" },
+    { id: "kremenac-brezovy", name: "Křemenáč březový" },
+    { id: "liska-obecna", name: "Liška obecná" },
+    { id: "bedla-vysoka", name: "Bedla vysoká" },
+    { id: "klouzek-slizky", name: "Klouzek slizký" },
+    { id: "klouzek-zrnity", name: "Klouzek zrnitý" },
+    { id: "kotrc-kadeřavy", name: "Kotrč kadeřavý" },
+    { id: "ryzec-smrkovy", name: "Ryzec smrkový" },
+    { id: "holubinka-nazelenala", name: "Holubinka nazelenalá" },
+    { id: "muchomurka-ruzovka", name: "Muchomůrka růžovka" },
+    { id: "kremenac-osikovy", name: "Křemenáč osikový" },
+    { id: "vaclavka-obecna", name: "Václavka obecná" },
+    { id: "ciruvka-fialova", name: "Čirůvka fialová" },
+    { id: "smrz-obecny", name: "Smrž obecný" }
+  ];
+
+  var params = new URLSearchParams(location.search);
+  var initialSpecies = params.get("species");
+  if (!SPECIES.some(function (s) { return s.id === initialSpecies; })) initialSpecies = null;
+
+  var iframeSrc = "/api/map?" + params.toString();
+  document.getElementById("mapFrame").src = iframeSrc;
+
+  var chipsEl = document.getElementById("chips");
+  var frame = document.getElementById("mapFrame");
+
+  function makeChip(id, name) {
+    var btn = document.createElement("button");
+    btn.className = "chip" + (id === initialSpecies ? " active" : !id && !initialSpecies ? " active" : "");
+    btn.textContent = name;
+    btn.addEventListener("click", function () {
+      Array.prototype.forEach.call(chipsEl.children, function (c) { c.classList.remove("active"); });
+      btn.classList.add("active");
+      var mode = id ? { type: "species", id: id } : { type: "overall" };
+      frame.contentWindow.postMessage(JSON.stringify({ type: "setMode", mode: mode }), "*");
+      var next = new URLSearchParams(location.search);
+      if (id) next.set("species", id); else next.delete("species");
+      history.replaceState(null, "", location.pathname + "?" + next.toString());
+    });
+    return btn;
+  }
+
+  chipsEl.appendChild(makeChip(null, "Všechny houby"));
+  SPECIES.forEach(function (s) { chipsEl.appendChild(makeChip(s.id, s.name)); });
+</script>
+</body>
+</html>
