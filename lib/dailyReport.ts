@@ -16,7 +16,7 @@
 // RESEND_API_KEY, no secret-passing needed.
 import { computeGrid } from "./grid";
 import { fetchWeather } from "./weather";
-import { fetchTerrain } from "./terrain";
+import { fetchTerrain, type TerrainInfo } from "./terrain";
 import { scoreSpeciesDay, type Species } from "./scoring";
 import { applyCalibratedProbability } from "./calibration";
 import { sendEmail } from "./email";
@@ -44,9 +44,19 @@ interface SpotSpecies {
   probability_pct: number;
 }
 
+interface SpotConditions {
+  tempC: number;
+  rain3dMm: number;
+  daysSinceRain: number;
+  soilMoisturePct: number;
+  terrain: TerrainInfo;
+}
+
 interface ReportSpot extends Spot {
   species: SpotSpecies[];
+  conditions: SpotConditions | null;
   screenshotPng: Buffer | null;
+  screenshotError: string | null;
 }
 
 function pickTopSpots(gridPoints: { lat: number; lon: number; overall: number }[]): Spot[] {
@@ -81,11 +91,18 @@ function pickTopSpots(gridPoints: { lat: number; lon: number; overall: number }[
   return picked;
 }
 
-async function scoreSpotSpecies(lat: number, lon: number): Promise<SpotSpecies[]> {
+function daysSinceLastRain(days: { date: string; precipMm: number }[], todayIndex: number, thresholdMm = 2): number {
+  for (let i = todayIndex; i >= 0; i--) {
+    if (days[i].precipMm >= thresholdMm) return todayIndex - i;
+  }
+  return todayIndex + 1; // no qualifying rain anywhere in the lookback window
+}
+
+async function scoreSpotSpecies(lat: number, lon: number): Promise<{ species: SpotSpecies[]; conditions: SpotConditions | null }> {
   const [days, terrain] = await Promise.all([fetchWeather(lat, lon), fetchTerrain(lat, lon)]);
   const todayStr = new Date().toISOString().slice(0, 10);
   const todayIndex = days.findIndex((d) => d.date === todayStr);
-  if (todayIndex === -1) return [];
+  if (todayIndex === -1) return { species: [], conditions: null };
 
   const species = speciesData.species as Species[];
   const scored = await Promise.all(
@@ -97,10 +114,22 @@ async function scoreSpotSpecies(lat: number, lon: number): Promise<SpotSpecies[]
   );
   scored.sort((a, b) => b.probability_pct - a.probability_pct);
   const qualifying = scored.filter((s) => s.probability_pct >= MIN_REPORT_PCT).slice(0, 4);
-  return qualifying.length > 0 ? qualifying : scored.slice(0, 1);
+
+  const rain3dMm = Math.round(
+    days.slice(Math.max(0, todayIndex - 2), todayIndex + 1).reduce((sum, d) => sum + d.precipMm, 0)
+  );
+  const conditions: SpotConditions = {
+    tempC: Math.round(days[todayIndex].tempAvgC * 10) / 10,
+    rain3dMm,
+    daysSinceRain: daysSinceLastRain(days, todayIndex),
+    soilMoisturePct: days[todayIndex].soilMoisturePct,
+    terrain,
+  };
+
+  return { species: qualifying.length > 0 ? qualifying : scored.slice(0, 1), conditions };
 }
 
-async function screenshotSpot(spot: Spot, bestSpeciesId: string): Promise<Buffer | null> {
+async function screenshotSpot(spot: Spot, bestSpeciesId: string): Promise<{ png: Buffer | null; error: string | null }> {
   const url = `https://hriboradar.app/mapa.html?species=${encodeURIComponent(bestSpeciesId)}&lat=${spot.lat}&lon=${spot.lon}&zoom=${MAP_ZOOM}`;
   try {
     // Lazy-imported: these two packages bundle/download a real Chromium
@@ -124,14 +153,44 @@ async function screenshotSpot(spot: Spot, bestSpeciesId: string): Promise<Buffer
       // reliable here than wiring up a real "map is done painting" signal.
       await new Promise((resolve) => setTimeout(resolve, 2500));
       const png = await page.screenshot({ type: "png" });
-      return Buffer.from(png);
+      return { png: Buffer.from(png), error: null };
     } finally {
       await browser.close();
     }
   } catch (err) {
     captureError(err, { step: "screenshotSpot", url });
-    return null;
+    return { png: null, error: String(err) };
   }
+}
+
+const FOREST_TYPE_TEXT: Record<NonNullable<TerrainInfo["dominantType"]>, string> = {
+  jehličnatý: "jehličnatý les",
+  listnatý: "listnatý les",
+  smíšený: "smíšený les",
+};
+
+function describeConditions(c: SpotConditions): string {
+  const parts: string[] = [];
+  parts.push(`${c.tempC} °C`);
+  parts.push(
+    c.daysSinceRain === 0
+      ? "dnes pršelo"
+      : c.daysSinceRain === 1
+        ? "naposledy pršelo včera"
+        : `naposledy pršelo před ${c.daysSinceRain} dny`
+  );
+  if (c.rain3dMm > 0) parts.push(`za poslední 3 dny spadlo ${c.rain3dMm} mm`);
+  parts.push(`vlhkost půdy ${Math.round(c.soilMoisturePct)} %`);
+
+  const forestType = c.terrain.dominantType ? FOREST_TYPE_TEXT[c.terrain.dominantType] : null;
+  const genera = c.terrain.treeGenera.slice(0, 3).join(", ");
+  const forestText = forestType
+    ? genera
+      ? `V okolí převažuje ${forestType} (${genera})`
+      : `V okolí převažuje ${forestType}`
+    : null;
+
+  return `Počasí: ${parts.join(", ")}.${forestText ? ` ${forestText}.` : ""}`;
 }
 
 function composeHtml(spots: ReportSpot[], today: string): string {
@@ -140,11 +199,16 @@ function composeHtml(spots: ReportSpot[], today: string): string {
       const speciesText = spot.species.map((s) => `${s.name_cz} ${s.probability_pct} %`).join(", ");
       const weak = spot.species.every((s) => s.probability_pct < MIN_REPORT_PCT);
       const note = weak ? " (dnes tam nic moc neroste, ale je to pořád nejlepší z dnešní nabídky)" : "";
+      const conditionsText = spot.conditions ? describeConditions(spot.conditions) : "";
+      const screenshotNote = spot.screenshotPng
+        ? `Screenshot v příloze: spot${i + 1}.png`
+        : "Screenshot se dnes bohužel nepodařilo vygenerovat.";
       return `
         <div style="margin-bottom:24px;padding-bottom:20px;${i < spots.length - 1 ? "border-bottom:1px solid #E4DCC6" : ""}">
           <h2 style="font-size:17px;margin:0 0 6px">${spot.name}</h2>
           <p style="margin:0;color:#5A5847">${speciesText}${note}</p>
-          <p style="margin:6px 0 0;font-size:12px;color:#8C8A6E">Screenshot v příloze: spot${i + 1}.png</p>
+          ${conditionsText ? `<p style="margin:8px 0 0;font-size:13px;color:#5A5847">${conditionsText}</p>` : ""}
+          <p style="margin:6px 0 0;font-size:12px;color:#8C8A6E">${screenshotNote}</p>
         </div>`;
     })
     .join("");
@@ -157,17 +221,23 @@ function composeHtml(spots: ReportSpot[], today: string): string {
     </div>`;
 }
 
-export async function runDailyReport(): Promise<{ ok: boolean; error?: string; spots?: string[] }> {
+export async function runDailyReport(): Promise<{
+  ok: boolean;
+  error?: string;
+  spots?: { name: string; screenshot: boolean; screenshotError?: string | null }[];
+}> {
   try {
     const grid = await computeGrid();
     const topSpots = pickTopSpots(grid.points);
 
     const reportSpots: ReportSpot[] = [];
     for (const spot of topSpots) {
-      const species = await scoreSpotSpecies(spot.lat, spot.lon);
+      const { species, conditions } = await scoreSpotSpecies(spot.lat, spot.lon);
       const bestSpeciesId = species[0]?.id ?? grid.speciesList[0]?.id ?? "";
-      const screenshotPng = bestSpeciesId ? await screenshotSpot(spot, bestSpeciesId) : null;
-      reportSpots.push({ ...spot, species, screenshotPng });
+      const { png: screenshotPng, error: screenshotError } = bestSpeciesId
+        ? await screenshotSpot(spot, bestSpeciesId)
+        : { png: null, error: "no species id" };
+      reportSpots.push({ ...spot, species, conditions, screenshotPng, screenshotError });
     }
 
     const today = new Date().toLocaleDateString("cs-CZ", { day: "numeric", month: "long", year: "numeric" });
@@ -189,7 +259,10 @@ export async function runDailyReport(): Promise<{ ok: boolean; error?: string; s
       captureError(new Error("runDailyReport send failed"), { resendError: result.error });
       return { ok: false, error: result.error };
     }
-    return { ok: true, spots: reportSpots.map((s) => s.name) };
+    return {
+      ok: true,
+      spots: reportSpots.map((s) => ({ name: s.name, screenshot: !!s.screenshotPng, screenshotError: s.screenshotError })),
+    };
   } catch (err) {
     captureError(err, { step: "runDailyReport" });
     return { ok: false, error: String(err) };
