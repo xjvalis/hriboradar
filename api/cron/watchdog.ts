@@ -6,6 +6,7 @@ import { scoreSpeciesDay, type Species } from "../../lib/scoring";
 import { overallScore } from "../../lib/grid";
 import { sendEmail, watchdogEmail } from "../../lib/email";
 import { sendPushNotifications } from "../../lib/push";
+import { runDailyReport } from "../../lib/dailyReport";
 import { captureError, withSentry } from "../../lib/sentry";
 import speciesData from "../data/species.json";
 
@@ -189,7 +190,16 @@ async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
-  res.status(200).json({ ok: true, checked, notified });
+  // Piggybacked on this same daily run rather than its own cron - same
+  // reasoning as recalibrate.ts piggybacking the weather refresh and
+  // monthly tip (Vercel Hobby's 2-cron-job-per-project cap, both slots
+  // already spoken for). Never lets a failure here affect the real
+  // per-user watchdog results above - runDailyReport() catches its own
+  // errors and reports them via Sentry rather than throwing.
+  const dailyReport = await runDailyReport();
+  if (!dailyReport.ok) console.warn("[watchdog] daily report:", dailyReport.error);
+
+  res.status(200).json({ ok: true, checked, notified, daily_report: dailyReport });
 }
 
 export default withSentry(handler);
