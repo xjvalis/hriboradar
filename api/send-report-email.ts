@@ -26,7 +26,12 @@ async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  const result = await runDailyReport();
+  // ?debug=1 skips the real Resend send and returns each screenshot as
+  // base64 instead, so a screenshot-timing fix can be checked directly
+  // (saved and viewed) without spending a real e-mail send on every
+  // iteration - see lib/dailyReport.ts's runDailyReport().
+  const debug = req.query.debug === "1";
+  const result = await runDailyReport({ skipEmail: debug });
   res.status(result.ok ? 200 : 502).json(result);
 }
 

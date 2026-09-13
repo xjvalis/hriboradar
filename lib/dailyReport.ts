@@ -258,10 +258,10 @@ function composeHtml(spots: ReportSpot[], today: string): string {
     </div>`;
 }
 
-export async function runDailyReport(): Promise<{
+export async function runDailyReport(opts?: { skipEmail?: boolean }): Promise<{
   ok: boolean;
   error?: string;
-  spots?: { name: string; screenshot: boolean; screenshotError?: string | null }[];
+  spots?: { name: string; screenshot: boolean; screenshotError?: string | null; screenshotPngBase64?: string }[];
 }> {
   try {
     const grid = await computeGrid();
@@ -292,6 +292,21 @@ export async function runDailyReport(): Promise<{
         spot.screenshotPng ? { filename: `spot${i + 1}.png`, content: spot.screenshotPng.toString("base64") } : null
       )
       .filter((a): a is { filename: string; content: string } => a !== null);
+
+    // skipEmail: used only by api/send-report-email.ts's manual debug path
+    // to inspect a screenshot directly (as base64) without spending a real
+    // Resend send on every iteration while tuning the screenshot timing.
+    if (opts?.skipEmail) {
+      return {
+        ok: true,
+        spots: reportSpots.map((s) => ({
+          name: s.name,
+          screenshot: !!s.screenshotPng,
+          screenshotError: s.screenshotError,
+          screenshotPngBase64: s.screenshotPng?.toString("base64"),
+        })),
+      };
+    }
 
     const result = await sendEmail({
       to: REPORT_TO,
