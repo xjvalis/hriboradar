@@ -163,7 +163,13 @@ async function screenshotSpot(
   bestSpeciesId: string,
   browser: Browser
 ): Promise<{ png: Buffer | null; error: string | null }> {
-  const url = `https://hriboradar.app/mapa.html?species=${encodeURIComponent(bestSpeciesId)}&lat=${spot.lat}&lon=${spot.lon}&zoom=${MAP_ZOOM}`;
+  // mapa.html just forwards its own querystring verbatim to /api/map (see
+  // public/mapa.html), and /api/map.ts specifically reads "fzoom" for the
+  // initial zoomed-in view (lat/lon alone only place the marker) - "zoom"
+  // by itself is silently ignored, which is why the first real screenshot
+  // came out at the default whole-country view instead of zoomed into the
+  // spot (found 2026-09-13, comparing a real screenshot against this URL).
+  const url = `https://hriboradar.app/mapa.html?species=${encodeURIComponent(bestSpeciesId)}&lat=${spot.lat}&lon=${spot.lon}&fzoom=${MAP_ZOOM}`;
   const page = await browser.newPage();
   try {
     await page.setViewport(SCREENSHOT_VIEWPORT);
