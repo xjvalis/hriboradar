@@ -166,7 +166,7 @@ async function screenshotSpot(
     try {
       const page = await browser.newPage();
       await page.setViewport(SCREENSHOT_VIEWPORT);
-      await page.goto(url, { waitUntil: "load", timeout: 25000 });
+      await page.goto(url, { waitUntil: "load", timeout: 15000 });
       // mapa.html's own <script> sets #mapFrame's src (a same-origin
       // /api/map iframe) after the outer page loads - "networkidle0" on
       // the OUTER page's own goto doesn't track that inner frame's fetches
@@ -182,7 +182,7 @@ async function screenshotSpot(
             const tiles = frame?.contentDocument?.querySelectorAll(".leaflet-tile-loaded");
             return !!tiles && tiles.length >= 4;
           },
-          { timeout: 20000 }
+          { timeout: 12000 }
         )
         .catch(() => {}); // fall through and screenshot whatever rendered rather than erroring the whole spot
       // Small settle time for the probability-cloud overlay, which paints
@@ -268,22 +268,27 @@ export async function runDailyReport(opts?: { skipEmail?: boolean }): Promise<{
     const topSpots = pickTopSpots(grid.points);
     const launcher = await loadChromiumLauncher();
 
-    // Run all 3 spots concurrently (scoring + a whole headless-Chromium
-    // launch each) rather than sequentially - this whole function has to
-    // fit inside Vercel Hobby's 60s maxDuration cap alongside watchdog's
-    // own per-location work, and 3 sequential Chromium launches alone
-    // would eat most of that budget. The launcher (resolved once, above)
-    // is shared rather than re-resolved per spot - see its own comment.
-    const reportSpots: ReportSpot[] = await Promise.all(
-      topSpots.map(async (spot) => {
-        const { species, conditions } = await scoreSpotSpecies(spot.lat, spot.lon);
-        const bestSpeciesId = species[0]?.id ?? grid.speciesList[0]?.id ?? "";
-        const { png: screenshotPng, error: screenshotError } = bestSpeciesId
-          ? await screenshotSpot(spot, bestSpeciesId, launcher)
-          : { png: null, error: "no species id" };
-        return { ...spot, species, conditions, screenshotPng, screenshotError };
-      })
+    // Scoring (weather/terrain HTTP fetches, no Chromium) stays parallel -
+    // that's cheap I/O, not CPU. Screenshots run one at a time instead:
+    // 3 concurrent Chromium instances on a single Hobby function's shared
+    // vCPU contended hard enough for CPU time that tile-loading (see
+    // screenshotSpot's own comment) blew past even a 20s-per-spot budget
+    // and the whole function hit Vercel's 60s maxDuration wall (504,
+    // confirmed 2026-09-13). Sequential is slower in isolation but far
+    // more predictable - each spot gets the CPU to itself. The launcher
+    // (resolved once, above) is still shared across all 3.
+    const scored = await Promise.all(
+      topSpots.map(async (spot) => ({ spot, ...(await scoreSpotSpecies(spot.lat, spot.lon)) }))
     );
+
+    const reportSpots: ReportSpot[] = [];
+    for (const { spot, species, conditions } of scored) {
+      const bestSpeciesId = species[0]?.id ?? grid.speciesList[0]?.id ?? "";
+      const { png: screenshotPng, error: screenshotError } = bestSpeciesId
+        ? await screenshotSpot(spot, bestSpeciesId, launcher)
+        : { png: null, error: "no species id" };
+      reportSpots.push({ ...spot, species, conditions, screenshotPng, screenshotError });
+    }
 
     const today = new Date().toLocaleDateString("cs-CZ", { day: "numeric", month: "long", year: "numeric" });
     const html = composeHtml(reportSpots, today);
