@@ -12,5 +12,15 @@ data-prep/test-*.json
 # tracked - that's the actual deploy artifact.
 data-prep/osm/
 
+# Downloaded Copernicus DLT tiles (~800MB) that
+# data-prep/augment_with_copernicus_dlt.py consumes - re-downloadable
+# from WEkEO, not something to version control. Same reasoning as
+# data-prep/osm/ above (*.log above already covers the run logs).
+data-prep/copernicus/
+
+# Pre-augmentation snapshot of forest-grid.bin, kept locally as a
+# rollback point while iterating on data-prep/augment_with_copernicus_dlt.py.
+lib/data/forest-grid.bin.bak-*
+
 .vercel
 .env*
