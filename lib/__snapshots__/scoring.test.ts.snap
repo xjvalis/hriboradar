@@ -4,15 +4,15 @@ exports[`scoreSpeciesDay (golden snapshot) > matches the exact-genus-match, non-
 {
   "date": "2026-09-10",
   "factors": {
-    "days_since_rain": 3,
+    "days_since_rain": 2,
     "moisture": 0.77,
-    "rain_timing": 0.8,
+    "rain_timing": 0.63,
     "season": 1,
     "temp": 1,
     "terrain": 1,
     "urban": 1,
   },
-  "probability_pct": 85,
+  "probability_pct": 80,
 }
 `;
 
@@ -20,15 +20,15 @@ exports[`scoreSpeciesDay (golden snapshot) > matches the unknown-forest-type cas
 {
   "date": "2026-09-10",
   "factors": {
-    "days_since_rain": 3,
+    "days_since_rain": 2,
     "moisture": 0.77,
-    "rain_timing": 0.8,
+    "rain_timing": 0.63,
     "season": 1,
     "temp": 1,
     "terrain": 0.5,
     "urban": 1,
   },
-  "probability_pct": 43,
+  "probability_pct": 40,
 }
 `;
 
@@ -36,16 +36,16 @@ exports[`scoreSpeciesDay (golden snapshot) > matches the urban-penalty case 1`] 
 {
   "date": "2026-09-10",
   "factors": {
-    "days_since_rain": 3,
+    "days_since_rain": 2,
     "moisture": 0.77,
-    "rain_timing": 0.8,
+    "rain_timing": 0.63,
     "season": 1,
     "temp": 1,
     "terrain": 1,
     "urban": 0.15,
   },
-  "probability_pct": 13,
+  "probability_pct": 12,
 }
 `;
 
-exports[`scoreSpeciesDay (golden snapshot) > matches the weather-only potential used by the map grid 1`] = `85`;
+exports[`scoreSpeciesDay (golden snapshot) > matches the weather-only potential used by the map grid 1`] = `80`;

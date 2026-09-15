@@ -19,16 +19,23 @@ const PAST_DAYS = 35;
 
 // Recession constant for the antecedent precipitation index (see
 // antecedentPrecip below) - each day back contributes ANTECEDENT_DECAY^n of
-// its rainfall. 0.9 sits in the middle of the 0.85-0.98 range typically used
-// for API-type indices (see e.g. the "estimation of soil moisture using
-// modified antecedent precipitation index" literature); ČHMI's own API30
-// (the model this mirrors - "sumace denních úhrnů srážek za sledované
-// období s klesající vahou směrem do minulosti") doesn't publish its exact
-// constant, so this is a reasonable literature-typical default rather than
-// a reproduction of their tuned value. Downstream calibration
-// (api/cron/recalibrate.ts) corrects for whatever bias this introduces once
-// real feedback accumulates under lib/scoring.ts's MODEL_VERSION.
-const ANTECEDENT_DECAY = 0.9;
+// its rainfall. ČHMI's own API30 (the model this mirrors - "sumace denních
+// úhrnů srážek za sledované období s klesající vahou směrem do minulosti")
+// doesn't publish its exact constant, so this is a literature-informed
+// choice rather than a reproduction of their tuned value - but it must
+// actually deliver the "30-day memory" the name promises: 0.9 (the
+// original value here) has a ~6.6-day half-life, so by day 15 a rain event
+// has decayed to under 20% of its original weight - in practice a ~1-week
+// index wearing a "30-day" label. Found 2026-09-15 comparing against
+// ČHMI's own map: a region with more total rain spread over the month
+// (steady smaller rains) was scoring worse than one with a single recent
+// spike, because the fast decay had already forgotten everything but the
+// last week. 0.97 gives a ~23-day half-life - a rain event from 3 weeks
+// ago still carries real weight, matching what "30-day antecedent index"
+// is supposed to mean. Downstream calibration (api/cron/recalibrate.ts)
+// corrects for whatever residual bias this introduces once real feedback
+// accumulates under lib/scoring.ts's MODEL_VERSION.
+const ANTECEDENT_DECAY = 0.97;
 const ANTECEDENT_WINDOW_DAYS = 30;
 // How far forward we forecast - covers the "za N dní upozornění" use case.
 const FORECAST_DAYS = 7;
@@ -204,14 +211,27 @@ export async function fetchWeatherUncached(lat: number, lon: number): Promise<Da
  * >= minRainMm), looking back from `dayIndex` in `days`. Returns null if no
  * qualifying rain is found within the fetched window.
  */
+// How many days' rain get summed to test against a species' min_rain_mm
+// threshold. Was 2 - too narrow for how rain actually falls: a genuinely
+// soaking multi-day spell (e.g. 6+6+5mm over 3 days, a real fruiting
+// trigger per the foraging-forum reports checked 2026-09-15) could just
+// miss a 15mm/2-day bar that a single sharper storm clears easily, making
+// "days since qualifying rain" read as "no rain in weeks" for a region
+// that was actually rained on steadily. 3 days catches that spread-out
+// case while still meaning "a real event", not the whole antecedent window
+// (that's antecedentWaterMm/ANTECEDENT_DECAY's job, a slower, longer-memory
+// signal this one deliberately stays complementary to).
+const RAIN_TRIGGER_WINDOW_DAYS = 3;
+
 export function daysSinceRain(
   days: DayWeather[],
   dayIndex: number,
   minRainMm: number
 ): number | null {
-  for (let i = dayIndex; i >= 1; i--) {
-    const twoDaySum = days[i].precipMm + days[i - 1].precipMm;
-    if (twoDaySum >= minRainMm) {
+  for (let i = dayIndex; i >= RAIN_TRIGGER_WINDOW_DAYS - 1; i--) {
+    let windowSum = 0;
+    for (let k = 0; k < RAIN_TRIGGER_WINDOW_DAYS; k++) windowSum += days[i - k].precipMm;
+    if (windowSum >= minRainMm) {
       return dayIndex - i;
     }
   }

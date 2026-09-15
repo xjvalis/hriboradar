@@ -7,7 +7,7 @@ import { terrainMatchFactor, type TerrainInfo } from "./terrain";
 // scoring formula below starts its own calibration cohort instead of
 // silently mixing with data the old formula produced. Bump this whenever
 // scoreSpeciesDay's math changes in a way that shifts probabilities.
-export const MODEL_VERSION = "1.6.0";
+export const MODEL_VERSION = "1.7.0";
 
 export interface Species {
   id: string;
@@ -201,7 +201,16 @@ function weatherFactors(days: DayWeather[], dayIndex: number, species: Species):
   const temp = tempFactor(day.tempAvgC, species.temp_range_c);
   const rain = rainTimingFactor(since, species.days_after_rain);
   const moisture = moistureFactor(day, species.moisture_need);
-  const weighted = temp * 0.3 + rain * 0.4 + moisture * 0.3;
+  // rain_timing used to carry the most weight (0.4) of the three - but it's
+  // a near-binary "was there a single qualifying rain event recently"
+  // signal, while moisture (soil moisture + the decay-weighted antecedent
+  // index) is the closer physiological driver mycology research actually
+  // points to (spores stay dormant until soil wetness crosses a threshold,
+  // and fruiting is sustained by ongoing moisture, not just the presence of
+  // one trigger event - see the sources gathered 2026-09-15 investigating
+  // why a region with steady month-long rain scored worse than one with a
+  // single recent storm). Moisture now carries the larger share instead.
+  const weighted = temp * 0.3 + rain * 0.3 + moisture * 0.4;
 
   return { season, temp, rain, moisture, weighted, daysSinceRainValue: since };
 }
