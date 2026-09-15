@@ -141,6 +141,6 @@ describe("scoreSpeciesDay (golden snapshot)", () => {
     // is correct - update this literal alongside deleting the stale
     // snapshot file (not just `vitest -u`), so the version bump is visible
     // in the diff instead of buried in a regenerated snapshot.
-    expect(MODEL_VERSION).toBe("1.7.0");
+    expect(MODEL_VERSION).toBe("1.8.0");
   });
 });

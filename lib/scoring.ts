@@ -6,8 +6,12 @@ import { terrainMatchFactor, type TerrainInfo } from "./terrain";
 // api/feedback.ts, api/cron/recalibrate.ts) so a future change to the
 // scoring formula below starts its own calibration cohort instead of
 // silently mixing with data the old formula produced. Bump this whenever
-// scoreSpeciesDay's math changes in a way that shifts probabilities.
-export const MODEL_VERSION = "1.7.0";
+// scoreSpeciesDay's math changes in a way that shifts probabilities -
+// including a species.json data correction (host_trees/temp_range_c/season),
+// even though scoreSpeciesDay's own code didn't change, since the inputs
+// feeding it materially shifted (see api/data/species.json's own
+// mycology_audit_2026-09-16 _meta entry for what changed and why).
+export const MODEL_VERSION = "1.8.0";
 
 export interface Species {
   id: string;
