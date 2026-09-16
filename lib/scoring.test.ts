@@ -136,11 +136,52 @@ describe("scoreSpeciesDay (golden snapshot)", () => {
     expect(weatherPotential(days, 9, SPECIES)).toBeLessThanOrEqual(95);
   });
 
+  it("season factor changes smoothly across a month boundary, not in a single-day cliff", () => {
+    // User feedback 2026-09-16: the old 3-bucket seasonFactor(month) jumped
+    // straight from 0.05 (out of season_months) to 0.6 (in season_months)
+    // the instant the calendar crossed into a new month - real mycelium
+    // doesn't know what day it is. SPECIES here has season_months=[8,9,10],
+    // so Aug 31 and Sep 1 are one calendar day apart but used to differ by
+    // 12x in this factor alone. Build two adjacent-day fixtures (otherwise
+    // identical weather) straddling that exact boundary and assert the
+    // season factor's day-over-day change is now small, not a cliff.
+    const dayBefore: DayWeather = {
+      date: "2026-08-31",
+      precipMm: 0,
+      tempAvgC: 16,
+      soilMoisturePct: 20,
+      antecedentWaterMm: 10,
+      isForecast: false,
+    };
+    const dayAfter: DayWeather = {
+      date: "2026-09-01",
+      precipMm: 0,
+      tempAvgC: 16,
+      soilMoisturePct: 20,
+      antecedentWaterMm: 10,
+      isForecast: false,
+    };
+    const before = scoreSpeciesDay([dayBefore], 0, SPECIES, TERRAIN_MATCH);
+    const after = scoreSpeciesDay([dayAfter], 0, SPECIES, TERRAIN_MATCH);
+    const seasonBefore = before.factors.season;
+    const seasonAfter = after.factors.season;
+    expect(Math.abs(seasonAfter - seasonBefore)).toBeLessThan(0.1);
+    // And the smooth curve should still clearly favor the peak month over
+    // a species' genuine off-season, not just be flat everywhere.
+    const deepOffSeason = scoreSpeciesDay(
+      [{ date: "2026-02-01", precipMm: 0, tempAvgC: 16, soilMoisturePct: 20, antecedentWaterMm: 10, isForecast: false }],
+      0,
+      SPECIES,
+      TERRAIN_MATCH
+    );
+    expect(deepOffSeason.factors.season).toBeLessThan(seasonBefore);
+  });
+
   it("stays pinned to the version this snapshot was written under", () => {
     // If this fails, the formula changed AND the version was bumped, which
     // is correct - update this literal alongside deleting the stale
     // snapshot file (not just `vitest -u`), so the version bump is visible
     // in the diff instead of buried in a regenerated snapshot.
-    expect(MODEL_VERSION).toBe("1.8.0");
+    expect(MODEL_VERSION).toBe("1.9.0");
   });
 });

@@ -11,7 +11,7 @@ import { terrainMatchFactor, type TerrainInfo } from "./terrain";
 // even though scoreSpeciesDay's own code didn't change, since the inputs
 // feeding it materially shifted (see api/data/species.json's own
 // mycology_audit_2026-09-16 _meta entry for what changed and why).
-export const MODEL_VERSION = "1.8.0";
+export const MODEL_VERSION = "1.9.0";
 
 export interface Species {
   id: string;
@@ -73,10 +73,69 @@ function clamp(v: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, v));
 }
 
-function seasonFactor(month: number, species: Species): number {
-  if (species.season_peak_months.includes(month)) return 1;
-  if (species.season_months.includes(month)) return 0.6;
-  return 0.05; // small residual - off-season stragglers do happen
+// Continuous month position (e.g. Sept 16 -> ~9.5) instead of a bare
+// integer month, so seasonFactor below can produce a smooth curve with no
+// day-to-day cliff - the old version jumped straight from 0.05 to 0.6 the
+// instant the calendar crossed into a new month (found 2026-09-16: real
+// mycelium doesn't know what day it is, and the user rightly pointed out
+// Aug 31 vs Sept 1 shouldn't swing a forecast that hard on its own).
+function monthPosition(dateStr: string): number {
+  const [year, month, day] = dateStr.split("-").map(Number);
+  const daysInMonth = new Date(year, month, 0).getDate();
+  return month + (day - 1) / daysInMonth;
+}
+
+// Extra span (in months) added past season_months' own edge before the
+// curve reaches SEASON_RESIDUAL - without this, a species with a wide
+// shoulder between its peak and its season_months edge (e.g. hřib smrkový:
+// season=[6..11], peak=[9,10], a 3-month shoulder before the peak) would
+// hit the residual floor exactly AT the season boundary (1 June), reading
+// no better there than deep midwinter - the whole shoulder would get
+// consumed by the descent with nothing left over, collapsing "just
+// entering the season" and "genuinely out of season" into the same value.
+// Adding this tail keeps a real gradient across the season_months boundary
+// itself instead of flattening out right at it.
+const SEASON_TAIL_MONTHS = 1.5;
+// Same floor the old 3-bucket version used outside season_months - genuine
+// off-season stragglers do happen, so never quite zero.
+const SEASON_RESIDUAL = 0.05;
+
+// Reworked 2026-09-16 (see monthPosition's comment) from a 3-bucket step
+// function (peak=1, in-season=0.6, else=0.05, jumping at each month
+// boundary) into one continuous raised-cosine curve: 1.0 across
+// season_peak_months, then a smooth descent to SEASON_RESIDUAL spread over
+// the real shoulder between the peak and season_months' own edge plus
+// SEASON_TAIL_MONTHS beyond it (see that constant's comment for why the
+// extra span matters). Deliberately a single unbroken curve rather than a
+// "ramp to an edge value, then a separate tail" two-phase shape - an
+// earlier version had a seam exactly where the two phases met, which
+// produced its own mini-cliff whenever the ramp phase was thin (notably
+// species like čirůvka fialová whose peak starts exactly where
+// season_months starts, leaving no shoulder at all on that side). Still a
+// real gate, not a suggestion: a strictly spring species like smrž obecný
+// (season_months Mar-May only) still reads near SEASON_RESIDUAL in
+// September regardless of how ideal that week's temp/rain look - the
+// curve changes how smoothly it approaches that floor, not whether it
+// does. Doesn't handle a season/peak spanning the calendar year boundary
+// (e.g. Nov-Jan) - none of the current species need that, so unhandled
+// rather than half-tested.
+function seasonFactor(dateStr: string, species: Species): number {
+  const pos = monthPosition(dateStr);
+  const peakStart = Math.min(...species.season_peak_months);
+  const peakEnd = Math.max(...species.season_peak_months) + 1; // exclusive
+  const seasonStart = Math.min(...species.season_months);
+  const seasonEnd = Math.max(...species.season_months) + 1; // exclusive
+
+  const center = (peakStart + peakEnd) / 2;
+  const peakHalfWidth = (peakEnd - peakStart) / 2;
+  const d = pos - center;
+  const dist = Math.abs(d);
+  if (dist <= peakHalfWidth) return 1;
+
+  const shoulder = Math.max(0, (d < 0 ? center - seasonStart : seasonEnd - center) - peakHalfWidth);
+  const decaySpan = shoulder + SEASON_TAIL_MONTHS;
+  const t = Math.min(1, (dist - peakHalfWidth) / decaySpan);
+  return SEASON_RESIDUAL + (1 - SEASON_RESIDUAL) * 0.5 * (1 + Math.cos(Math.PI * t));
 }
 
 // Shared design point for every continuous weather factor below (2026-09-01
@@ -198,10 +257,9 @@ interface WeatherFactors {
 // could sit right next to a spot that - tapped precisely - read 28%).
 function weatherFactors(days: DayWeather[], dayIndex: number, species: Species): WeatherFactors {
   const day = days[dayIndex];
-  const month = Number(day.date.slice(5, 7));
   const since = daysSinceRain(days, dayIndex, species.min_rain_mm);
 
-  const season = seasonFactor(month, species);
+  const season = seasonFactor(day.date, species);
   const temp = tempFactor(day.tempAvgC, species.temp_range_c);
   const rain = rainTimingFactor(since, species.days_after_rain);
   const moisture = moistureFactor(day, species.moisture_need);
