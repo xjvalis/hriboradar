@@ -281,18 +281,36 @@ export function buildGridMapHtml(opts: {
        spots instead of a blank map - see sensitivityShift()'s comment. Own
        box above the legend (not inside its innerHTML, which gets fully
        replaced on every mode switch - a listener bound to something that
-       vanishes on the next chip tap is a bug waiting to happen). */
-    .sensitivity { background: #F7F2E7ee; border: 1px solid #DBCFA9; border-radius: 10px; padding: 8px 10px; }
-    .sensitivity-label { display: flex; justify-content: space-between; font-size: 10.5px; color: #54563E;
-      margin-bottom: 5px; }
+       vanishes on the next chip tap is a bug waiting to happen).
+       Collapsed behind a button by default (2026-09-17 feedback: this is a
+       phone/tablet map, primarily touch, and a niche control like "lower
+       my tolerance" shouldn't sit open on top of the map for every visitor
+       who never touches it) - tapping the button reveals the actual
+       slider panel. Touch targets sized well past the ~44px minimum
+       (iOS HIG/Android Material) rather than the mouse-sized ones a
+       desktop-first control would use. */
+    .sensitivity-toggle { background: #F7F2E7ee; border: 1px solid #DBCFA9; border-radius: 999px;
+      padding: 10px 14px; font: 600 12px -apple-system, sans-serif; color: #24261D; display: flex;
+      align-items: center; gap: 6px; min-height: 24px; }
+    .sensitivity-toggle b { color: #4F7A3D; }
+    .sensitivity-panel { background: #F7F2E7ee; border: 1px solid #DBCFA9; border-radius: 10px;
+      padding: 12px 14px 14px; }
+    .sensitivity-label { display: flex; justify-content: space-between; font-size: 11px; color: #54563E;
+      margin-bottom: 10px; }
     .sensitivity-label b { color: #24261D; font-weight: 600; }
+    /* Track/thumb sized for a fingertip, not a mouse pointer - and the
+       input's own box is taller than the visible track (padding, not
+       margin) so the touch hit area extends well above/below the thin
+       line itself, same reasoning smartphone OSes use for any thin
+       slider control. */
     .sensitivity-slider { width: 100%; display: block; -webkit-appearance: none; appearance: none;
-      height: 4px; border-radius: 999px; background: #DBCFA9; outline: none; margin: 0; }
-    .sensitivity-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 16px;
-      height: 16px; border-radius: 50%; background: #4F7A3D; border: 2px solid #F7F2E7; cursor: pointer;
-      box-shadow: 0 1px 3px rgba(36,38,29,0.35); }
-    .sensitivity-slider::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: #4F7A3D;
-      border: 2px solid #F7F2E7; cursor: pointer; box-shadow: 0 1px 3px rgba(36,38,29,0.35); }
+      height: 6px; border-radius: 999px; background: #DBCFA9; outline: none; margin: 0;
+      padding: 14px 0; background-clip: content-box; box-sizing: content-box; }
+    .sensitivity-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 26px;
+      height: 26px; border-radius: 50%; background: #4F7A3D; border: 3px solid #F7F2E7; cursor: pointer;
+      box-shadow: 0 1px 4px rgba(36,38,29,0.4); }
+    .sensitivity-slider::-moz-range-thumb { width: 26px; height: 26px; border-radius: 50%; background: #4F7A3D;
+      border: 3px solid #F7F2E7; cursor: pointer; box-shadow: 0 1px 4px rgba(36,38,29,0.4); }
     .layer-toggle { position: absolute; top: 10px; right: 10px; z-index: 1000; background: #F7F2E7ee;
       border: 1px solid #DBCFA9; border-radius: 999px; padding: 6px 12px; font: 600 11px -apple-system, sans-serif;
       color: #24261D; }
@@ -332,7 +350,10 @@ export function buildGridMapHtml(opts: {
 <body>
   <div id="map"></div>
   <div class="legend-wrap">
-    <div class="sensitivity">
+    <button type="button" class="sensitivity-toggle" id="sensitivityToggle">
+      Tolerance <b id="sensitivityToggleValue">běžná</b>
+    </button>
+    <div class="sensitivity-panel" id="sensitivityPanel" hidden>
       <div class="sensitivity-label"><span>Citlivost mračna</span><b id="sensitivityValue">běžná</b></div>
       <input type="range" class="sensitivity-slider" id="sensitivitySlider" min="0" max="100" step="1" value="0" />
     </div>
@@ -1067,6 +1088,9 @@ export function buildGridMapHtml(opts: {
       // shade, just reachable at a lower percentage.
       var sensitivitySlider = document.getElementById('sensitivitySlider');
       var sensitivityValueEl = document.getElementById('sensitivityValue');
+      var sensitivityToggle = document.getElementById('sensitivityToggle');
+      var sensitivityToggleValueEl = document.getElementById('sensitivityToggleValue');
+      var sensitivityPanel = document.getElementById('sensitivityPanel');
       var sensitivityRedrawPending = false;
       function sensitivityLabel(v) {
         if (v === 0) return 'běžná';
@@ -1074,9 +1098,20 @@ export function buildGridMapHtml(opts: {
         if (v < 67) return 'vysoká';
         return 'maximální';
       }
+      // Collapsed behind sensitivityToggle by default (see its CSS comment)
+      // - tapping it shows/hides the actual slider panel rather than
+      // navigating anywhere, so a plain toggle is enough (no outside-tap-
+      // to-close handling needed: the panel is small and out of the way of
+      // the map itself, and adding that would risk swallowing a real map
+      // tap on a touch device).
+      sensitivityToggle.addEventListener('click', function () {
+        sensitivityPanel.hidden = !sensitivityPanel.hidden;
+      });
       sensitivitySlider.addEventListener('input', function () {
         sensitivity = Number(sensitivitySlider.value);
-        if (sensitivityValueEl) sensitivityValueEl.textContent = sensitivityLabel(sensitivity);
+        var label = sensitivityLabel(sensitivity);
+        if (sensitivityValueEl) sensitivityValueEl.textContent = label;
+        if (sensitivityToggleValueEl) sensitivityToggleValueEl.textContent = label;
         if (sensitivityRedrawPending) return;
         sensitivityRedrawPending = true;
         requestAnimationFrame(function () {
