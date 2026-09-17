@@ -3,7 +3,7 @@ import { Sprout } from "lucide-react-native";
 import { palette, radius, space, ts, type } from "../../theme";
 import { useSubscription } from "../../SubscriptionContext";
 import { usePaywall } from "../../PaywallContext";
-import { FALLBACK_ANNUAL_PRICE, FALLBACK_MONTHLY_PRICE_CZK, FALLBACK_ANNUAL_PRICE_CZK } from "../../subscriptionLimits";
+import { FALLBACK_MONTHLY_PRICE, FALLBACK_ANNUAL_PRICE } from "../../subscriptionLimits";
 
 // Product identifiers match SubscriptionContext.tsx's findPackage() custom
 // ids ("monthly"/"yearly") - RevenueCat's own productIdentifier is the App
@@ -23,7 +23,7 @@ function formatDate(iso: string): string {
 }
 
 export function SettingsPlusSection() {
-  const { isPremium, loading, available, annual, activeEntitlement, restore } = useSubscription();
+  const { isPremium, loading, available, monthly, annual, activeEntitlement, restore } = useSubscription();
   const { openPaywall } = usePaywall();
 
   // Apple requires a way to manage/cancel a subscription reachable from
@@ -104,8 +104,8 @@ export function SettingsPlusSection() {
         </Pressable>
       )}
       <Text style={styles.priceNote}>
-        Ceny: {FALLBACK_MONTHLY_PRICE_CZK} Kč měsíčně nebo {FALLBACK_ANNUAL_PRICE_CZK} Kč ročně (přesná cena a
-        měna podle vašeho App Store účtu).
+        Ceny: {monthly?.priceString ?? FALLBACK_MONTHLY_PRICE} měsíčně nebo {annual?.priceString ?? FALLBACK_ANNUAL_PRICE}{" "}
+        ročně (přesná cena a měna podle vašeho App Store účtu).
       </Text>
     </View>
   );
