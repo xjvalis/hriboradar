@@ -270,12 +270,29 @@ export function buildGridMapHtml(opts: {
        so labels/trails/contours stay legible but read as a quiet backdrop,
        not a second, contradictory color signal. */
     .basemap-outdoor { filter: grayscale(0.85) sepia(0.25) saturate(0.7) brightness(1.1) contrast(0.95); }
-    .legend { position: absolute; bottom: 10px; left: 10px; z-index: 1000; background: #F7F2E7ee;
-      border: 1px solid #DBCFA9; border-radius: 10px; padding: 8px 10px; font: 11px -apple-system, sans-serif; color: #24261D; max-width: 200px; }
+    .legend-wrap { position: absolute; bottom: 10px; left: 10px; z-index: 1000; display: flex;
+      flex-direction: column; gap: 6px; max-width: 200px; font: 11px -apple-system, sans-serif; color: #24261D; }
+    .legend { background: #F7F2E7ee; border: 1px solid #DBCFA9; border-radius: 10px; padding: 8px 10px; }
     .legend-title { font-weight: 600; font-size: 10.5px; letter-spacing: 0.4px; text-transform: uppercase; color: #54563E; margin-bottom: 5px; }
     .legend-bar { height: 9px; border-radius: 5px; }
     .legend-labels { display:flex; justify-content:space-between; font-size: 9.5px; color: #8C8A6E; margin-top: 2px; }
     .legend-caption { margin-top: 6px; font-size: 10px; color: #8C8A6E; }
+    /* Slider that lets a low-probability day still show *relative* best
+       spots instead of a blank map - see sensitivityShift()'s comment. Own
+       box above the legend (not inside its innerHTML, which gets fully
+       replaced on every mode switch - a listener bound to something that
+       vanishes on the next chip tap is a bug waiting to happen). */
+    .sensitivity { background: #F7F2E7ee; border: 1px solid #DBCFA9; border-radius: 10px; padding: 8px 10px; }
+    .sensitivity-label { display: flex; justify-content: space-between; font-size: 10.5px; color: #54563E;
+      margin-bottom: 5px; }
+    .sensitivity-label b { color: #24261D; font-weight: 600; }
+    .sensitivity-slider { width: 100%; display: block; -webkit-appearance: none; appearance: none;
+      height: 4px; border-radius: 999px; background: #DBCFA9; outline: none; margin: 0; }
+    .sensitivity-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 16px;
+      height: 16px; border-radius: 50%; background: #4F7A3D; border: 2px solid #F7F2E7; cursor: pointer;
+      box-shadow: 0 1px 3px rgba(36,38,29,0.35); }
+    .sensitivity-slider::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: #4F7A3D;
+      border: 2px solid #F7F2E7; cursor: pointer; box-shadow: 0 1px 3px rgba(36,38,29,0.35); }
     .layer-toggle { position: absolute; top: 10px; right: 10px; z-index: 1000; background: #F7F2E7ee;
       border: 1px solid #DBCFA9; border-radius: 999px; padding: 6px 12px; font: 600 11px -apple-system, sans-serif;
       color: #24261D; }
@@ -314,7 +331,13 @@ export function buildGridMapHtml(opts: {
 </head>
 <body>
   <div id="map"></div>
-  <div class="legend"></div>
+  <div class="legend-wrap">
+    <div class="sensitivity">
+      <div class="sensitivity-label"><span>Citlivost mračna</span><b id="sensitivityValue">běžná</b></div>
+      <input type="range" class="sensitivity-slider" id="sensitivitySlider" min="0" max="100" step="1" value="0" />
+    </div>
+    <div class="legend"></div>
+  </div>
   <div class="layer-toggle"></div>
   <div class="mapy-attribution"></div>
   <div class="forest-loading" id="forestLoading">
@@ -445,6 +468,34 @@ export function buildGridMapHtml(opts: {
       // why the map was slow/blank-looking on a real phone (found via
       // Cyrilov u Úval: tap showed the correct 72%, but nothing rendered).
       var FLOOR = 50;
+      // Sensitivity slider (2026-09-17): a day with generally low
+      // probabilities everywhere leaves the map entirely blank under the
+      // fixed FLOOR/stops above - true information ("nothing's great
+      // today"), but useless to someone who's going out anyway and wants
+      // to know *where's relatively best*, not just "nowhere clears the
+      // bar". Dragging the slider shifts both FLOOR and the color stops
+      // down together, so a 20% spot can light up the same way a 55% spot
+      // normally does - MIN_FLOOR keeps a hard floor so genuinely
+      // negligible scores (single digits) never render regardless of
+      // slider position.
+      var BASE_FLOOR = FLOOR;
+      var MIN_FLOOR = 10;
+      var MAX_SENSITIVITY_SHIFT = BASE_FLOOR - MIN_FLOOR;
+      var sensitivity = 0; // 0-100, UI slider value; 0 = default/off (identical to pre-slider behavior)
+      function sensitivityShift() { return (sensitivity / 100) * MAX_SENSITIVITY_SHIFT; }
+      function currentFloor() { return BASE_FLOOR - sensitivityShift(); }
+      // Shifts every stop's own breakpoint down by the same amount,
+      // leaving colors/opacities untouched - a score that used to need 55%
+      // to hit the "clearly worth going" color now only needs
+      // 55-sensitivityShift(). Recomputed on every slider move, but this is
+      // cheap (5 stops) unlike the actual per-polygon scoring below.
+      function shiftedStops(baseStops) {
+        var shift = sensitivityShift();
+        if (shift === 0) return baseStops;
+        return baseStops.map(function (s) {
+          return [Math.max(0, s[0] - shift), s[1], s[2], s[3], s[4]];
+        });
+      }
       var CUTOFF_DEG = 0.30;
       var MASK_W = 1600, MASK_H = 614; // raster resolution for the zoomed-out path
       var VECTOR_ZOOM_THRESHOLD = 12; // >= this: precise per-forest shapes; below: merged raster
@@ -730,22 +781,37 @@ export function buildGridMapHtml(opts: {
         return weightUsed > 0 ? Math.round(weighted / weightUsed) : 0;
       }
 
-      // One score+color per forest polygon (not per pixel), computed ONCE
-      // per mode switch and reused by the raster, vector, and hotspot
-      // renderers below (previously each of them called interpolate() -
-      // the expensive part, ~500 grid points per polygon - separately, so
-      // switching a chip or panning while zoomed in did the same ~36k-
-      // polygon scoring pass 2-3x over. A polygon either qualifies (real
-      // fill color) or doesn't (skipped, same FLOOR cutoff the old smooth
-      // field used).
-      function computeScored(mode, stops) {
+      // Raw score per forest polygon (not per pixel), computed ONCE per
+      // mode switch and reused by filterAndColor below regardless of how
+      // many times the sensitivity slider moves afterward - this is the
+      // expensive part (~500 grid points interpolated per polygon, ~36k
+      // polygons), and unlike FLOOR/stops it doesn't depend on slider
+      // position at all, so a slider drag must never re-run it.
+      function scoreAllPolygons(mode) {
         var out = [];
         for (var i = 0; i < polyMeta.length; i++) {
           var poly = polyMeta[i];
           var weatherBySpecies = interpolateAllSpecies(poly.centroid[0], poly.centroid[1]);
           var score = scoreForPolygon(mode, weatherBySpecies, poly.terrain);
-          if (score < FLOOR) continue;
-          out.push({ poly: poly, score: score, rgba: colorAt(stops, score) });
+          out.push({ poly: poly, score: score });
+        }
+        return out;
+      }
+
+      // The cheap, slider-dependent half split out of the old
+      // computeScored (see scoreAllPolygons above for why): just a filter
+      // and a color lookup over an already-scored list, safe to re-run on
+      // every sensitivity slider tick without repeating the expensive
+      // interpolation pass. A polygon either qualifies (real fill color)
+      // or doesn't (skipped) - same shape the old single-function version
+      // used, just against a caller-supplied floor/stops instead of the
+      // fixed FLOOR/OVERALL_STOPS.
+      function filterAndColor(allScored, floor, stops) {
+        var out = [];
+        for (var i = 0; i < allScored.length; i++) {
+          var entry = allScored[i];
+          if (entry.score < floor) continue;
+          out.push({ poly: entry.poly, score: entry.score, rgba: colorAt(stops, entry.score) });
         }
         return out;
       }
@@ -819,19 +885,19 @@ export function buildGridMapHtml(opts: {
         return 'linear-gradient(to right, ' + parts.join(', ') + ')';
       }
 
-      function updateLegend(mode) {
+      function updateLegend(mode, stops) {
         var el = document.querySelector('.legend');
         if (mode.type === 'overall') {
           el.innerHTML =
             '<div class="legend-title">Šance na nález</div>' +
-            '<div class="legend-bar" style="background:' + gradientCss(OVERALL_STOPS) + '"></div>' +
+            '<div class="legend-bar" style="background:' + gradientCss(stops) + '"></div>' +
             '<div class="legend-labels"><span>nízká</span><span>vysoká</span></div>' +
             '<div class="legend-caption">Plocha = odhad podmínek podle počasí, půdy a lesa. Neznamená jistý nález.</div>';
         } else {
           var name = speciesNames[mode.id] || '';
           el.innerHTML =
             '<div class="legend-title">' + name + '</div>' +
-            '<div class="legend-bar" style="background:' + gradientCss(SPECIES_STOPS) + '"></div>' +
+            '<div class="legend-bar" style="background:' + gradientCss(stops) + '"></div>' +
             '<div class="legend-labels"><span>nízká</span><span>vysoká</span></div>' +
             '<div class="legend-caption">Plocha = odhad podmínek pro tento druh. Neznamená jistý nález.</div>';
         }
@@ -967,14 +1033,57 @@ export function buildGridMapHtml(opts: {
         });
       }
 
+      // Everything that depends on which SPECIES is shown (expensive -
+      // reruns the ~36k-polygon interpolation pass) - called on mode
+      // switch only, never on a sensitivity slider move.
+      var currentAllScored = null;
       function applyMode(mode) {
         currentMode = mode;
-        var stops = mode.type === 'overall' ? OVERALL_STOPS : SPECIES_STOPS;
-        currentScored = computeScored(mode, stops);
-        renderForZoom(true);
-        renderHotspots(currentScored, mode);
-        updateLegend(mode);
+        currentAllScored = scoreAllPolygons(mode);
+        refreshRender();
       }
+
+      // Everything that depends on the sensitivity SLIDER but not the
+      // species (cheap - filters/colors the already-scored list) - called
+      // on every slider move, and also by applyMode above so a mode switch
+      // still respects whatever sensitivity was already set.
+      function refreshRender() {
+        if (!currentMode || !currentAllScored) return;
+        var baseStops = currentMode.type === 'overall' ? OVERALL_STOPS : SPECIES_STOPS;
+        var stops = shiftedStops(baseStops);
+        currentScored = filterAndColor(currentAllScored, currentFloor(), stops);
+        renderForZoom(true);
+        renderHotspots(currentScored, currentMode);
+        updateLegend(currentMode, stops);
+      }
+
+      // Sensitivity slider wiring. 'input' fires continuously while
+      // dragging (far too often to redraw the raster/vector layers on
+      // every event on a real phone) - rAF-throttled so at most one redraw
+      // happens per animation frame regardless of how fast 'input' fires,
+      // which keeps the drag itself feeling responsive without piling up a
+      // backlog of redraws. Colors/opacities never change with sensitivity,
+      // only which scores qualify - so "vysoká" always means the same
+      // shade, just reachable at a lower percentage.
+      var sensitivitySlider = document.getElementById('sensitivitySlider');
+      var sensitivityValueEl = document.getElementById('sensitivityValue');
+      var sensitivityRedrawPending = false;
+      function sensitivityLabel(v) {
+        if (v === 0) return 'běžná';
+        if (v < 34) return 'zvýšená';
+        if (v < 67) return 'vysoká';
+        return 'maximální';
+      }
+      sensitivitySlider.addEventListener('input', function () {
+        sensitivity = Number(sensitivitySlider.value);
+        if (sensitivityValueEl) sensitivityValueEl.textContent = sensitivityLabel(sensitivity);
+        if (sensitivityRedrawPending) return;
+        sensitivityRedrawPending = true;
+        requestAnimationFrame(function () {
+          sensitivityRedrawPending = false;
+          refreshRender();
+        });
+      });
 
       map.on('zoomend', function () { renderForZoom(false); });
       // Raster mode already covers the whole country in one image, so only
