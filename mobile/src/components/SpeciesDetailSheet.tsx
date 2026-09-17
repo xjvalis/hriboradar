@@ -121,17 +121,10 @@ export function SpeciesDetailSheet() {
 
         <Text style={styles.sectionLabel}>Jak sbírat</Text>
         <Text style={styles.bodyFaint}>
-          Řezat i vytrhávat je v pořádku - třicetiletá švýcarská studie (Egli a kol., 2006, La Chanéaz) mezi
-          oběma způsoby nenašla žádný rozdíl v budoucích výnosech. Výtrusy vznikají na klobouku, ne v pahýlu
-          nožičky. Lesu skutečně škodí spíš sešlapávání mechu a hrabanky kolem - chodit šetrně má větší
-          význam než jak přesně houbu odeberete.
-        </Text>
-
-        <Text style={styles.sectionLabel}>O modelu</Text>
-        <Text style={styles.bodyFaint}>
-          Procenta v appce popisují, jak moc aktuální počasí, půda a okolní les odpovídají tomu, co má tenhle
-          druh rád - je to odhad z odborné literatury a záznamů nálezů, ne potvrzený nález ani garance.
-          {"\n"}Spolehlivost modelu: {info.model_confidence}. {info.confidence_note}
+          {info.host_trees.length > 0
+            ? "Hledejte na slunných místech v okolí výše uvedených stromů, obvykle několik metrů od kmene, kde se mycelium daří nejlépe."
+            : "Hledejte na slunných místech popsaných výše, kde se mycelium daří nejlépe."}{" "}
+          Klidně řežte i vytrhávejte - na výtrusy to nemá vliv. Buďte k lesu šetrní.
         </Text>
       </ScrollView>
     </BottomSheet>

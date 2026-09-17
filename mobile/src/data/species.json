@@ -4,7 +4,8 @@
     "source_note": "months = GBIF occurrence facet, country=CZ, per-species taxonKey. conditions = compiled, cite before publishing as fact.",
     "generated": "2026-08-04",
     "fact_check_2026-08-06": "Spot-checked host_trees, edibility, and season/peak claims for the mycologically riskiest and highest-visibility species (Boletus edulis/reticulatus, Leccinum scabrum, Suillus luteus, Amanita rubescens, Armillaria mellea) against myko.cz, First Nature, Wikipedia (cs), and the Egli et al. 2006 Swiss long-term harvesting study (ScienceDirect/DORA WSL) - all held up. Added safety_note (deadly-lookalike warnings) to muchomurka-ruzovka and vaclavka-obecna, the two species with real, documented confusion risk with toxic/deadly relatives. NOT independently re-verified against primary literature this pass: the remaining 10 species' host_trees/habitat, and the numeric temp_range_c/days_after_rain/min_rain_mm thresholds for all 15 (still literature-informed estimates per source_note above, not calibrated) - those follow the same standard taxonomic associations (one genus/host per species, e.g. Leccinum aurantiacum-aspen, Lactarius deterrimus-spruce) found in any general field guide, but weren't individually re-checked source-by-source.",
-    "season_months_correction_2026-08-06": "User flagged January in bedla-vysoka and liska-obecna's season_months, which prompted a full systematic re-check against the underlying gbif_phenology_raw.json (raw per-month occurrence counts) rather than just the two flagged species. Method: for every species, checked whether any nonzero-count month is separated from the rest of the season by a run of zero-count months on both sides - real fruiting seasons are contiguous, so an isolated month cut off by a gap of complete zeros is a strong signal of a mis-dated/mis-identified GBIF record rather than genuine phenology, regardless of its raw count (e.g. bedla-vysoka had 3 raw January records against a real season of May-November - a plausible count on its own, but isolated by 3 solid zero-months, and directly contradicted by field-guide consensus that it 'does not fruit during winter months or after hard frosts'). Found and removed 8 such isolated months across 7 species, each cross-checked against field-guide sources: liska-obecna, bedla-vysoka, muchomurka-ruzovka, vaclavka-obecna (spurious January each), ryzec-smrkovy (spurious February), plus three caught only by this systematic pass - kotrc-kadeřavy (spurious May; Sparassis crispa documented late July-October, no May mention anywhere), vaclavka-obecna again (spurious June; 'mushrooms in spring/summer are almost always not A. mellea'), and ciruvka-fialova (spurious June; Lepista nuda documented strictly September-December, 'no references to spring or early summer fruiting' despite a non-trivial raw count of 10/51 - count magnitude alone isn't proof of genuine signal). season_peak_months were unaffected throughout (already mid-year/autumn only). Contiguous edge months with thin counts (e.g. hrib-smrkovy's month 5 at count=1, directly attached to the rest of the season with no gap) were deliberately left alone - the rule targets temporal isolation, not low counts per se, since low-count genuine shoulder-season months are expected for less-recorded species."
+    "season_months_correction_2026-08-06": "User flagged January in bedla-vysoka and liska-obecna's season_months, which prompted a full systematic re-check against the underlying gbif_phenology_raw.json (raw per-month occurrence counts) rather than just the two flagged species. Method: for every species, checked whether any nonzero-count month is separated from the rest of the season by a run of zero-count months on both sides - real fruiting seasons are contiguous, so an isolated month cut off by a gap of complete zeros is a strong signal of a mis-dated/mis-identified GBIF record rather than genuine phenology, regardless of its raw count (e.g. bedla-vysoka had 3 raw January records against a real season of May-November - a plausible count on its own, but isolated by 3 solid zero-months, and directly contradicted by field-guide consensus that it 'does not fruit during winter months or after hard frosts'). Found and removed 8 such isolated months across 7 species, each cross-checked against field-guide sources: liska-obecna, bedla-vysoka, muchomurka-ruzovka, vaclavka-obecna (spurious January each), ryzec-smrkovy (spurious February), plus three caught only by this systematic pass - kotrc-kadeřavy (spurious May; Sparassis crispa documented late July-October, no May mention anywhere), vaclavka-obecna again (spurious June; 'mushrooms in spring/summer are almost always not A. mellea'), and ciruvka-fialova (spurious June; Lepista nuda documented strictly September-December, 'no references to spring or early summer fruiting' despite a non-trivial raw count of 10/51 - count magnitude alone isn't proof of genuine signal). season_peak_months were unaffected throughout (already mid-year/autumn only). Contiguous edge months with thin counts (e.g. hrib-smrkovy's month 5 at count=1, directly attached to the rest of the season with no gap) were deliberately left alone - the rule targets temporal isolation, not low counts per se, since low-count genuine shoulder-season months are expected for less-recorded species.",
+    "mycology_audit_2026-09-16": "Full 16-species re-check (4 parallel research passes against myko.cz, mykologie.net, first-nature.com and current Czech foraging-forum reports) triggered by ciruvka-fialova (Lepista nuda) structurally dominating the map everywhere - it has host_trees=[] (correctly, it's a litter saprotroph) so it always skips the terrain penalty other species get, and its temp_range_c/season_months turned out to ALSO be too permissive (upper temp bound 15->13, season start August->September - Czech sources put it strictly September-December, cold-shock-triggered), compounding the missing-terrain-penalty effect. Applied elsewhere: liska-obecna's host_trees was similarly too broad (smrk/borovice/buk/dub, sourced from a UK guide describing oak woodland) for Czech conditions, where it's overwhelmingly spruce-associated - narrowed to smrk/borovice/briza per Czech-specific sources, and its December season claim (unsupported anywhere) dropped. kotrc-kadeřavy's host_trees had a bare 'jehličnany obecně' (conifers in general) entry that doesn't correspond to any real matchable genus and overstated its actual host range (S. crispa is pine-specific in Czech sources; broader conifer association belongs to a different species, S. brevipes) - removed. kremenac-osikovy's name_latin was Leccinum aurantiacum, but its host_trees (aspen-only) and Czech name actually describe Leccinum rufum/albostipitatum under current taxonomy - L. aurantiacum proper has a much broader host range (oak/willow/pine/birch/spruce) and a different Czech name; corrected the name_latin field, left host_trees as-is since aspen-only was already right for the intended species. muchomurka-ruzovka's season_peak_months was the disjoint [7,9] (July AND September, skipping August) - a data-entry error, since myko.cz describes continuous June-November fruiting with no August dip; made contiguous [7,8,9]. Several species had season_months trimmed or extended to match sourced windows more precisely (hrib-dubovy confirmed already correct - see confidence_note; kozak-brezovy, bedla-vysoka, klouzek-zrnity trimmed; klouzek-slizky extended; ryzec-smrkovy, kotrc-kadeřavy had an unsupported December dropped). vaclavka-obecna's season_peak_months widened Oct-only to Sept-Oct (low-priority, well-sourced either way). holubinka-nazelenala's flagged Czech-name/species mismatch was resolved the same day (user confirmed): name_latin corrected Russula aeruginea -> Russula virescens, host_trees changed smrk/bříza -> buk/dub/bříza to match its real light-deciduous-forest habitat. smrz-obecny and hrib-dubovy (previously investigated live, see the 2026-09-15/16 conversation this data change accompanies) were re-confirmed correct as-is. hrib-smrkovy gained 'jedle' (fir) in host_trees for documentation accuracy, though terrain.ts's genus-matching doesn't currently have a distinct fir bit, so this has no scoring effect yet."
   },
   "species": [
     {
@@ -15,6 +16,7 @@
       "host_trees": [
         "smrk",
         "borovice",
+        "jedle",
         "buk",
         "dub"
       ],
@@ -108,7 +110,6 @@
       ],
       "min_rain_mm": 15,
       "season_months": [
-        5,
         6,
         7,
         8,
@@ -168,8 +169,7 @@
       "host_trees": [
         "smrk",
         "borovice",
-        "buk",
-        "dub"
+        "bříza"
       ],
       "habitat": "mechem porostlé jehličnaté i listnaté lesy",
       "soil": "kyselá",
@@ -189,8 +189,7 @@
         8,
         9,
         10,
-        11,
-        12
+        11
       ],
       "season_peak_months": [
         7,
@@ -199,7 +198,7 @@
       "gbif_occurrence_count_cz": 153,
       "edibility": "jedlá",
       "model_confidence": "vysoká",
-      "confidence_note": "Roste pomaleji po dešti než hřiby, proto má delší okno."
+      "confidence_note": "Roste pomaleji po dešti než hřiby, proto má delší okno. Vazba na buk/dub odstraněna 2026-09-16 - české zdroje (mykologie.net) popisují v ČR hlavně smrkové lesy, buk/dub byl artefakt z britského zdroje (first-nature.com) a dělal ze seznamu hostitelů příliš širokou/neselektivní shodu terénu."
     },
     {
       "id": "bedla-vysoka",
@@ -220,8 +219,6 @@
       ],
       "min_rain_mm": 15,
       "season_months": [
-        5,
-        6,
         7,
         8,
         9,
@@ -258,6 +255,8 @@
       ],
       "min_rain_mm": 15,
       "season_months": [
+        5,
+        6,
         7,
         8,
         9,
@@ -265,6 +264,7 @@
         11
       ],
       "season_peak_months": [
+        9,
         10
       ],
       "gbif_occurrence_count_cz": 51,
@@ -293,12 +293,10 @@
       ],
       "min_rain_mm": 15,
       "season_months": [
-        6,
         7,
         8,
         9,
-        10,
-        11
+        10
       ],
       "season_peak_months": [
         9
@@ -314,8 +312,7 @@
       "name_latin": "Sparassis crispa",
       "group": "parazitická/saprotrofní",
       "host_trees": [
-        "borovice",
-        "jehličnany obecně"
+        "borovice"
       ],
       "habitat": "u paty starších borovic, na kořenech",
       "soil": "neurčeno",
@@ -334,8 +331,7 @@
         8,
         9,
         10,
-        11,
-        12
+        11
       ],
       "season_peak_months": [
         9
@@ -343,7 +339,7 @@
       "gbif_occurrence_count_cz": 171,
       "edibility": "jedlá",
       "model_confidence": "vysoká",
-      "confidence_note": "Jasná vazba na starší borovice dělá odhad spolehlivým."
+      "confidence_note": "Jasná vazba na (výhradně) borovici dělá odhad spolehlivým - 'jehličnany obecně' odstraněno 2026-09-16, myko.cz popisuje S. crispa striktně na borovici, širší jehličnatá vazba patří příbuznému druhu S. brevipes."
     },
     {
       "id": "ryzec-smrkovy",
@@ -370,8 +366,7 @@
         8,
         9,
         10,
-        11,
-        12
+        11
       ],
       "season_peak_months": [
         10
@@ -379,18 +374,19 @@
       "gbif_occurrence_count_cz": 71,
       "edibility": "jedlá",
       "model_confidence": "vysoká",
-      "confidence_note": "Výhradní vazba na smrk a chladnomilnost - typicky pozdní podzim."
+      "confidence_note": "Výhradní vazba na smrk a chladnomilnost - typicky pozdní podzim (prosinec odstraněn 2026-09-16, žádný zdroj nepodporuje fruktifikaci po prvních mrazech)."
     },
     {
       "id": "holubinka-nazelenala",
       "name_cz": "Holubinka nazelenalá",
-      "name_latin": "Russula aeruginea",
+      "name_latin": "Russula virescens",
       "group": "mykorhizní",
       "host_trees": [
-        "bříza",
-        "smrk"
+        "buk",
+        "dub",
+        "bříza"
       ],
-      "habitat": "listnaté i smíšené lesy s břízou",
+      "habitat": "světlé listnaté lesy (dub, buk), bez jehličnanů",
       "soil": "neurčeno",
       "moisture_need": "střední",
       "temp_range_c": [
@@ -415,7 +411,7 @@
       "gbif_occurrence_count_cz": 14,
       "edibility": "jedlá",
       "model_confidence": "nízká",
-      "confidence_note": "Rod Holubinka se těžko rozeznává na úrovni druhu - berte jako hrubý odhad."
+      "confidence_note": "Rod Holubinka se těžko rozeznává na úrovni druhu - berte jako hrubý odhad. VYŘEŠENO 2026-09-16 (potvrzeno uživatelem): latinský název opraven z Russula aeruginea na Russula virescens - to je skutečný druh, který se česky jmenuje 'holubinka nazelenalá' (R. aeruginea je 'holubinka trávozelená', jiný druh). host_trees podle toho přepsán ze smrk/bříza na buk/dub/bříza - R. virescens roste ve světlých listnatých lesích, ne v jehličnatých/smíšených."
     },
     {
       "id": "muchomurka-ruzovka",
@@ -451,18 +447,19 @@
       ],
       "season_peak_months": [
         7,
+        8,
         9
       ],
       "gbif_occurrence_count_cz": 574,
       "edibility": "jedlá po důkladné tepelné úpravě",
       "model_confidence": "vysoká",
-      "confidence_note": "Velmi běžný a dobře zdokumentovaný druh.",
+      "confidence_note": "Velmi běžný a dobře zdokumentovaný druh. Vrchol sezóny opraven 2026-09-16 z nesouvislého [7,9] (chyba v datech, vynechávalo srpen) na souvislé [7,8,9] - myko.cz popisuje plynulou hojnou fruktifikaci červen-listopad bez poklesu v srpnu.",
       "safety_note": "Syrová obsahuje hemolyzin (rozkládá se teplem, proto nutná důkladná tepelná úprava). Zaměnitelná s jedovatou muchomůrkou tygrovanou (Amanita pantherina) a v mladí i s vzhledem podobnou smrtelně jedovatou muchomůrkou zelenou (Amanita phalloides) - nejspolehlivější znak: dužnina a třeň růžovky při poranění červená/růžoví, u tygrované ani zelené muchomůrky k tomu nedochází. Bez jistoty v určení nesbírejte."
     },
     {
       "id": "kremenac-osikovy",
       "name_cz": "Křemenáč osikový",
-      "name_latin": "Leccinum aurantiacum",
+      "name_latin": "Leccinum rufum",
       "group": "mykorhizní",
       "host_trees": [
         "topol osika"
@@ -492,7 +489,7 @@
       "gbif_occurrence_count_cz": 28,
       "edibility": "jedlá",
       "model_confidence": "střední",
-      "confidence_note": "Vzácnější druh, ale osika je v terénních datech dobře rozpoznatelná."
+      "confidence_note": "Vzácnější druh, ale osika je v terénních datech dobře rozpoznatelná. Latinský název opraven 2026-09-16: v aktuální taxonomii je 'křemenáč osikový' s výhradní vazbou na osiku Leccinum rufum (syn. L. albostipitatum) - L. aurantiacum je jiný druh (česky křemenáč krvavý/dubový) s mnohem širším spektrem hostitelů (dub, osika, vrba, borovice, bříza, smrk); host_trees=[topol osika] tedy odpovídá L. rufum, ne původně uvedenému jménu."
     },
     {
       "id": "vaclavka-obecna",
@@ -519,6 +516,7 @@
         11
       ],
       "season_peak_months": [
+        9,
         10
       ],
       "gbif_occurrence_count_cz": 60,
@@ -538,7 +536,7 @@
       "moisture_need": "střední",
       "temp_range_c": [
         5,
-        15
+        13
       ],
       "days_after_rain": [
         5,
@@ -546,10 +544,10 @@
       ],
       "min_rain_mm": 15,
       "season_months": [
-        8,
         9,
         10,
-        11
+        11,
+        12
       ],
       "season_peak_months": [
         9,
@@ -558,7 +556,7 @@
       "gbif_occurrence_count_cz": 51,
       "edibility": "jedlá",
       "model_confidence": "střední",
-      "confidence_note": "Saprotrof na hrabance, chladnomilnější než většina ostatních - roste i pozdě na podzim."
+      "confidence_note": "Saprotrof na hrabance - potřebuje chladový impuls (roste až od září, ne srpna) a je chladnomilnější než většina ostatních (horní hranice teploty snížena z 15 na 13°C - našeho 2026-09-16 auditu proti mykologickým zdrojům byl tenhle druh naopak strukturálně nadhodnocený: bez vazby na strom neustále obcházel penalizaci terénu, navíc s moc širokým teplotním oknem)."
     },
     {
       "id": "smrz-obecny",
