@@ -18,36 +18,19 @@ import speciesData from "./data/species.json";
 // service_role key - a missing/invalid/expired token just reads as free
 // tier, same as an anonymous visitor.
 async function isPremiumCaller(authHeader: string | undefined): Promise<boolean> {
-  // TEMP DEBUG 2026-09-17: diagnosing a real user report - RevenueCat SDK
-  // shows the entitlement active client-side (map filter unlocks), but
-  // this server-side check (which /api/forecast's 7-day gate depends on)
-  // is treating them as free. Logging each branch to find exactly which
-  // one is failing - no row in hriboradar_subscriptions (webhook never
-  // fired/registered?), a status this map doesn't recognize, or something
-  // upstream (no/bad token). Remove once diagnosed.
-  if (!authHeader?.startsWith("Bearer ")) {
-    console.log("[premium-debug] no bearer token");
-    return false;
-  }
+  if (!authHeader?.startsWith("Bearer ")) return false;
   const url = process.env.SUPABASE_URL;
   const anonKey = process.env.SUPABASE_ANON_KEY;
-  if (!url || !anonKey) {
-    console.log("[premium-debug] missing SUPABASE_URL/ANON_KEY env");
-    return false;
-  }
+  if (!url || !anonKey) return false;
   try {
     const authed = createClient(url, anonKey, { global: { headers: { Authorization: authHeader } } });
     const { data: userData } = await authed.auth.getUser();
-    if (!userData.user) {
-      console.log("[premium-debug] token present but auth.getUser() found no user");
-      return false;
-    }
-    const { data, error } = await authed
+    if (!userData.user) return false;
+    const { data } = await authed
       .from("hriboradar_subscriptions")
       .select("status")
       .eq("user_id", userData.user.id)
       .maybeSingle();
-    console.log("[premium-debug] user", userData.user.id, "row:", JSON.stringify(data), "error:", error?.message ?? null);
     return data?.status === "active" || data?.status === "trial";
   } catch {
     return false;
