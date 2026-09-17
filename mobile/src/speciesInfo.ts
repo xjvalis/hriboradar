@@ -20,6 +20,7 @@ export interface SpeciesInfo {
   edibility: string;
   model_confidence: string;
   confidence_note: string;
+  collecting_note: string;
   safety_note?: string;
 }
 

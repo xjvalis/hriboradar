@@ -120,12 +120,7 @@ export function SpeciesDetailSheet() {
         )}
 
         <Text style={styles.sectionLabel}>Jak sbírat</Text>
-        <Text style={styles.bodyFaint}>
-          {info.host_trees.length > 0
-            ? "Hledejte na slunných místech v okolí výše uvedených stromů, obvykle několik metrů od kmene, kde se mycelium daří nejlépe."
-            : "Hledejte na slunných místech popsaných výše, kde se mycelium daří nejlépe."}{" "}
-          Klidně řežte i vytrhávejte - na výtrusy to nemá vliv. Buďte k lesu šetrní.
-        </Text>
+        <Text style={styles.bodyFaint}>{info.collecting_note}</Text>
       </ScrollView>
     </BottomSheet>
   );

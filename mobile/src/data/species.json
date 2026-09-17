@@ -47,7 +47,8 @@
       "gbif_occurrence_count_cz": 516,
       "edibility": "jedlá",
       "model_confidence": "vysoká",
-      "confidence_note": "Váže se jasně na jehličnany, takže jde snadno poznat vhodný les."
+      "confidence_note": "Váže se jasně na jehličnany, takže jde snadno poznat vhodný les.",
+      "collecting_note": "Hledej v mechu a jehličí pod staršími smrky a borovicemi, nejraději na vlhčích a stinnějších místech porostu - sucho a slunce mu nesvědčí. Starší kusy bývají prolezlé červy, tak si klobouk zespoda před sbíráním prohlédni. Řezat i trhat je v pořádku, na výtrusy to nemá vliv."
     },
     {
       "id": "hrib-dubovy",
@@ -87,7 +88,8 @@
       "gbif_occurrence_count_cz": 114,
       "edibility": "jedlá",
       "model_confidence": "vysoká",
-      "confidence_note": "Roste dřív a v teplejších lokalitách než hřib smrkový - nezaměňujte sezónu."
+      "confidence_note": "Roste dřív a v teplejších lokalitách než hřib smrkový - nezaměňujte sezónu.",
+      "collecting_note": "Hledej v prosvětlených doubravách a bučinách na teplejších, spíš jižních stráních - na rozdíl od hřibu smrkového nepotřebuje po dešti čekat tak dlouho ani tolik vlhka. Řezat i trhat je v pořádku."
     },
     {
       "id": "kozak-brezovy",
@@ -123,7 +125,8 @@
       "gbif_occurrence_count_cz": 115,
       "edibility": "jedlá",
       "model_confidence": "vysoká",
-      "confidence_note": "Výhradní vazba na břízu usnadňuje poznat správný les."
+      "confidence_note": "Výhradní vazba na břízu usnadňuje poznat správný les.",
+      "collecting_note": "Stačí i pár osamocených bříz na mezi nebo pasece - kozák není na hustotu lesa vybíravý a roste i na dost otevřených místech. Klidně řež i trhej, na výtrusy to nemá vliv."
     },
     {
       "id": "kremenac-brezovy",
@@ -159,7 +162,8 @@
       "gbif_occurrence_count_cz": 30,
       "edibility": "jedlá",
       "model_confidence": "střední",
-      "confidence_note": "Vzácnější druh - sezóna je tu méně jistá než u kozáka březového."
+      "confidence_note": "Vzácnější druh - sezóna je tu méně jistá než u kozáka březového.",
+      "collecting_note": "Hledej stejně jako kozáka pod břízami, hlavně na pasekách a slunných okrajích porostu. Dužnina po přeříznutí dost rychle zčerná - je to normální barevná reakce, ne známka zkázy. Řezat i trhat je v pořádku."
     },
     {
       "id": "liska-obecna",
@@ -198,7 +202,8 @@
       "gbif_occurrence_count_cz": 153,
       "edibility": "jedlá",
       "model_confidence": "vysoká",
-      "confidence_note": "Roste pomaleji po dešti než hřiby, proto má delší okno. Vazba na buk/dub odstraněna 2026-09-16 - české zdroje (mykologie.net) popisují v ČR hlavně smrkové lesy, buk/dub byl artefakt z britského zdroje (first-nature.com) a dělal ze seznamu hostitelů příliš širokou/neselektivní shodu terénu."
+      "confidence_note": "Roste pomaleji po dešti než hřiby, proto má delší okno. Vazba na buk/dub odstraněna 2026-09-16 - české zdroje (mykologie.net) popisují v ČR hlavně smrkové lesy, buk/dub byl artefakt z britského zdroje (first-nature.com) a dělal ze seznamu hostitelů příliš širokou/neselektivní shodu terénu.",
+      "collecting_note": "Hledej v mechu jehličnatých lesů, hlavně pod smrky - lišky rostou v hloučcích, takže když jednu najdeš, rozhlédni se kolem po dalších. Kloboukem dolů se ti v košíku snáz oklepe jehličí a mech, co se na ni nalepí. Řezat i trhat je v pořádku."
     },
     {
       "id": "bedla-vysoka",
@@ -232,7 +237,8 @@
       "gbif_occurrence_count_cz": 540,
       "edibility": "jedlá",
       "model_confidence": "vysoká",
-      "confidence_note": "Neváže se na konkrétní strom - roste podle typu terénu, ne podle druhu lesa."
+      "confidence_note": "Neváže se na konkrétní strom - roste podle typu terénu, ne podle druhu lesa.",
+      "collecting_note": "Hledej na loukách, mezích a lesních okrajích - bedla potřebuje otevřený prostor, hluboko v lese ji nečekej. Nejchutnější jsou mladé, ještě zavřené klobouky (\"bubny\"), ale i rozevřené se hodí obalené smažené jako řízek. Řezat i trhat je v pořádku."
     },
     {
       "id": "klouzek-slizky",
@@ -270,7 +276,8 @@
       "gbif_occurrence_count_cz": 51,
       "edibility": "jedlá",
       "model_confidence": "vysoká",
-      "confidence_note": "Výhradní vazba na borovici usnadňuje poznat správný les."
+      "confidence_note": "Výhradní vazba na borovici usnadňuje poznat správný les.",
+      "collecting_note": "Hledej v mladších borových kulturách, často přímo na písčitém podkladu. Za vlhka má kluzkou, lepkavou pokožku - sloupni ji ještě před úpravou, jinak zůstane slizká i po usmažení. Řezat i trhat je v pořádku."
     },
     {
       "id": "klouzek-zrnity",
@@ -304,7 +311,8 @@
       "gbif_occurrence_count_cz": 39,
       "edibility": "jedlá",
       "model_confidence": "střední",
-      "confidence_note": "Vzácnější druh, ale jasná vazba na borovici pomáhá i tak dobře odhadnout."
+      "confidence_note": "Vzácnější druh, ale jasná vazba na borovici pomáhá i tak dobře odhadnout.",
+      "collecting_note": "Roste podobně jako klouzek slizký pod mladšími borovicemi, ale pokožka klobouku bývá o něco méně lepkavá. I tak se oplatí ji před úpravou sloupnout. Řezat i trhat je v pořádku."
     },
     {
       "id": "kotrc-kadeřavy",
@@ -339,7 +347,8 @@
       "gbif_occurrence_count_cz": 171,
       "edibility": "jedlá",
       "model_confidence": "vysoká",
-      "confidence_note": "Jasná vazba na (výhradně) borovici dělá odhad spolehlivým - 'jehličnany obecně' odstraněno 2026-09-16, myko.cz popisuje S. crispa striktně na borovici, širší jehličnatá vazba patří příbuznému druhu S. brevipes."
+      "confidence_note": "Jasná vazba na (výhradně) borovici dělá odhad spolehlivým - 'jehličnany obecně' odstraněno 2026-09-16, myko.cz popisuje S. crispa striktně na borovici, širší jehličnatá vazba patří příbuznému druhu S. brevipes.",
+      "collecting_note": "Hledej u paty starších borovic - kotrč roste na kořenech, takže se rok co rok vrací na to samé místo, vyplatí se ho zapamatovat. Mezi zvlněnými vroubky drží písek a jehličí, tak ho před vařením pořádně propláchni. Je přirostlý jedním pevným kořenem, takže se lépe řeže než trhá."
     },
     {
       "id": "ryzec-smrkovy",
@@ -374,7 +383,8 @@
       "gbif_occurrence_count_cz": 71,
       "edibility": "jedlá",
       "model_confidence": "vysoká",
-      "confidence_note": "Výhradní vazba na smrk a chladnomilnost - typicky pozdní podzim (prosinec odstraněn 2026-09-16, žádný zdroj nepodporuje fruktifikaci po prvních mrazech)."
+      "confidence_note": "Výhradní vazba na smrk a chladnomilnost - typicky pozdní podzim (prosinec odstraněn 2026-09-16, žádný zdroj nepodporuje fruktifikaci po prvních mrazech).",
+      "collecting_note": "Hledej ve smrkových lesích a kulturách, hlavně za chladnějších dnů pozdního podzimu. Při naříznutí pouští oranžové mléko, které rychle zezelená - to je u tohoto druhu normální, ne známka stáří nebo zkázy. Řezat i trhat je v pořádku."
     },
     {
       "id": "holubinka-nazelenala",
@@ -411,7 +421,8 @@
       "gbif_occurrence_count_cz": 14,
       "edibility": "jedlá",
       "model_confidence": "nízká",
-      "confidence_note": "Rod Holubinka se těžko rozeznává na úrovni druhu - berte jako hrubý odhad. VYŘEŠENO 2026-09-16 (potvrzeno uživatelem): latinský název opraven z Russula aeruginea na Russula virescens - to je skutečný druh, který se česky jmenuje 'holubinka nazelenalá' (R. aeruginea je 'holubinka trávozelená', jiný druh). host_trees podle toho přepsán ze smrk/bříza na buk/dub/bříza - R. virescens roste ve světlých listnatých lesích, ne v jehličnatých/smíšených."
+      "confidence_note": "Rod Holubinka se těžko rozeznává na úrovni druhu - berte jako hrubý odhad. VYŘEŠENO 2026-09-16 (potvrzeno uživatelem): latinský název opraven z Russula aeruginea na Russula virescens - to je skutečný druh, který se česky jmenuje 'holubinka nazelenalá' (R. aeruginea je 'holubinka trávozelená', jiný druh). host_trees podle toho přepsán ze smrk/bříza na buk/dub/bříza - R. virescens roste ve světlých listnatých lesích, ne v jehličnatých/smíšených.",
+      "collecting_note": "Hledej ve světlých listnatých lesích pod duby a buky, na sluncem prohřátých místech. Pokožka klobouku bývá popraskaná do drobných šupinek jako mozaika - tahle holubinka se tak dobře pozná od ostatních. Řezat i trhat je v pořádku."
     },
     {
       "id": "muchomurka-ruzovka",
@@ -454,6 +465,7 @@
       "edibility": "jedlá po důkladné tepelné úpravě",
       "model_confidence": "vysoká",
       "confidence_note": "Velmi běžný a dobře zdokumentovaný druh. Vrchol sezóny opraven 2026-09-16 z nesouvislého [7,9] (chyba v datech, vynechávalo srpen) na souvislé [7,8,9] - myko.cz popisuje plynulou hojnou fruktifikaci červen-listopad bez poklesu v srpnu.",
+      "collecting_note": "Roste prakticky pod každým stromem, není vybíravá na typ lesa - najdeš ji skoro kdekoliv. Vždy ji pořádně tepelně zpracuj, syrová obsahuje látku, která se rozkládá až teplem. Řezat i trhat je v pořádku.",
       "safety_note": "Syrová obsahuje hemolyzin (rozkládá se teplem, proto nutná důkladná tepelná úprava). Zaměnitelná s jedovatou muchomůrkou tygrovanou (Amanita pantherina) a v mladí i s vzhledem podobnou smrtelně jedovatou muchomůrkou zelenou (Amanita phalloides) - nejspolehlivější znak: dužnina a třeň růžovky při poranění červená/růžoví, u tygrované ani zelené muchomůrky k tomu nedochází. Bez jistoty v určení nesbírejte."
     },
     {
@@ -489,7 +501,8 @@
       "gbif_occurrence_count_cz": 28,
       "edibility": "jedlá",
       "model_confidence": "střední",
-      "confidence_note": "Vzácnější druh, ale osika je v terénních datech dobře rozpoznatelná. Latinský název opraven 2026-09-16: v aktuální taxonomii je 'křemenáč osikový' s výhradní vazbou na osiku Leccinum rufum (syn. L. albostipitatum) - L. aurantiacum je jiný druh (česky křemenáč krvavý/dubový) s mnohem širším spektrem hostitelů (dub, osika, vrba, borovice, bříza, smrk); host_trees=[topol osika] tedy odpovídá L. rufum, ne původně uvedenému jménu."
+      "confidence_note": "Vzácnější druh, ale osika je v terénních datech dobře rozpoznatelná. Latinský název opraven 2026-09-16: v aktuální taxonomii je 'křemenáč osikový' s výhradní vazbou na osiku Leccinum rufum (syn. L. albostipitatum) - L. aurantiacum je jiný druh (česky křemenáč krvavý/dubový) s mnohem širším spektrem hostitelů (dub, osika, vrba, borovice, bříza, smrk); host_trees=[topol osika] tedy odpovídá L. rufum, ne původně uvedenému jménu.",
+      "collecting_note": "Bez osiky tenhle křemenáč neroste, tak hledej v jejích porostech a na světlých listnatých okrajích. Dužnina po přeříznutí tmavne, u báze nožičky klidně až do fialova - to je u tohoto druhu normální. Řezat i trhat je v pořádku."
     },
     {
       "id": "vaclavka-obecna",
@@ -523,6 +536,7 @@
       "edibility": "jedlá po tepelné úpravě",
       "model_confidence": "střední",
       "confidence_note": "Parazit dřeva, ne mykorhiza - neváže se na konkrétní strom, roste na širokém spektru dřevin.",
+      "collecting_note": "Roste v trsech na pařezech a kořenech - u jednoho trsu často naplníš celý košík. Sbírej spíš mladší klobouky, starší bývají dřevnaté a hůř se čistí. U trsu je praktičtější řezat u báze než jednotlivé kousky trhat.",
       "safety_note": "Syrová nebo nedovařená způsobuje zažívací potíže - vařte/duste alespoň 20–30 minut. Na dřevě a pařezech roste i smrtelně jedovatá čepičatka jehličnanová (Galerina marginata): má hladký (ne šupinatý) klobouk, roste skoro výhradně na jehličnatém dřevě a má rezavohnědé výtrusy/lupeny oproti bílým u václavky. U trsů na pařezu si klobouky/lupeny každého kousku zkontrolujte zvlášť."
     },
     {
@@ -556,7 +570,8 @@
       "gbif_occurrence_count_cz": 51,
       "edibility": "jedlá",
       "model_confidence": "střední",
-      "confidence_note": "Saprotrof na hrabance - potřebuje chladový impuls (roste až od září, ne srpna) a je chladnomilnější než většina ostatních (horní hranice teploty snížena z 15 na 13°C - našeho 2026-09-16 auditu proti mykologickým zdrojům byl tenhle druh naopak strukturálně nadhodnocený: bez vazby na strom neustále obcházel penalizaci terénu, navíc s moc širokým teplotním oknem)."
+      "confidence_note": "Saprotrof na hrabance - potřebuje chladový impuls (roste až od září, ne srpna) a je chladnomilnější než většina ostatních (horní hranice teploty snížena z 15 na 13°C - našeho 2026-09-16 auditu proti mykologickým zdrojům byl tenhle druh naopak strukturálně nadhodnocený: bez vazby na strom neustále obcházel penalizaci terénu, navíc s moc širokým teplotním oknem).",
+      "collecting_note": "Hledej v listnaté hrabance, kompostu i na zahradách - nápadná fialová barva ji v porostu dost prozradí. Často roste v řadách nebo kruzích, takže když jednu najdeš, prohledej i okolí. Řezat i trhat je v pořádku."
     },
     {
       "id": "smrz-obecny",
@@ -588,6 +603,7 @@
       "edibility": "jedlá po důkladné tepelné úpravě",
       "model_confidence": "nízká",
       "confidence_note": "Na rozdíl od ostatních druhů v appce neroste ve vazbě na konkrétní strom ani v hlavní podzimní sezóně - jarní výskyt a vazba na narušenou/vápenatou půdu jsou modelem hůř podchytitelné, odhad je proto orientační.",
+      "collecting_note": "Hledej brzy zjara ve starých sadech, na spálené či jinak narušené půdě a v lužních lesích podél řek - smrž má rád vápenatou, prohřátou zem. Dutá nožička se snadno utrhne i s kouskem hlíny, proto je praktičtější opatrně řezat u báze.",
       "safety_note": "Syrový nebo nedovařený způsobuje zažívací potíže - vždy důkladně tepelně upravte. Nezaměňujte s jedovatým ucháčem obecným (Gyromitra esculenta): pravý smrž má na klobouku pravidelné voštinovité jamky a je po podélném přeříznutí od špičky klobouku až po konec nožičky celý dutý; ucháč má mozkovitě zvlněný (ne voštinovitý) klobouk a dužninu uvnitř komůrkovanou, ne dutou. Bez jistoty v určení nesbírejte."
     }
   ]
