@@ -355,7 +355,7 @@ export function buildGridMapHtml(opts: {
     </button>
     <div class="sensitivity-panel" id="sensitivityPanel" hidden>
       <div class="sensitivity-label"><span>Citlivost mračna</span><b id="sensitivityValue">běžná</b></div>
-      <input type="range" class="sensitivity-slider" id="sensitivitySlider" min="0" max="100" step="1" value="0" />
+      <input type="range" class="sensitivity-slider" id="sensitivitySlider" min="0" max="100" step="1" value="50" />
     </div>
     <div class="legend"></div>
   </div>
@@ -489,32 +489,51 @@ export function buildGridMapHtml(opts: {
       // why the map was slow/blank-looking on a real phone (found via
       // Cyrilov u Úval: tap showed the correct 72%, but nothing rendered).
       var FLOOR = 50;
-      // Sensitivity slider (2026-09-17): a day with generally low
-      // probabilities everywhere leaves the map entirely blank under the
-      // fixed FLOOR/stops above - true information ("nothing's great
-      // today"), but useless to someone who's going out anyway and wants
-      // to know *where's relatively best*, not just "nowhere clears the
-      // bar". Dragging the slider shifts both FLOOR and the color stops
-      // down together, so a 20% spot can light up the same way a 55% spot
-      // normally does - MIN_FLOOR keeps a hard floor so genuinely
-      // negligible scores (single digits) never render regardless of
-      // slider position.
+      // Sensitivity slider (2026-09-17, centered 2026-09-18 per feedback -
+      // "běžná" sits in the MIDDLE of the range so tolerance can go either
+      // way, not just up): a day with generally low probabilities
+      // everywhere leaves the map entirely blank under the fixed
+      // FLOOR/stops above - true information ("nothing's great today"),
+      // but useless to someone who's going out anyway and wants to know
+      // *where's relatively best*, not just "nowhere clears the bar".
+      // Dragging the slider right shifts FLOOR and the color stops down
+      // together, so a 20% spot can light up the same way a 55% spot
+      // normally does; dragging left does the opposite - raises the bar so
+      // only genuinely excellent spots show, for the (rarer, but real)
+      // case of wanting to see only the best of the best. MIN_FLOOR/
+      // MAX_FLOOR cap both directions so the map never goes fully blank
+      // (a slider at its own extreme showing literally nothing would read
+      // as broken) or fully saturated (same problem, inverted).
       var BASE_FLOOR = FLOOR;
       var MIN_FLOOR = 10;
-      var MAX_SENSITIVITY_SHIFT = BASE_FLOOR - MIN_FLOOR;
-      var sensitivity = 0; // 0-100, UI slider value; 0 = default/off (identical to pre-slider behavior)
-      function sensitivityShift() { return (sensitivity / 100) * MAX_SENSITIVITY_SHIFT; }
-      function currentFloor() { return BASE_FLOOR - sensitivityShift(); }
-      // Shifts every stop's own breakpoint down by the same amount,
+      var MAX_FLOOR = 75;
+      var SENSITIVITY_DEFAULT = 50; // slider's own 0-100 scale - the center
+      var sensitivity = SENSITIVITY_DEFAULT;
+      // -1 (slider at 0, loosest) .. 0 (center, default) .. 1 (slider at
+      // 100, strictest) - split into two different-sized halves below
+      // rather than one symmetric range because the two directions aren't
+      // symmetric in what they mean: loosening has real (small) scores all
+      // the way down to work with, tightening only has the narrow 50-95
+      // band real scores actually occupy (MAX_DISPLAY_PCT caps display at
+      // 95 - see scoreSpeciesDay), so the same numeric shift would over-
+      // compress that direction if not scaled down separately.
+      function sensitivityOffset() { return (sensitivity - SENSITIVITY_DEFAULT) / SENSITIVITY_DEFAULT; }
+      function currentFloor() {
+        var offset = sensitivityOffset();
+        if (offset >= 0) return BASE_FLOOR - offset * (BASE_FLOOR - MIN_FLOOR);
+        return BASE_FLOOR - offset * (MAX_FLOOR - BASE_FLOOR);
+      }
+      // Shifts every stop's own breakpoint by the same amount FLOOR moved,
       // leaving colors/opacities untouched - a score that used to need 55%
       // to hit the "clearly worth going" color now only needs
-      // 55-sensitivityShift(). Recomputed on every slider move, but this is
-      // cheap (5 stops) unlike the actual per-polygon scoring below.
+      // currentFloor()+5 (or, tightened, needs more than 55%). Recomputed
+      // on every slider move, but this is cheap (5 stops) unlike the
+      // actual per-polygon scoring below.
       function shiftedStops(baseStops) {
-        var shift = sensitivityShift();
+        var shift = BASE_FLOOR - currentFloor();
         if (shift === 0) return baseStops;
         return baseStops.map(function (s) {
-          return [Math.max(0, s[0] - shift), s[1], s[2], s[3], s[4]];
+          return [Math.max(0, Math.min(100, s[0] - shift)), s[1], s[2], s[3], s[4]];
         });
       }
       var CUTOFF_DEG = 0.30;
@@ -1093,10 +1112,17 @@ export function buildGridMapHtml(opts: {
       var sensitivityPanel = document.getElementById('sensitivityPanel');
       var sensitivityRedrawPending = false;
       function sensitivityLabel(v) {
-        if (v === 0) return 'běžná';
-        if (v < 34) return 'zvýšená';
-        if (v < 67) return 'vysoká';
-        return 'maximální';
+        if (v === SENSITIVITY_DEFAULT) return 'běžná';
+        if (v > SENSITIVITY_DEFAULT) {
+          var t = v - SENSITIVITY_DEFAULT; // 0..50, higher = looser
+          if (t < 17) return 'zvýšená';
+          if (t < 34) return 'vysoká';
+          return 'maximální';
+        }
+        var s = SENSITIVITY_DEFAULT - v; // 0..50, higher = stricter
+        if (s < 17) return 'snížená';
+        if (s < 34) return 'nízká';
+        return 'minimální';
       }
       // Collapsed behind sensitivityToggle by default (see its CSS comment)
       // - tapping it shows/hides the actual slider panel rather than
