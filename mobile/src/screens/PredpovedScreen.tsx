@@ -59,6 +59,30 @@ export default function PredpovedScreen() {
   }, [active.lat, active.lon]);
 
   const daily = useMemo(() => (detail ? computeDailyOverall(detail) : []), [detail]);
+  // /api/forecast already enforces the real free/premium split server-side
+  // (a free caller's `daily` genuinely only contains 3 real, scored days -
+  // today/tomorrow/day-after - nothing beyond that is ever sent), so every
+  // entry actually IN `daily` is real, paid-for-or-free data and should
+  // never show a lock icon itself. What free users are missing is the rest
+  // of the week the app doesn't send them at all - these placeholder dates
+  // fill that in as lock-icon-only chips (no score, since there's no data
+  // to show) purely so it's visible there's more to unlock, the same
+  // "shown but locked" idea the old single locked-condition used to cover
+  // for every non-today day (found 2026-09-18: after widening the free
+  // tier to 3 real days, the old `d.date !== detail.today` check was still
+  // locking days 2-3 even though the server had already unlocked them).
+  const TOTAL_FORECAST_DAYS = 7;
+  const lockedPlaceholderDates = useMemo(() => {
+    if (!detail || subscriptionLoading || isPremium) return [];
+    const missing = TOTAL_FORECAST_DAYS - daily.length;
+    if (missing <= 0) return [];
+    const base = new Date(detail.today + "T00:00:00");
+    return Array.from({ length: missing }, (_, i) => {
+      const d = new Date(base);
+      d.setDate(d.getDate() + daily.length + i);
+      return d.toISOString().slice(0, 10);
+    });
+  }, [detail, daily, isPremium, subscriptionLoading]);
   const opportunity = useMemo(
     () => (detail ? findNextOpportunity(daily, detail.today) : null),
     [daily, detail]
@@ -185,34 +209,33 @@ export default function PredpovedScreen() {
           {daily.map((d) => {
             const isSelected = d.date === shownDate;
             const color = scoreColor(d.overall);
-            // Today is always free; the rest of the week is the Plus
-            // feature - still shown (with a real score, not blurred out)
-            // so it's obvious there's something worth unlocking, just
-            // locked behind the paywall instead of the usual day-select.
-            // subscriptionLoading guard: see SubscriptionContext.tsx -
-            // without it, a real Plus subscriber sees the whole week
-            // lock icons for as long as RevenueCat's fetch is in flight.
-            const locked = !subscriptionLoading && !isPremium && d.date !== detail.today;
             return (
               <Pressable
                 key={d.date}
-                onPress={() =>
-                  locked ? openPaywall("Chcete vidět předpověď na celý týden dopředu?") : setSelectedDate(d.date)
-                }
+                onPress={() => setSelectedDate(d.date)}
                 style={[styles.dayCard, isSelected && styles.dayCardActive]}
               >
                 <Text style={styles.dayWeekday}>{weekdayLabel(d.date, detail.today)}</Text>
                 <View style={[styles.dayScoreDot, { borderColor: color }]}>
-                  {locked ? (
-                    <Lock size={ts(13)} strokeWidth={2} color={palette.inkFaint} />
-                  ) : (
-                    <Text style={[styles.dayScoreText, { color }]}>{d.overall}</Text>
-                  )}
+                  <Text style={[styles.dayScoreText, { color }]}>{d.overall}</Text>
                 </View>
                 <Text style={styles.dayDate}>{dayMonthLabel(d.date)}</Text>
               </Pressable>
             );
           })}
+          {lockedPlaceholderDates.map((date) => (
+            <Pressable
+              key={date}
+              onPress={() => openPaywall("Chcete vidět předpověď na celý týden dopředu?")}
+              style={styles.dayCard}
+            >
+              <Text style={styles.dayWeekday}>{weekdayLabel(date, detail.today)}</Text>
+              <View style={[styles.dayScoreDot, { borderColor: palette.line }]}>
+                <Lock size={ts(13)} strokeWidth={2} color={palette.inkFaint} />
+              </View>
+              <Text style={styles.dayDate}>{dayMonthLabel(date)}</Text>
+            </Pressable>
+          ))}
         </ScrollView>
       )}
 
