@@ -58,6 +58,23 @@ export default function PredpovedScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active.lat, active.lon]);
 
+  // Re-fetches (without resetting the selected day) whenever premium status
+  // actually settles or changes - /api/forecast's free/premium split is
+  // decided per-request from the caller's session token, so the very first
+  // fetch above can easily go out before a fresh login's session is fully
+  // known here, or before RevenueCat/isPremium has resolved at all. Without
+  // this, that one stale request just sat in `detail` forever - nothing
+  // else was refetching it - until the location happened to change or the
+  // user manually pulled to refresh (found 2026-09-18: real subscriber saw
+  // locked days right after logging in, only fixed by a manual pull-to-
+  // refresh). Skipped while subscriptionLoading is still unsettled so this
+  // doesn't fire on every render before the real value is even known.
+  useEffect(() => {
+    if (subscriptionLoading) return;
+    void loadDetail(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPremium, subscriptionLoading]);
+
   const daily = useMemo(() => (detail ? computeDailyOverall(detail) : []), [detail]);
   // /api/forecast already enforces the real free/premium split server-side
   // (a free caller's `daily` genuinely only contains 3 real, scored days -
