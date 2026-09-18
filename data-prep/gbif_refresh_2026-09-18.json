@@ -1,0 +1,130 @@
+{
+  "hrib-smrkovy": {
+    "name_latin": "Boletus edulis",
+    "old": 516,
+    "new_gbif_count": 594,
+    "taxonKey": 5954958,
+    "matched_scientificName": "Boletus edulis Bull.",
+    "match_status": "ACCEPTED"
+  },
+  "hrib-dubovy": {
+    "name_latin": "Boletus reticulatus",
+    "old": 114,
+    "new_gbif_count": 117,
+    "taxonKey": 5954691,
+    "matched_scientificName": "Boletus reticulatus Schaeff.",
+    "match_status": "ACCEPTED"
+  },
+  "kozak-brezovy": {
+    "name_latin": "Leccinum scabrum",
+    "old": 115,
+    "new_gbif_count": 128,
+    "taxonKey": 9141390,
+    "matched_scientificName": "Leccinum scabrum (Bull.) Gray",
+    "match_status": "ACCEPTED"
+  },
+  "kremenac-brezovy": {
+    "name_latin": "Leccinum versipelle",
+    "old": 30,
+    "new_gbif_count": 38,
+    "taxonKey": 2524490,
+    "matched_scientificName": "Leccinum versipelle (Fr.) Snell",
+    "match_status": "ACCEPTED"
+  },
+  "liska-obecna": {
+    "name_latin": "Cantharellus cibarius",
+    "old": 153,
+    "new_gbif_count": 162,
+    "taxonKey": 5249504,
+    "matched_scientificName": "Cantharellus cibarius Fr.",
+    "match_status": "ACCEPTED"
+  },
+  "bedla-vysoka": {
+    "name_latin": "Macrolepiota procera",
+    "old": 540,
+    "new_gbif_count": 558,
+    "taxonKey": 8914748,
+    "matched_scientificName": "Macrolepiota procera (Scop.) Singer",
+    "match_status": "ACCEPTED"
+  },
+  "klouzek-slizky": {
+    "name_latin": "Suillus luteus",
+    "old": 51,
+    "new_gbif_count": 69,
+    "taxonKey": 7777157,
+    "matched_scientificName": "Suillus luteus (L.) Roussel",
+    "match_status": "ACCEPTED"
+  },
+  "klouzek-zrnity": {
+    "name_latin": "Suillus granulatus",
+    "old": 39,
+    "new_gbif_count": 43,
+    "taxonKey": 8146046,
+    "matched_scientificName": "Suillus granulatus (L.) Roussel",
+    "match_status": "ACCEPTED"
+  },
+  "kotrc-kadeřavy": {
+    "name_latin": "Sparassis crispa",
+    "old": 171,
+    "new_gbif_count": 202,
+    "taxonKey": 2550247,
+    "matched_scientificName": "Sparassis crispa (Wulfen) Fr.",
+    "match_status": "ACCEPTED"
+  },
+  "ryzec-smrkovy": {
+    "name_latin": "Lactarius deterrimus",
+    "old": 71,
+    "new_gbif_count": 76,
+    "taxonKey": 7925734,
+    "matched_scientificName": "Lactarius deterrimus Gröger",
+    "match_status": "ACCEPTED"
+  },
+  "holubinka-nazelenala": {
+    "name_latin": "Russula virescens",
+    "old": 14,
+    "new_gbif_count": 50,
+    "taxonKey": 2551423,
+    "matched_scientificName": "Russula virescens (Schaeff.) Fr.",
+    "match_status": "ACCEPTED"
+  },
+  "muchomurka-ruzovka": {
+    "name_latin": "Amanita rubescens",
+    "old": 574,
+    "new_gbif_count": 654,
+    "taxonKey": 7496350,
+    "matched_scientificName": "Amanita rubescens Pers.",
+    "match_status": "ACCEPTED"
+  },
+  "kremenac-osikovy": {
+    "name_latin": "Leccinum rufum",
+    "old": 28,
+    "new_gbif_count": 0,
+    "taxonKey": 2524524,
+    "matched_scientificName": "Leccinum rufum (Schaeff.) Kreisel",
+    "match_status": "SYNONYM"
+  },
+  "vaclavka-obecna": {
+    "name_latin": "Armillaria mellea",
+    "old": 60,
+    "new_gbif_count": 59,
+    "taxonKey": 2536891,
+    "matched_scientificName": "Armillaria mellea (Vahl) P.Kumm.",
+    "match_status": "ACCEPTED"
+  },
+  "ciruvka-fialova": {
+    "name_latin": "Lepista nuda",
+    "old": 51,
+    "new_gbif_count": 51,
+    "taxonKey": 5242048,
+    "matched_scientificName": "Lepista nuda (Bull.) Cooke",
+    "match_status": "ACCEPTED"
+  },
+  "smrz-obecny": {
+    "name_latin": "Morchella esculenta",
+    "old": 180,
+    "new_gbif_count": 89,
+    "taxonKey": 2594602,
+    "matched_scientificName": "Morchella esculenta (L.) Pers.",
+    "match_status": "ACCEPTED"
+  }
+}

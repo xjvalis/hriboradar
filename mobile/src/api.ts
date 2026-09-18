@@ -49,6 +49,7 @@ export interface DayScore {
     rain_timing: number;
     moisture: number;
     terrain: number;
+    prevalence: number;
     days_since_rain: number | null;
   };
 }

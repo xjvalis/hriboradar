@@ -177,11 +177,47 @@ describe("scoreSpeciesDay (golden snapshot)", () => {
     expect(deepOffSeason.factors.season).toBeLessThan(seasonBefore);
   });
 
+  it("prevalence factor stays mild and never overturns a clear weather difference", () => {
+    // User's own framing (2026-09-18): a rare species reading 80% can
+    // still be far harder to actually find than a common one reading 50%,
+    // since the % only measures "conditions match", not "there are lots
+    // of these nearby" - real, but this factor must stay a nudge, not a
+    // second scoring axis, per the explicit worry that it might otherwise
+    // just end up favoring hřiby/bedly/muchomůrky at everyone else's
+    // expense. Three checks: the factor itself stays inside its own
+    // documented band regardless of how extreme the input count is
+    // (clamped, not extrapolated), the spread between the rarest and most
+    // common species the model could see is small (well under the 0.9-1.08
+    // band's own ~20% max ratio - real species.json counts don't span the
+    // absolute extremes this test intentionally uses), and - the actual
+    // guarantee that matters - a rare species on a clearly bad weather day
+    // still scores below a common species on a clearly good one, i.e. this
+    // factor can tip a close call but never a lopsided one.
+    const rareSpecies: Species = { ...SPECIES, gbif_occurrence_count_cz: 1 };
+    const commonSpecies: Species = { ...SPECIES, gbif_occurrence_count_cz: 100000 };
+
+    const goodDays = buildDays(); // has one real rain day mid-window, decent moisture ramp
+    const badDays = goodDays.map((d) => ({ ...d, precipMm: 0, soilMoisturePct: 2, antecedentWaterMm: -20 }));
+
+    const rareGoodWeather = scoreSpeciesDay(goodDays, 9, rareSpecies, TERRAIN_MATCH);
+    const commonBadWeather = scoreSpeciesDay(badDays, 9, commonSpecies, TERRAIN_MATCH);
+
+    // The factor itself never leaves its documented band, even for
+    // deliberately extreme counts (1 and 100,000) no real species has.
+    expect(rareGoodWeather.factors.prevalence).toBeGreaterThanOrEqual(0.9);
+    expect(commonBadWeather.factors.prevalence).toBeLessThanOrEqual(1.08);
+
+    // The core guarantee: good weather for a rare species beats bad
+    // weather for a common one, by a wide margin - prevalence nudges,
+    // it doesn't invert.
+    expect(rareGoodWeather.probability_pct).toBeGreaterThan(commonBadWeather.probability_pct + 10);
+  });
+
   it("stays pinned to the version this snapshot was written under", () => {
     // If this fails, the formula changed AND the version was bumped, which
     // is correct - update this literal alongside deleting the stale
     // snapshot file (not just `vitest -u`), so the version bump is visible
     // in the diff instead of buried in a regenerated snapshot.
-    expect(MODEL_VERSION).toBe("1.9.0");
+    expect(MODEL_VERSION).toBe("1.10.0");
   });
 });

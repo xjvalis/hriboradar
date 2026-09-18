@@ -1,6 +1,7 @@
 import type { DayWeather } from "./weather";
 import { daysSinceRain } from "./weather";
 import { terrainMatchFactor, type TerrainInfo } from "./terrain";
+import speciesData from "../api/data/species.json";
 
 // Stamped on every feedback row and calibration-stats bucket (see
 // api/feedback.ts, api/cron/recalibrate.ts) so a future change to the
@@ -11,7 +12,7 @@ import { terrainMatchFactor, type TerrainInfo } from "./terrain";
 // even though scoreSpeciesDay's own code didn't change, since the inputs
 // feeding it materially shifted (see api/data/species.json's own
 // mycology_audit_2026-09-16 _meta entry for what changed and why).
-export const MODEL_VERSION = "1.9.0";
+export const MODEL_VERSION = "1.10.0";
 
 export interface Species {
   id: string;
@@ -43,6 +44,7 @@ export interface DayScore {
     moisture: number;
     terrain: number;
     urban: number;
+    prevalence: number;
     days_since_rain: number | null;
   };
 }
@@ -68,6 +70,41 @@ const URBAN_PENALTY = 0.15;
 // these by factors <=1, so capping here propagates everywhere without
 // needing a second clamp at each call site.
 const MAX_DISPLAY_PCT = 95;
+
+// Prevalence factor (2026-09-18, user-proposed): the probability_pct above
+// answers "how well do today's weather/terrain match what this species
+// wants", entirely relative to that one species' own ideal profile - it
+// says nothing about how COMMON the species actually is. A rare species
+// reading 80% (near-ideal conditions for it) can still be far harder to
+// actually find than a common one reading 50%, since 80% doesn't mean
+// "there are lots of these nearby", only "if any are nearby, today's a
+// good day for them". This mild multiplicative nudge folds a species'
+// real-world prevalence (gbif_occurrence_count_cz - see species.json's
+// gbif_occurrence_refresh_2026-09-18 for where these numbers come from
+// and how they were verified) back into the shown number, without letting
+// it dominate: weather/terrain/season above still drive the vast majority
+// of the score, this only ever shifts the result by at most ±10%.
+//
+// Log-scaled, not linear: raw counts span >20x across the current 16
+// species (28 to 594) - a linear scale would let the single most/least
+// common species swing wildly while everything in between barely moved.
+// Normalized against the CURRENT species.json range (computed at module
+// load, not a hardcoded reference) so this stays correct automatically if
+// species are ever added or removed, rather than silently going stale.
+const PREVALENCE_COUNTS = (speciesData.species as { gbif_occurrence_count_cz: number }[]).map(
+  (s) => s.gbif_occurrence_count_cz
+);
+const PREVALENCE_LOG_MIN = Math.log(Math.min(...PREVALENCE_COUNTS));
+const PREVALENCE_LOG_MAX = Math.log(Math.max(...PREVALENCE_COUNTS));
+const PREVALENCE_MIN_FACTOR = 0.9;
+const PREVALENCE_MAX_FACTOR = 1.08;
+
+function prevalenceFactor(gbifOccurrenceCountCz: number): number {
+  const range = PREVALENCE_LOG_MAX - PREVALENCE_LOG_MIN;
+  if (range <= 0 || gbifOccurrenceCountCz <= 0) return 1; // degenerate data - don't adjust rather than divide by zero
+  const t = clamp((Math.log(gbifOccurrenceCountCz) - PREVALENCE_LOG_MIN) / range, 0, 1);
+  return PREVALENCE_MIN_FACTOR + t * (PREVALENCE_MAX_FACTOR - PREVALENCE_MIN_FACTOR);
+}
 
 function clamp(v: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, v));
@@ -302,6 +339,7 @@ export function scoreSpeciesDay(
   const f = weatherFactors(days, dayIndex, species);
   const terrainMatch = terrainMatchFactor(species.host_trees, terrain);
   const urban = terrain.isUrban ? URBAN_PENALTY : 1;
+  const prevalence = prevalenceFactor(species.gbif_occurrence_count_cz);
 
   // Season, terrain, and urban are multiplied in (not blended) - wrong
   // forest, wrong month, or a built-up area should dominate the score, not
@@ -311,9 +349,12 @@ export function scoreSpeciesDay(
   // literally no forest at all nearby - only that case and isUrban really
   // are near-zero. Temp/rain-timing/moisture are weighted-averaged instead
   // of multiplied so decent-but-imperfect weather doesn't collapse to
-  // near-zero the way multiplying three sub-1 factors would.
+  // near-zero the way multiplying three sub-1 factors would. prevalence
+  // (see prevalenceFactor's own comment) is multiplied in too, but its
+  // narrow 0.9-1.08 range means it can only ever nudge the result, never
+  // dominate it the way the other multiplicative factors can.
   const probability = clamp(
-    Math.round(f.season * terrainMatch * urban * f.weighted * 100),
+    Math.round(f.season * terrainMatch * urban * f.weighted * prevalence * 100),
     0,
     MAX_DISPLAY_PCT
   );
@@ -328,6 +369,7 @@ export function scoreSpeciesDay(
       moisture: Math.round(f.moisture * 100) / 100,
       terrain: Math.round(terrainMatch * 100) / 100,
       urban: Math.round(urban * 100) / 100,
+      prevalence: Math.round(prevalence * 100) / 100,
       days_since_rain: f.daysSinceRainValue,
     },
   };
