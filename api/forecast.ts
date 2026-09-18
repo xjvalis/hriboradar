@@ -85,15 +85,21 @@ async function handler(req: VercelRequest, res: VercelResponse) {
     const todayStr = new Date().toISOString().slice(0, 10);
     const todayIndex = days.findIndex((d) => d.date === todayStr);
     const outputStart = Math.max(0, todayIndex - 1);
-    // Free tier: yesterday + today + tomorrow (3 days) - widened
-    // 2026-09-18 from the original yesterday+today-only cutoff, as a
-    // temporary goodwill measure while a real client-side subscription bug
-    // (SubscriptionContext.tsx logging RevenueCat out and back in on every
-    // app launch) is blocked on a new EAS build. Applied by slicing the
-    // already-scored output below rather than shortening `days.slice(
-    // outputStart)` above, since scoreSpeciesDay's days-since-rain lookback
-    // still needs the full history regardless of who's asking.
-    const freeTierCutoff = todayIndex - outputStart + 2;
+    // Free tier: today + tomorrow + day after tomorrow (3 forward-looking
+    // days) - widened 2026-09-18 from the original yesterday+today-only
+    // cutoff, as a temporary goodwill measure while a real client-side
+    // subscription bug (SubscriptionContext.tsx logging RevenueCat out and
+    // back in on every app launch) is blocked on a new EAS build. +3 here,
+    // not +2, because the client's computeDailyOverall() (forecastMath.ts)
+    // always drops the yesterday entry from what it shows (`w.date >=
+    // detail.today`) - this array still includes yesterday underneath (see
+    // outputStart above), so the free tier needs one extra raw day to
+    // actually surface 3 real, visible days once that filter runs.
+    // Applied by slicing the already-scored output below rather than
+    // shortening `days.slice(outputStart)` above, since scoreSpeciesDay's
+    // days-since-rain lookback still needs the full history regardless of
+    // who's asking.
+    const freeTierCutoff = todayIndex - outputStart + 3;
 
     // probability_pct gets nudged by the calibration layer (see
     // lib/calibration.ts) once enough real "did you find it" feedback
