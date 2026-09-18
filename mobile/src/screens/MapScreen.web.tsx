@@ -106,6 +106,7 @@ export default function MapScreen() {
       speciesList: grid.speciesList,
       userLat: initialLocationRef.current.lat,
       userLon: initialLocationRef.current.lon,
+      userLabel: initialLocationRef.current.label,
       apiBase: API_BASE,
       mapApiKey: process.env.EXPO_PUBLIC_MAPY_CZ_API_KEY ?? "",
     });
@@ -127,6 +128,19 @@ export default function MapScreen() {
       "*"
     );
   }, [mapReady, savedLocations]);
+
+  // See MapScreen.tsx's matching effect - keeps the green "current
+  // location" pin synced with `location` changing after the iframe's
+  // already loaded (a custom map point confirmed without saving it to
+  // Moje místa, a search result, a preset...), not just the one-time
+  // value baked into `html` at first build.
+  useEffect(() => {
+    if (!mapReady) return;
+    iframeRef.current?.contentWindow?.postMessage(
+      JSON.stringify({ type: "setUserLocation", lat: location.lat, lon: location.lon, label: location.label }),
+      "*"
+    );
+  }, [mapReady, location]);
 
   // Picks up a "Ukázat na mapě" species jump or a "Kam dnes?" region focus
   // whenever the user is actually looking at Mapa AND its page has loaded

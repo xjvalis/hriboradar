@@ -48,6 +48,7 @@ async function handler(req: VercelRequest, res: VercelResponse) {
 
   const lat = req.query.lat != null ? Number(req.query.lat) : undefined;
   const lon = req.query.lon != null ? Number(req.query.lon) : undefined;
+  const label = typeof req.query.label === "string" ? req.query.label : undefined;
   const speciesParam = typeof req.query.species === "string" ? req.query.species : undefined;
   const fzoom = req.query.fzoom != null ? Number(req.query.fzoom) : undefined;
 
@@ -72,6 +73,7 @@ async function handler(req: VercelRequest, res: VercelResponse) {
     speciesList: grid.speciesList,
     userLat: Number.isFinite(lat) ? lat : undefined,
     userLon: Number.isFinite(lon) ? lon : undefined,
+    userLabel: label,
     initialMode,
     initialView,
     mapApiKey: process.env.MAPY_CZ_API_KEY ?? "",

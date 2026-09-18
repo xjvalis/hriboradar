@@ -189,6 +189,7 @@ export function buildGridMapHtml(opts: {
   speciesList: SpeciesRef[];
   userLat?: number;
   userLon?: number;
+  userLabel?: string;
   initialMode?: MapMode;
   initialView?: MapView;
   apiBase?: string;
@@ -199,39 +200,58 @@ export function buildGridMapHtml(opts: {
     speciesList,
     userLat,
     userLon,
+    userLabel,
     initialMode = { type: "overall" },
     initialView,
     apiBase = "",
     mapApiKey,
   } = opts;
 
-  // A plain function (not a one-shot circleMarker chain) so the "setUserLocation"
-  // message below can move this same marker to a live GPS fix later - e.g.
+  // A plain function (not a one-shot marker chain) so the "setUserLocation"
+  // message below can move this same marker both to a live GPS fix (e.g.
   // someone standing in the actual forest tapping "recenter to my location"
-  // wants to see exactly where they're standing, not wherever `location`
-  // happened to be when Mapa first loaded (found 2026-09-07: "chci se
-  // podívat na to místo, na mapě by měla být zobrazená poloha uživatele").
+  // wants to see exactly where they're standing - found 2026-09-07: "chci
+  // se podívat na to místo, na mapě by měla být zobrazená poloha
+  // uživatele") and to whatever the app's own "current location" changes
+  // to afterward (a custom point picked elsewhere in the app, not
+  // necessarily saved to Moje místa - found 2026-09-18: picking one showed
+  // no marker at all once Mapa had already loaded once this session,
+  // since only the GPS-recenter button used to send this message).
+  //
+  // Same pin shape/size as the saved-location pins below, colored green
+  // instead of their brown - explicit user request (2026-09-18), and it
+  // doubles as telling the two apart at a glance: brown is "saved to Moje
+  // místa", green is "where the app currently has you, saved or not".
   const userMarkerJs = `
       var userMarker = null;
-      function setUserMarker(lat, lon) {
-        if (userMarker) { userMarker.setLatLng([lat, lon]); }
-        else {
-          // L.circleMarker is a vector (Path) layer, which by default
-          // renders into Leaflet's overlayPane - the SAME pane as the
-          // probability density raster/vector layers below, which get
-          // re-added (moved to the DOM's top) on every mode switch and
-          // every rebuildVectorLayer() during panning. Without an
-          // explicit higher pane, this marker would render fine once and
-          // then silently end up UNDER that layer the next time it
-          // redraws - exactly what happened tapping "recenter to my
-          // location" right after a fresh pan/zoom (found 2026-09-07).
-          // markerPane (z-index 600) sits above overlayPane (400) - the
-          // same pane L.marker (used for saved-location pins below,
-          // via its own zIndexOffset) already gets by default.
-          userMarker = L.circleMarker([lat, lon], {radius:6, color:'#24261D', weight:2, fillColor:'#EDE6D6', fillOpacity:1, pane: 'markerPane'}).addTo(map).bindTooltip('Vaše poloha');
+      var userLocationIcon = L.divIcon({
+        className: 'user-location-pin',
+        html:
+          '<svg width="22" height="30" viewBox="0 0 30 40" xmlns="http://www.w3.org/2000/svg">' +
+          '<path d="M15 0C6.7 0 0 6.7 0 15c0 10.5 15 25 15 25s15-14.5 15-25C30 6.7 23.3 0 15 0z" fill="#4F7A3D"/>' +
+          '<circle cx="15" cy="15" r="6" fill="#F7F2E7"/></svg>',
+        iconSize: [22, 30],
+        iconAnchor: [11, 30]
+      });
+      function setUserMarker(lat, lon, label) {
+        var tooltipText = label || 'Vaše poloha';
+        if (userMarker) {
+          userMarker.setLatLng([lat, lon]);
+          userMarker.setTooltipContent(tooltipText);
+        } else {
+          // L.marker's default pane is already markerPane (z-index 600,
+          // above overlayPane's 400) - the probability density raster/
+          // vector layers repeatedly re-added there during panning/mode
+          // switches used to silently bury the old circleMarker version of
+          // this pin (found 2026-09-07) because that was a vector Path
+          // layer defaulting to overlayPane; a plain icon marker doesn't
+          // have that problem to begin with.
+          userMarker = L.marker([lat, lon], { icon: userLocationIcon, keyboard: false, zIndexOffset: 600 })
+            .addTo(map)
+            .bindTooltip(tooltipText, { direction: 'top', offset: [0, -26], className: 'app-tooltip' });
         }
       }
-      ${userLat != null && userLon != null ? `setUserMarker(${userLat}, ${userLon});` : ""}
+      ${userLat != null && userLon != null ? `setUserMarker(${userLat}, ${userLon}, ${JSON.stringify(userLabel ?? null)});` : ""}
   `;
 
   const pointsJs = JSON.stringify(
@@ -1191,11 +1211,14 @@ export function buildGridMapHtml(opts: {
               didInitialFit = true;
             }
           }
-          // A fresh GPS fix (the "recenter to my location" button) - moves
-          // the "Vaše poloha" marker there, independent of focusView, since
-          // a jump can be requested without the marker needing to move too.
+          // Either a fresh GPS fix (the "recenter to my location" button)
+          // or the app's own "current location" changing elsewhere (a
+          // custom pick, not necessarily saved) - moves the green location
+          // pin there, independent of focusView, since a jump can be
+          // requested without the marker needing to move too, and vice
+          // versa (a location change alone shouldn't yank the viewport).
           else if (msg.type === 'setUserLocation') {
-            setUserMarker(msg.lat, msg.lon);
+            setUserMarker(msg.lat, msg.lon, msg.label);
           }
         } catch (e) {
           // not our message

@@ -107,7 +107,9 @@ export default function MapScreen() {
   // moved centering to postMessage but left this useMemo watching
   // location anyway.
   const mapUri = useMemo(
-    () => `${API_BASE}/api/map?lat=${initialLocationRef.current.lat}&lon=${initialLocationRef.current.lon}`,
+    () =>
+      `${API_BASE}/api/map?lat=${initialLocationRef.current.lat}&lon=${initialLocationRef.current.lon}` +
+      `&label=${encodeURIComponent(initialLocationRef.current.label)}`,
     []
   );
 
@@ -128,6 +130,23 @@ export default function MapScreen() {
     if (!mapReady) return;
     webviewRef.current?.postMessage(JSON.stringify({ type: "setSavedLocations", locations: savedLocations }));
   }, [mapReady, savedLocations]);
+
+  // Keeps the green "current location" pin in sync with `location` itself
+  // changing (a custom point picked elsewhere in the app and confirmed
+  // without saving it to Moje místa, a search result, a preset, GPS...),
+  // not just the one-time value baked into mapUri at first mount - found
+  // 2026-09-18: confirming a custom map point showed nothing at all once
+  // Mapa had already loaded earlier in the session, so panning/zooming
+  // away lost track of exactly where that point was. Reuses the same
+  // setUserLocation message the GPS-recenter button already sends (see
+  // leafletHtml.ts's userMarkerJs) rather than a separate message type -
+  // moving this pin is moving this pin regardless of why.
+  useEffect(() => {
+    if (!mapReady) return;
+    webviewRef.current?.postMessage(
+      JSON.stringify({ type: "setUserLocation", lat: location.lat, lon: location.lon, label: location.label })
+    );
+  }, [mapReady, location]);
 
   // Picks up a "Ukázat na mapě" species jump or a "Kam dnes?" region focus
   // whenever the user is actually looking at Mapa AND its page has loaded
