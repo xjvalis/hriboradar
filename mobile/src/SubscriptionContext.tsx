@@ -247,7 +247,24 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
         else await RNPurchases!.logOut().catch(() => {});
         if (cancelled) return;
 
-        RNPurchases!.getCustomerInfo().then(applyCustomerInfo).catch(() => setLoading(false));
+        // A logIn() onto a *fresh* app_user_id (a first-time login on this
+        // account, or a different login method than last time - Supabase
+        // treats each provider as its own account unless the verified
+        // emails match) has no purchase history of its own yet, even
+        // though the same Apple ID/device genuinely has an active
+        // subscription - getCustomerInfo() alone just returns that empty
+        // record (found 2026-09-18: a real Plus subscriber logging in with
+        // a second account saw every premium feature locked until they
+        // manually tapped "Obnovit nákup" in Nastavení, which is exactly
+        // what silently fixed it). restorePurchases() re-validates the
+        // on-device receipt and attaches whatever it finds to the
+        // currently logged-in id - safe to call unconditionally on every
+        // login (a no-op, no Apple-ID prompt, if there's nothing to
+        // restore), so this makes that reconciliation automatic instead of
+        // something a user has to discover and trigger themselves.
+        RNPurchases!.restorePurchases()
+          .then(applyCustomerInfo)
+          .catch(() => RNPurchases!.getCustomerInfo().then(applyCustomerInfo).catch(() => setLoading(false)));
         RNPurchases!.getOfferings()
           .then((o) => {
             if (cancelled) return;
