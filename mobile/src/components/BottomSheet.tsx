@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ReactNode } from "react";
-import { Animated, KeyboardAvoidingView, PanResponder, Platform, Pressable, StyleSheet, View } from "react-native";
+import { Animated, KeyboardAvoidingView, Modal, PanResponder, Platform, Pressable, StyleSheet, View } from "react-native";
 import { palette, radius, shadow, space, IS_TABLET } from "../theme";
 
 // Every bottom sheet in the app (location/species detail, observation,
@@ -48,33 +48,47 @@ export function BottomSheet({
   ).current;
 
   return (
-    // iOS doesn't resize/reposition anything on its own when the keyboard
-    // opens - without this, a text input near the bottom of a sheet (e.g.
-    // LocationSearchInput in LocationPickerSheet) just sits underneath the
-    // keyboard, invisible while typing. "padding" pushes the whole sheet up
-    // by the keyboard's height instead. Android already resizes the window
-    // itself (windowSoftInputMode, the RN default), so adding this there
-    // too would double-shift the sheet - undefined behavior is a no-op.
-    <KeyboardAvoidingView
-      style={styles.backdrop}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
-      <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-      <Animated.View
-        style={[
-          styles.sheet,
-          shadow.sheet,
-          IS_TABLET && styles.sheetTablet,
-          maxHeight != null && { maxHeight },
-          { transform: [{ translateY: Animated.add(translateY, panY) }] },
-        ]}
+    // A plain absolutely-positioned View here (no RN Modal) used to sit in
+    // the same native view/window as whatever screen opened it - visually
+    // on top, but not a separate native layer, so a screen with its own
+    // pull-to-refresh (e.g. Předpověď) could still have its ScrollView's
+    // native RefreshControl gesture recognizer compete for a downward drag
+    // that started over the sheet, occasionally winning it instead of this
+    // component's own PanResponder (found 2026-09-18: dragging down on the
+    // handle sometimes refreshed the screen behind instead of dismissing
+    // the sheet). Modal renders into a genuinely separate native
+    // window/layer, so touches inside it can never reach a scroll view
+    // behind it at all - the standard fix for this class of gesture
+    // conflict, not just a bigger hit area or a capture-phase tweak.
+    <Modal transparent animationType="none" visible onRequestClose={onClose} statusBarTranslucent>
+      {/* iOS doesn't resize/reposition anything on its own when the keyboard
+          opens - without this, a text input near the bottom of a sheet (e.g.
+          LocationSearchInput in LocationPickerSheet) just sits underneath the
+          keyboard, invisible while typing. "padding" pushes the whole sheet up
+          by the keyboard's height instead. Android already resizes the window
+          itself (windowSoftInputMode, the RN default), so adding this there
+          too would double-shift the sheet - undefined behavior is a no-op. */}
+      <KeyboardAvoidingView
+        style={styles.backdrop}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <View {...panResponder.panHandlers} style={styles.handleArea}>
-          <View style={styles.handle} />
-        </View>
-        {children}
-      </Animated.View>
-    </KeyboardAvoidingView>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <Animated.View
+          style={[
+            styles.sheet,
+            shadow.sheet,
+            IS_TABLET && styles.sheetTablet,
+            maxHeight != null && { maxHeight },
+            { transform: [{ translateY: Animated.add(translateY, panY) }] },
+          ]}
+        >
+          <View {...panResponder.panHandlers} style={styles.handleArea}>
+            <View style={styles.handle} />
+          </View>
+          {children}
+        </Animated.View>
+      </KeyboardAvoidingView>
+    </Modal>
   );
 }
 
