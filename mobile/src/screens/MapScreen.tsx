@@ -26,6 +26,7 @@ import { CurrentLocationPill } from "../components/CurrentLocationPill";
 import { MapInfoSheet } from "../components/MapInfoSheet";
 import { useSubscription } from "../SubscriptionContext";
 import { usePaywall } from "../PaywallContext";
+import { FREE_MAP_SPECIES_LIMIT, isSpeciesFree } from "../subscriptionLimits";
 
 export default function MapScreen() {
   const { location } = useLocation();
@@ -162,7 +163,7 @@ export default function MapScreen() {
       // skipping the paywall while it's still unknown avoids the false
       // "you need Plus" for a genuinely premium account on a fresh app
       // open - see SubscriptionContext.tsx's login/fetch race fix.
-      if (isPremium) setMode({ type: "species", id: pendingSpecies });
+      if (isPremium || isSpeciesFree(grid?.speciesList, pendingSpecies)) setMode({ type: "species", id: pendingSpecies });
       else if (!subscriptionLoading) openPaywall("Chcete vidět mapu podle konkrétní houby?");
     }
     const pendingFocus = consumeMapFocusRequest();
@@ -225,13 +226,13 @@ export default function MapScreen() {
           active={mode.type === "overall"}
           onPress={() => setMode({ type: "overall" })}
         />
-        {grid?.speciesList.map((sp) => (
+        {grid?.speciesList.map((sp, i) => (
           <Chip
             key={sp.id}
             label={sp.name_cz}
             active={mode.type === "species" && mode.id === sp.id}
             onPress={() => {
-              if (isPremium) setMode({ type: "species", id: sp.id });
+              if (isPremium || i < FREE_MAP_SPECIES_LIMIT) setMode({ type: "species", id: sp.id });
               else if (!subscriptionLoading) openPaywall("Chcete vidět mapu podle konkrétní houby?");
             }}
           />
