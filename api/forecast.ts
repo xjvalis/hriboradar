@@ -18,53 +18,22 @@ import speciesData from "./data/species.json";
 // service_role key - a missing/invalid/expired token just reads as free
 // tier, same as an anonymous visitor.
 async function isPremiumCaller(authHeader: string | undefined): Promise<boolean> {
-  if (!authHeader?.startsWith("Bearer ")) {
-    console.log("[premium-debug] no bearer header");
-    return false;
-  }
+  if (!authHeader?.startsWith("Bearer ")) return false;
   const url = process.env.SUPABASE_URL;
   const anonKey = process.env.SUPABASE_ANON_KEY;
   if (!url || !anonKey) return false;
   try {
     const authed = createClient(url, anonKey, { global: { headers: { Authorization: authHeader } } });
-    const { data: userData, error: userError } = await authed.auth.getUser();
-    if (!userData.user) {
-      console.log("[premium-debug] no user from token", userError?.message);
-      return false;
-    }
-    const { data, error } = await authed
+    const { data: userData } = await authed.auth.getUser();
+    if (!userData.user) return false;
+    const { data } = await authed
       .from("hriboradar_subscriptions")
-      .select("status, current_period_end, updated_at")
+      .select("status")
       .eq("user_id", userData.user.id)
       .maybeSingle();
-    console.log("[premium-debug] user", userData.user.id, "row", JSON.stringify(data), "error", error?.message);
     return data?.status === "active" || data?.status === "trial";
-  } catch (e) {
-    console.log("[premium-debug] exception", String(e));
+  } catch {
     return false;
-  }
-}
-
-// One-off diagnostic (service role, bypasses RLS) while chasing a
-// "works one day, not the next" report - checks specifically whether the
-// id backfilled yesterday (2026-09-17, f3b1946a-bf88-4170-82b2-96220e801559)
-// still holds a row, to tell apart "the account's id itself changed"
-// from "the webhook just didn't fire again for the current id". Scoped to
-// this one known id only - not a broader table dump.
-async function debugCheckYesterdayId(): Promise<void> {
-  const url = process.env.SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !serviceKey) return;
-  try {
-    const admin = createClient(url, serviceKey);
-    const { data, error } = await admin
-      .from("hriboradar_subscriptions")
-      .select("status, product_id, updated_at")
-      .eq("user_id", "f3b1946a-bf88-4170-82b2-96220e801559")
-      .maybeSingle();
-    console.log("[premium-debug] yesterday's id row", JSON.stringify(data), error?.message);
-  } catch (e) {
-    console.log("[premium-debug] yesterday id check failed", String(e));
   }
 }
 
@@ -102,7 +71,6 @@ async function handler(req: VercelRequest, res: VercelResponse) {
   const { lat, lon } = parsed;
 
   try {
-    void debugCheckYesterdayId();
     const [days, terrain, premium] = await Promise.all([
       fetchWeather(lat, lon),
       fetchTerrain(lat, lon),
