@@ -18,21 +18,29 @@ import speciesData from "./data/species.json";
 // service_role key - a missing/invalid/expired token just reads as free
 // tier, same as an anonymous visitor.
 async function isPremiumCaller(authHeader: string | undefined): Promise<boolean> {
-  if (!authHeader?.startsWith("Bearer ")) return false;
+  if (!authHeader?.startsWith("Bearer ")) {
+    console.log("[premium-debug] no bearer header");
+    return false;
+  }
   const url = process.env.SUPABASE_URL;
   const anonKey = process.env.SUPABASE_ANON_KEY;
   if (!url || !anonKey) return false;
   try {
     const authed = createClient(url, anonKey, { global: { headers: { Authorization: authHeader } } });
-    const { data: userData } = await authed.auth.getUser();
-    if (!userData.user) return false;
-    const { data } = await authed
+    const { data: userData, error: userError } = await authed.auth.getUser();
+    if (!userData.user) {
+      console.log("[premium-debug] no user from token", userError?.message);
+      return false;
+    }
+    const { data, error } = await authed
       .from("hriboradar_subscriptions")
-      .select("status")
+      .select("status, current_period_end, updated_at")
       .eq("user_id", userData.user.id)
       .maybeSingle();
+    console.log("[premium-debug] user", userData.user.id, "row", JSON.stringify(data), "error", error?.message);
     return data?.status === "active" || data?.status === "trial";
-  } catch {
+  } catch (e) {
+    console.log("[premium-debug] exception", String(e));
     return false;
   }
 }
