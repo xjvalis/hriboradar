@@ -163,7 +163,7 @@ function keyForPlatform(): string | undefined {
 }
 
 export function SubscriptionProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [isPremium, setIsPremium] = useState(false);
   const [loading, setLoading] = useState(true);
   const [monthly, setMonthly] = useState<PackageInfo | null>(null);
@@ -220,11 +220,27 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
   // on a real Plus account, self-corrected on relaunch). Sequencing
   // logIn/logOut BEFORE the fetch below, in the same effect, makes that
   // ordering guaranteed instead of a race.
+  //
+  // Waiting for authLoading here matters just as much: AuthContext's
+  // `user` genuinely starts out null on every cold start (it only becomes
+  // real once its own async getSession() resolves), so without this guard
+  // this effect ran with user===null on EVERY launch - even for an
+  // already-logged-in returning subscriber - and called RNPurchases
+  // .logOut() before the real user was known, immediately dropping
+  // RevenueCat's local identity back to anonymous. A moment later the
+  // real user arrived and logIn() ran again, but the resulting
+  // getCustomerInfo() then read that fresh anonymous-turned-real identity,
+  // not the already-entitled one - which is exactly why a real Plus
+  // subscriber had to manually tap "Obnovit nákup" every single time they
+  // reopened the app (found 2026-09-18). Not touching RevenueCat's
+  // identity at all until the real signed-in/out state is known avoids
+  // that spurious logOut() entirely.
   useEffect(() => {
     if (!available || !RNPurchases) {
       setLoading(false);
       return;
     }
+    if (authLoading) return;
     let cancelled = false;
     // Re-running for a *changed* user (account switch) must not leave the
     // previous account's isPremium/loading=false sitting there stale while
@@ -292,7 +308,7 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
         // already unavailable - nothing to clean up
       }
     };
-  }, [available, user]);
+  }, [available, user, authLoading]);
 
   const value = useMemo<SubscriptionContextValue>(
     () => ({
