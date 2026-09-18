@@ -85,12 +85,15 @@ async function handler(req: VercelRequest, res: VercelResponse) {
     const todayStr = new Date().toISOString().slice(0, 10);
     const todayIndex = days.findIndex((d) => d.date === todayStr);
     const outputStart = Math.max(0, todayIndex - 1);
-    // Free tier: yesterday + today only, no forecast days - matches what
-    // the app's own paywall already advertises. Applied by slicing the
+    // Free tier: yesterday + today + tomorrow (3 days) - widened
+    // 2026-09-18 from the original yesterday+today-only cutoff, as a
+    // temporary goodwill measure while a real client-side subscription bug
+    // (SubscriptionContext.tsx logging RevenueCat out and back in on every
+    // app launch) is blocked on a new EAS build. Applied by slicing the
     // already-scored output below rather than shortening `days.slice(
     // outputStart)` above, since scoreSpeciesDay's days-since-rain lookback
     // still needs the full history regardless of who's asking.
-    const freeTierCutoff = todayIndex - outputStart + 1;
+    const freeTierCutoff = todayIndex - outputStart + 2;
 
     // probability_pct gets nudged by the calibration layer (see
     // lib/calibration.ts) once enough real "did you find it" feedback
